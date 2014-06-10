@@ -1,10 +1,12 @@
 __author__ = 'sei'
 
+from datetime import datetime
+import math
+
 import NanoControl as nano
 import oceanoptics
-from datetime import datetime
 import pandas
-import math
+
 
 class logger(object):
     # Spectrum Aquisition
@@ -15,9 +17,9 @@ class logger(object):
     _scan_index = 0
     _number_of_samples = 3000
 
-    #Stage control
-    _stage_amplitude = 2047 # amplitude in nm
-    _cycle_time = 5 # cycle duration in s
+    # Stage control
+    _stage_amplitude = 2047  # amplitude in nm
+    _cycle_time = 5  # cycle duration in s
 
     #General
     _starttime = None
@@ -46,17 +48,29 @@ class logger(object):
             #serial = self.spectrometer.Serial
             self._filename = 'samples_' + str(self._number_of_samples) + '_inttime_' + str(
                 self._integration_time) + '__' + str(datetime.now().year) + str(datetime.now().month) \
-                + str(datetime.now().day) + '.csv'
+                             + str(datetime.now().day) + '.csv'
             self.spectra = pandas.DataFrame()
             #self._starttime = datetime.now()
         except:
             raise RuntimeError("Error opening spectrometer. Exiting...")
 
+    def get_wl(self):
+        return self._wl
+
+    def get_spec(self):
+        return self._spectrometer.intensities()
+
+    def get_scan_index(self):
+        return self._scan_index
+
+    def get_number_of_samples(self):
+        return self._number_of_samples
+
     def stage_to_starting_point(self):
-        self.stage._fine('B',2047)
+        self.stage._fine('B', 2047)
 
     def save_data(self):
-        self.spectra.to_csv(self._filename, header=False, mode = 'a')
+        self.spectra.to_csv(self._filename, header=False, mode='a')
 
     def reset(self):
         self.spectra = pandas.DataFrame()
@@ -70,21 +84,21 @@ class logger(object):
 
         self._scan_index += 1
 
-        t = self._millis()/1000
+        t = self._millis() / 1000
 
-        sin_value = math.cos(2*math.pi/float(self._cycle_time)*t)
+        sin_value = math.cos(2 * math.pi / float(self._cycle_time) * t)
         #print "Val: {0:6} | t: {1:.3f}".format(int(A*sin_value),t) + '  ' + '#'.rjust(int(10*sin_value+10))
-        self.stage._fine('B',self._stage_amplitude*sin_value)
+        self.stage._fine('B', self._stage_amplitude * sin_value)
 
         #print("Aquiring: %s" % self.scan_index)
         int = self._spectrometer.intensities()
-        self.spectra.append((self._scan_index,t,sin_value, int))
+        self.spectra.append((self._scan_index, t, sin_value, int))
 
         if self._scan_index >= self._number_of_samples:
             print("%s spectra aquired" % self._scan_index)
             print("time taken: %s s" % t )
             self.stage_to_starting_point()
-            return int,False
+            return int, False
 
-        return int,True
+        return int, True
 

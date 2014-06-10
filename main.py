@@ -1,18 +1,14 @@
 __author__ = 'sei'
 
-import sys
 import time
-import pandas
-#from worker import worker
-import threading
 from logger import logger
+import threading
 from itertools import cycle
-
+import numpy as np
 
 from gi.repository import Gtk
 from gi.repository import GObject
 from gi.repository import GLib
-
 
 class mpl:
     from matplotlib.figure import Figure
@@ -21,7 +17,7 @@ class mpl:
 
 class lockin_gui(object):
     _window_title = "GTK_CV_test"
-    _heartbeat = 100   # s
+    _heartbeat = 100  # s
 
     def __init__(self):
         GObject.threads_init()  # all Gtk is in the main thread;
@@ -44,8 +40,7 @@ class lockin_gui(object):
         self._progress_fraction = 0
         self.progress.set_fraction(self._progress_fraction)
 
-
-        self.sidebox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=6)
+        self.sidebox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
 
         self.sidebox.add(self.button_live)
         self.sidebox.add(self.button_aquire)
@@ -56,22 +51,22 @@ class lockin_gui(object):
         self.ax = self.figure.add_subplot(1, 1, 1)
         self.ax.grid(True)
         self.canvas = mpl.FigureCanvas(self.figure)
-        #self.line, = self.ax.plot(self.wl, self.sp[:,0])
+        # self.line, = self.ax.plot(self.wl, self.sp[:,0])
 
-        self.canvas.set_size_request(600,600)
-        self.sidebox.set_size_request(100,-1)
-        self.progress.set_size_request(-1,15)
-        self.status.set_size_request(100,-1)
+        self.canvas.set_size_request(600, 600)
+        self.sidebox.set_size_request(100, -1)
+        self.progress.set_size_request(-1, 15)
+        self.status.set_size_request(100, -1)
 
         self.grid.add(self.canvas)
-        self.grid.attach_next_to(self.sidebox,self.canvas,Gtk.PositionType.RIGHT,1,1)
-        self.grid.attach_next_to(self.progress,self.canvas,Gtk.PositionType.BOTTOM,1,1)
-        self.grid.attach_next_to(self.status,self.sidebox,Gtk.PositionType.BOTTOM,1,1)
+        self.grid.attach_next_to(self.sidebox, self.canvas, Gtk.PositionType.RIGHT, 1, 1)
+        self.grid.attach_next_to(self.progress, self.canvas, Gtk.PositionType.BOTTOM, 1, 1)
+        self.grid.attach_next_to(self.status, self.sidebox, Gtk.PositionType.BOTTOM, 1, 1)
 
         self.window.connect("delete-event", Gtk.main_quit)
-        self.button_aquire.connect("clicked",self.on_aquire_clicked)
-        self.button_live.connect("clicked",self.on_live_clicked)
-        self.button_stagetostart.connect("clicked",self.on_stagetostart_clicked)
+        self.button_aquire.connect("clicked", self.on_aquire_clicked)
+        self.button_live.connect("clicked", self.on_live_clicked)
+        self.button_stagetostart.connect("clicked", self.on_stagetostart_clicked)
 
         self.window.show_all()
 
@@ -82,13 +77,15 @@ class lockin_gui(object):
         self.worker_mode = None
 
 
-        #self.log = logger()
+        self.log = logger()
+        self.line, = self.ax.plot(self.log.get_wl(), self.log.get_spec())
+
         time.sleep(2)
 
-    def start_thread(self,target,mode):
+    def start_thread(self, target, mode):
         self.worker_mode = mode
         self.worker_running_event.clear()
-        self.worker_thread = threading.Thread(target=target,args=(self.worker_running_event,))
+        self.worker_thread = threading.Thread(target=target, args=(self.worker_running_event,))
         self.worker_thread.daemon = True
         self.worker_thread.start()
 
@@ -100,43 +97,48 @@ class lockin_gui(object):
     def on_aquire_clicked(self, button):
 
         if self.worker_thread is None:
-            self.start_thread(self.acquire_spectrum,'acquire')
+            self.start_thread(self.acquire_spectrum, 'acquire')
         else:
             self.stop_thread()
             if self.worker_mode is 'live':
-                self.start_thread(self.acquire_spectrum,'acquire')
+                self.start_thread(self.acquire_spectrum, 'acquire')
 
     def on_live_clicked(self, button):
 
         if self.worker_thread is None:
-            self.start_thread(self.live_spectrum,'live')
+            self.start_thread(self.live_spectrum, 'live')
         else:
             self.stop_thread()
             if self.worker_mode is 'acquire':
-                self.start_thread(self.live_spectrum,'live')
+                self.start_thread(self.live_spectrum, 'live')
 
     def on_stagetostart_clicked(self, button):
-        #self.log.stage_to_starting_point()
-        pass
+        self.log.stage_to_starting_point()
 
-    def acquire_spectrum(self,e):
-        while not e.is_set():
-            self._progress_fraction += 0.1
+    def acquire_spectrum(self, e):
+        while True:
+            int, running = self.log.measure_spectrum()
+            self.line.set_ydata(int)
+            self.ax.relim()
+            self.ax.autoscale_view(False, False, True)
 
-            if self._progress_fraction > 1:
-                self._progress_fraction = 0
-            GLib.idle_add(self.progress.set_fraction,self._progress_fraction)
-            time.sleep(0.5)
+            self._progress_fraction = self.log.get_number_of_samples()/self.log.get_scan_index()
+            GLib.idle_add(self.progress.set_fraction, self._progress_fraction)
+            GLib.idle_add(self.canvas.draw)
+
+            if not running:
+                break
+
+            if e.is_set:
+                break
         return
 
-    def live_spectrum(self,e):
+    def live_spectrum(self, e):
         while not e.is_set():
-            self._progress_fraction -= 0.1
-
-            if self._progress_fraction < 0:
-                self._progress_fraction = 1
-            GLib.idle_add(self.progress.set_fraction,self._progress_fraction)
-            time.sleep(0.5)
+            self.line.set_ydata(self.log.get_spec())
+            self.ax.relim()
+            self.ax.autoscale_view(False, False, True)
+            GLib.idle_add(self.canvas.draw)
         return
 
     def update_progress(self):
@@ -153,14 +155,13 @@ class lockin_gui(object):
 
     def _update_title(self, _suff=cycle('/|\-')):
         self.window.set_title('%s %s' % (self._window_title, next(_suff)))
-
         return True
 
-    def on_button_clicked(self, widget):
-        print("Hello World")
-
-    def calc_lockin(self):
-        pass
+    @staticmethod
+    def calc_lock_in(x, sig, ref):
+        diff = np.concatenate((0, np.diff(x)))
+        diff = sig * ref * diff
+        return np.sum(diff)
 
 
 if __name__ == "__main__":
