@@ -117,16 +117,13 @@ class lockin_gui(object):
 
     def acquire_spectrum(self, e):
         while True:
-            int, running = self.log.measure_spectrum()
-            self.line.set_ydata(int)
-            self.ax.relim()
-            self.ax.autoscale_view(False, False, True)
-
+            y, running = self.log.measure_spectrum()
+            GLib.idle_add(self.update_plot(),y)
             self._progress_fraction = self.log.get_number_of_samples()/self.log.get_scan_index()
             GLib.idle_add(self.progress.set_fraction, self._progress_fraction)
-            GLib.idle_add(self.canvas.draw)
 
             if not running:
+                self.log.save_data()
                 break
 
             if e.is_set:
@@ -135,10 +132,15 @@ class lockin_gui(object):
 
     def live_spectrum(self, e):
         while not e.is_set():
-            self.line.set_ydata(self.log.get_spec())
-            self.ax.relim()
-            self.ax.autoscale_view(False, False, True)
-            GLib.idle_add(self.canvas.draw)
+            y = self.log.get_spec()
+            GLib.idle_add(self.update_plot(),y)
+        return
+
+    def update_plot(self,data):
+        self.line.set_ydata(data)
+        self.ax.relim()
+        self.ax.autoscale_view(False, False, True)
+        self.canvas.draw()
         return
 
     def update_progress(self):
