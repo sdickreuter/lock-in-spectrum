@@ -17,7 +17,7 @@ class mpl:
 
 class lockin_gui(object):
     _window_title = "GTK_CV_test"
-    _heartbeat = 100  # s
+    _heartbeat = 200  # s
 
     def __init__(self):
         GObject.threads_init()  # all Gtk is in the main thread;
@@ -34,8 +34,9 @@ class lockin_gui(object):
         self.button_live = Gtk.Button(label="Liveview")
         self.button_aquire = Gtk.Button(label="Aquire Spectrum")
         self.button_stagetostart = Gtk.Button(label="Stage to Start Pos.")
+        self.button_save = Gtk.Button(label="Save Data")
 
-        self.status = Gtk.Label(label="bla")
+        self.status = Gtk.Label(label="Initialized")
         self.progress = Gtk.ProgressBar()
         self._progress_fraction = 0
         self.progress.set_fraction(self._progress_fraction)
@@ -45,6 +46,7 @@ class lockin_gui(object):
         self.sidebox.add(self.button_live)
         self.sidebox.add(self.button_aquire)
         self.sidebox.add(self.button_stagetostart)
+        self.sidebox.add(self.button_save)
 
         # MPL stuff
         self.figure = mpl.Figure()
@@ -67,6 +69,8 @@ class lockin_gui(object):
         self.button_aquire.connect("clicked", self.on_aquire_clicked)
         self.button_live.connect("clicked", self.on_live_clicked)
         self.button_stagetostart.connect("clicked", self.on_stagetostart_clicked)
+        self.button_save.connect("clicked", self.on_save_clicked)
+
 
         self.window.show_all()
 
@@ -75,10 +79,12 @@ class lockin_gui(object):
         self.worker_running_event = threading.Event()
         self.worker_thread = None
         self.worker_mode = None
-
+        self.worker_lock = threading.Lock()
 
         self.log = logger()
-        self.line, = self.ax.plot(self.log.get_wl(), self.log.get_spec())
+        self._spec = self.log.get_spec()
+        self.line, = self.ax.plot(self.log.get_wl(), self._spec)
+
 
         time.sleep(2)
 
@@ -97,66 +103,82 @@ class lockin_gui(object):
     def on_aquire_clicked(self, button):
 
         if self.worker_thread is None:
+            self.log.reset()
+            self.status.set_label('Acquiring ...')
             self.start_thread(self.acquire_spectrum, 'acquire')
         else:
+            self.status.set_label('Paused')
             self.stop_thread()
             if self.worker_mode is 'live':
+                self.status.set_label('Acquiring ...')
                 self.start_thread(self.acquire_spectrum, 'acquire')
 
     def on_live_clicked(self, button):
 
         if self.worker_thread is None:
+            self.status.set_label('Liveview')
             self.start_thread(self.live_spectrum, 'live')
         else:
+            self.status.set_label('Paused')
             self.stop_thread()
             if self.worker_mode is 'acquire':
+                self.status.set_label('Liveview')
                 self.start_thread(self.live_spectrum, 'live')
+
+    def on_save_clicked(self, button):
+        if not self.log.spectra is None:
+            self.log.save_data()
+            self.log.reset()
+            self.status.set_label('Data saved')
+        else:
+            self.status.set_label('No Data found')
 
     def on_stagetostart_clicked(self, button):
         self.log.stage_to_starting_point()
 
     def acquire_spectrum(self, e):
         while True:
-            y, running = self.log.measure_spectrum()
-            GLib.idle_add(self.update_plot(),y)
-            self._progress_fraction = self.log.get_number_of_samples()/self.log.get_scan_index()
-            GLib.idle_add(self.progress.set_fraction, self._progress_fraction)
+            self._spec, running = self.log.measure_spectrum()
+            self._progress_fraction =  float(self.log.get_scan_index()) / self.log.get_number_of_samples()
 
             if not running:
-                self.log.save_data()
+                self.status.set_label('Spectra acquired')
                 break
 
-            if e.is_set:
+            if e.is_set():
+                self.log.reset()
                 break
-        return
+        return True
 
     def live_spectrum(self, e):
         while not e.is_set():
-            y = self.log.get_spec()
-            GLib.idle_add(self.update_plot(),y)
-        return
+            self._spec = self.log.get_spec()
+        return True
 
-    def update_plot(self,data):
-        self.line.set_ydata(data)
+    def update_plot(self):
+        self.line.set_ydata(self._spec)
         self.ax.relim()
         self.ax.autoscale_view(False, False, True)
         self.canvas.draw()
-        return
+        return True
 
     def update_progress(self):
         self.progress.set_fraction(self._progress_fraction)
-
+        return True
 
     def run(self):
         """	run main gtk thread """
         try:
             GLib.timeout_add(self._heartbeat, self._update_title)
+            #GLib.timeout_add(self._heartbeat, self.update_progress)
+            GLib.timeout_add(self.log._integration_time/1000, self.update_plot)
             Gtk.main()
         except KeyboardInterrupt:
             pass
 
     def _update_title(self, _suff=cycle('/|\-')):
         self.window.set_title('%s %s' % (self._window_title, next(_suff)))
+        self.progress.set_fraction(self._progress_fraction)
         return True
 
     @staticmethod
