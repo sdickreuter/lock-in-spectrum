@@ -141,7 +141,9 @@ class lockin_gui(object):
     def acquire_spectrum(self, e):
         self._plotting = False
         while True:
-            self._spec, running = self.log.measure_spectrum()
+            #self._spec, running = self.log.measure_spectrum()
+            running = self.log.measure_spectrum()
+
             self._progress_fraction =  float(self.log.get_scan_index()) / self.log.get_number_of_samples()
 
             if not running:

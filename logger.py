@@ -120,7 +120,7 @@ class logger(object):
             print("time taken: %s s" % t )
             self.spectra = pandas.DataFrame()
             self.stage_to_starting_point()
-            return data, False
+            return False
 
-        return data, True
+        return True
 
