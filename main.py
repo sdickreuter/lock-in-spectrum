@@ -81,6 +81,8 @@ class lockin_gui(object):
         self.worker_mode = None
         self.worker_lock = threading.Lock()
 
+        self._plotting = True
+
         self.log = logger()
         self._spec = self.log.get_spec()
         self.line, = self.ax.plot(self.log.get_wl(), self._spec)
@@ -137,6 +139,7 @@ class lockin_gui(object):
         self.log.stage_to_starting_point()
 
     def acquire_spectrum(self, e):
+        self._plotting = False
         while True:
             self._spec, running = self.log.measure_spectrum()
             self._progress_fraction =  float(self.log.get_scan_index()) / self.log.get_number_of_samples()
@@ -149,6 +152,7 @@ class lockin_gui(object):
             if e.is_set():
                 self.log.reset()
                 break
+        self._plotting = True
         return True
 
     def live_spectrum(self, e):
@@ -156,14 +160,12 @@ class lockin_gui(object):
             self._spec = self.log.get_spec()
         return True
 
-    def update_plot(self,data=None):
-        if data is None:
+    def update_plot(self):
+        if self._plotting:
             self.line.set_ydata(self._spec)
-        else:
-            self.line.set_ydata(data)
-        self.ax.relim()
-        self.ax.autoscale_view(False, False, True)
-        self.canvas.draw()
+            self.ax.relim()
+            self.ax.autoscale_view(False, False, True)
+            self.canvas.draw()
         return True
 
     def update_progress(self):
@@ -190,7 +192,7 @@ class lockin_gui(object):
         res = np.empty(1024)
         diff = np.diff( np.append(0,self.log.data[:,0]) )
         ref = self.log.data[:,1]
-
+        print diff
         for i in range(2,1026):
             buf = self.log.data[:,i]
             buf = buf*diff*ref
