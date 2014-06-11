@@ -17,7 +17,7 @@ class mpl:
 
 class lockin_gui(object):
     _window_title = "GTK_CV_test"
-    _heartbeat = 200  # s
+    _heartbeat = 100  # s
 
     def __init__(self):
         GObject.threads_init()  # all Gtk is in the main thread;
@@ -139,10 +139,10 @@ class lockin_gui(object):
         self.log.stage_to_starting_point()
 
     def acquire_spectrum(self, e):
-        self._plotting = False
+        #self._plotting = False
         while True:
-            #self._spec, running = self.log.measure_spectrum()
-            running = self.log.measure_spectrum()
+            self._spec, running = self.log.measure_spectrum()
+            #running = self.log.measure_spectrum()
 
             self._progress_fraction =  float(self.log.get_scan_index()) / self.log.get_number_of_samples()
 
@@ -154,7 +154,7 @@ class lockin_gui(object):
             if e.is_set():
                 self.log.reset()
                 break
-        self._plotting = True
+        #self._plotting = True
         return True
 
     def live_spectrum(self, e):
@@ -167,7 +167,6 @@ class lockin_gui(object):
             self.line.set_ydata(self._spec)
             self.ax.relim()
             self.ax.autoscale_view(False, False, True)
-            self.canvas.draw()
         return True
 
     def update_progress(self):
@@ -186,6 +185,7 @@ class lockin_gui(object):
 
     def _update_title(self, _suff=cycle('/|\-')):
         #self.window.set_title('%s %s' % (self._window_title, next(_suff)))
+        self.canvas.draw()
         self.progress.set_fraction(self._progress_fraction)
         return True
 

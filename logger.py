@@ -7,6 +7,7 @@ import NanoControl as nano
 import oceanoptics
 import pandas
 import numpy as np
+import threading
 
 class logger(object):
     # Spectrum Aquisition
@@ -31,8 +32,8 @@ class logger(object):
         self._init_nanocontrol()
 
     def _init_nanocontrol(self):
-        self.stage = nano.NanoControl()
-        #self.stage = nano.NanoControl_Dummy()
+        #self.stage = nano.NanoControl()
+        self.stage = nano.NanoControl_Dummy()
 
     def _millis(self):
         dt = datetime.now() - self._starttime
@@ -42,8 +43,8 @@ class logger(object):
     def _init_spectrometer(self):
         try:
             #self.spectrometer = oceanoptics.STS()
-            self._spectrometer = oceanoptics.QE65000()
-            #self._spectrometer = oceanoptics.Dummy()
+            #self._spectrometer = oceanoptics.QE65000()
+            self._spectrometer = oceanoptics.Dummy()
             self._spectrometer.integration_time(self._integration_time)
             sp = self._spectrometer.spectrum()
             self._wl = sp[0]
@@ -104,8 +105,13 @@ class logger(object):
 
         ref = math.cos(2 * math.pi / float(self._cycle_time) * t)
         #print "Val: {0:6} | t: {1:.3f}".format(int(A*sin_value),t) + '  ' + '#'.rjust(int(10*sin_value+10))
-        print(self._scan_index)
-        self.stage._fine('B', self._stage_amplitude * ref)
+        #print(self._scan_index)
+
+        self.worker_thread = threading.Thread(target=self.stage._fine, args=('B', self._stage_amplitude * ref))
+        self.worker_thread.daemon = True
+        self.worker_thread.start()
+
+        #self.stage._fine('B', self._stage_amplitude * ref)
 
         #print("Aquiring: %s" % self.scan_index)
         data = self._spectrometer.intensities()
@@ -121,7 +127,7 @@ class logger(object):
             print("time taken: %s s" % t )
             self.spectra = pandas.DataFrame()
             self.stage_to_starting_point()
-            return False
+            return data, False
 
-        return True
+        return data, True
 
