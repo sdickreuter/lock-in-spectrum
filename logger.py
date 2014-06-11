@@ -13,13 +13,13 @@ class logger(object):
     _spectrometer = None
     _wl = None
     _filename = None
-    _integration_time = 100
+    _integration_time = 10
     _scan_index = 0
-    _number_of_samples = 3000
+    _number_of_samples = 1000
 
     # Stage control
     _stage_amplitude = 2047  # amplitude in nm
-    _cycle_time = 5  # cycle duration in s
+    _cycle_time = 20  # cycle duration in s
 
     #General
     _starttime = None
@@ -31,8 +31,8 @@ class logger(object):
         self._init_nanocontrol()
 
     def _init_nanocontrol(self):
-        #self.stage = nano.NanoControl()
-        self.stage = nano.NanoControl_Dummy()
+        self.stage = nano.NanoControl()
+        #self.stage = nano.NanoControl_Dummy()
 
     def _millis(self):
         dt = datetime.now() - self._starttime
@@ -42,8 +42,8 @@ class logger(object):
     def _init_spectrometer(self):
         try:
             #self.spectrometer = oceanoptics.STS()
-            #self._spectrometer = oceanoptics.QE65000()
-            self._spectrometer = oceanoptics.Dummy()
+            self._spectrometer = oceanoptics.QE65000()
+            #self._spectrometer = oceanoptics.Dummy()
             self._spectrometer.integration_time(self._integration_time)
             sp = self._spectrometer.spectrum()
             self._wl = sp[0]
@@ -102,15 +102,16 @@ class logger(object):
 
         t = self._millis() / 1000
 
-        sin_value = math.cos(2 * math.pi / float(self._cycle_time) * t)
+        ref = math.cos(2 * math.pi / float(self._cycle_time) * t)
         #print "Val: {0:6} | t: {1:.3f}".format(int(A*sin_value),t) + '  ' + '#'.rjust(int(10*sin_value+10))
-        self.stage._fine('B', self._stage_amplitude * sin_value)
+        print(self._scan_index)
+        self.stage._fine('B', self._stage_amplitude * ref)
 
         #print("Aquiring: %s" % self.scan_index)
         data = self._spectrometer.intensities()
 
         self.data[self._scan_index, 0] = t
-        self.data[self._scan_index, 1] = sin_value
+        self.data[self._scan_index, 1] = ref
         self.data[self._scan_index, 2:] = data
 
         self._scan_index += 1

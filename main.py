@@ -185,7 +185,7 @@ class lockin_gui(object):
             pass
 
     def _update_title(self, _suff=cycle('/|\-')):
-        self.window.set_title('%s %s' % (self._window_title, next(_suff)))
+        #self.window.set_title('%s %s' % (self._window_title, next(_suff)))
         self.progress.set_fraction(self._progress_fraction)
         return True
 
@@ -194,7 +194,6 @@ class lockin_gui(object):
         res = np.empty(1024)
         diff = np.diff( np.append(0,self.log.data[:,0]) )
         ref = self.log.data[:,1]
-        print diff
         for i in range(2,1026):
             buf = self.log.data[:,i]
             buf = buf*diff*ref
