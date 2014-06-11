@@ -142,6 +142,7 @@ class lockin_gui(object):
             self._progress_fraction =  float(self.log.get_scan_index()) / self.log.get_number_of_samples()
 
             if not running:
+                self._spec = self.calc_lock_in()
                 self.status.set_label('Spectra acquired')
                 break
 
@@ -155,8 +156,11 @@ class lockin_gui(object):
             self._spec = self.log.get_spec()
         return True
 
-    def update_plot(self):
-        self.line.set_ydata(self._spec)
+    def update_plot(self,data=None):
+        if data is None:
+            self.line.set_ydata(self._spec)
+        else:
+            self.line.set_ydata(data)
         self.ax.relim()
         self.ax.autoscale_view(False, False, True)
         self.canvas.draw()
@@ -181,11 +185,19 @@ class lockin_gui(object):
         self.progress.set_fraction(self._progress_fraction)
         return True
 
-    @staticmethod
-    def calc_lock_in(x, sig, ref):
-        diff = np.concatenate((0, np.diff(x)))
-        diff = sig * ref * diff
-        return np.sum(diff)
+    def calc_lock_in(self):
+        shape = self.log.data.shape
+        res = np.empty(1024)
+        diff = np.diff( np.append(0,self.log.data[:,0]) )
+        ref = self.log.data[:,1]
+
+        for i in range(2,1026):
+            buf = self.log.data[:,i]
+            buf = buf*diff*ref
+            buf = np.sum(buf)
+            #res = np.append(res,buf)
+            res[i-2] = buf
+        return res
 
 
 if __name__ == "__main__":
