@@ -14,7 +14,7 @@ class logger(object):
     _spectrometer = None
     _wl = None
     _filename = None
-    _integration_time = 10
+    _integration_time = 100
     _scan_index = 0
     _number_of_samples = 1000
 
@@ -27,13 +27,13 @@ class logger(object):
     _juststarted = True
 
     def __init__(self):
-
+        self.worker_thread = None
         self._init_spectrometer()
         self._init_nanocontrol()
 
     def _init_nanocontrol(self):
-        #self.stage = nano.NanoControl()
-        self.stage = nano.NanoControl_Dummy()
+        self.stage = nano.NanoControl()
+        #self.stage = nano.NanoControl_Dummy()
 
     def _millis(self):
         dt = datetime.now() - self._starttime
@@ -43,8 +43,8 @@ class logger(object):
     def _init_spectrometer(self):
         try:
             #self.spectrometer = oceanoptics.STS()
-            #self._spectrometer = oceanoptics.QE65000()
-            self._spectrometer = oceanoptics.Dummy()
+            self._spectrometer = oceanoptics.QE65000()
+            #self._spectrometer = oceanoptics.Dummy()
             self._spectrometer.integration_time(self._integration_time)
             sp = self._spectrometer.spectrum()
             self._wl = sp[0]
@@ -107,9 +107,16 @@ class logger(object):
         #print "Val: {0:6} | t: {1:.3f}".format(int(A*sin_value),t) + '  ' + '#'.rjust(int(10*sin_value+10))
         #print(self._scan_index)
 
+        if not self.worker_thread is None: self.worker_thread.join()
         self.worker_thread = threading.Thread(target=self.stage._fine, args=('B', self._stage_amplitude * ref))
         self.worker_thread.daemon = True
         self.worker_thread.start()
+        #if not self.worker_thread is None:
+        #    if not self.worker_thread.isAlive():
+        #        self.worker_thread = threading.Thread(target=self.stage._fine, args=('B', self._stage_amplitude * ref))
+        #        self.worker_thread.daemon = True
+        #        self.worker_thread.start()
+
 
         #self.stage._fine('B', self._stage_amplitude * ref)
 
@@ -126,6 +133,7 @@ class logger(object):
             print("%s spectra aquired" % self._scan_index)
             print("time taken: %s s" % t )
             self.spectra = pandas.DataFrame()
+            self.worker_thread.join()
             self.stage_to_starting_point()
             return data, False
 

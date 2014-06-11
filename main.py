@@ -65,7 +65,7 @@ class lockin_gui(object):
         self.grid.attach_next_to(self.progress, self.canvas, Gtk.PositionType.BOTTOM, 1, 1)
         self.grid.attach_next_to(self.status, self.sidebox, Gtk.PositionType.BOTTOM, 1, 1)
 
-        self.window.connect("delete-event", Gtk.main_quit)
+        self.window.connect("delete-event", self.quit)
         self.button_aquire.connect("clicked", self.on_aquire_clicked)
         self.button_live.connect("clicked", self.on_live_clicked)
         self.button_stagetostart.connect("clicked", self.on_stagetostart_clicked)
@@ -89,6 +89,12 @@ class lockin_gui(object):
 
 
         time.sleep(2)
+
+    def quit(self,*args):
+        if not self.worker_thread is None:
+            self.stop_thread()
+        self.log = None
+        Gtk.main_quit(*args)
 
     def start_thread(self, target, mode):
         self.worker_mode = mode
