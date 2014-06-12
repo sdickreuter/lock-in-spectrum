@@ -1,3 +1,5 @@
+import pandas
+
 __author__ = 'sei'
 
 import time
@@ -5,6 +7,7 @@ from logger import logger
 import threading
 from itertools import cycle
 import numpy as np
+from datetime import datetime
 
 from gi.repository import Gtk
 from gi.repository import GObject
@@ -16,7 +19,7 @@ class mpl:
 
 
 class lockin_gui(object):
-    _window_title = "GTK_CV_test"
+    _window_title = "Lock-in Spectrum"
     _heartbeat = 200  # s
 
     def __init__(self):
@@ -35,12 +38,16 @@ class lockin_gui(object):
         self.button_aquire = Gtk.Button(label="Aquire Spectrum")
         self.button_stagetostart = Gtk.Button(label="Stage to Start Pos.")
         self.button_save = Gtk.Button(label="Save Data")
+        self.button_dark = Gtk.Button(label="Take Dark Spectrum")
+        self.button_lamp = Gtk.Button(label="Take Lamp Spectrum")
 
         self.window.connect("delete-event", self.quit)
         self.button_aquire.connect("clicked", self.on_aquire_clicked)
         self.button_live.connect("clicked", self.on_live_clicked)
         self.button_stagetostart.connect("clicked", self.on_stagetostart_clicked)
         self.button_save.connect("clicked", self.on_save_clicked)
+        self.button_dark.connect("clicked", self.on_dark_clicked)
+        self.button_lamp.connect("clicked", self.on_lamp_clicked)
 
         self.status = Gtk.Label(label="Initialized")
         self.progress = Gtk.ProgressBar()
@@ -53,6 +60,8 @@ class lockin_gui(object):
         self.sidebox.add(self.button_aquire)
         self.sidebox.add(self.button_stagetostart)
         self.sidebox.add(self.button_save)
+        self.sidebox.add(self.button_dark)
+        self.sidebox.add(self.button_lamp)
 
         # MPL stuff
         self.figure = mpl.Figure()
@@ -84,7 +93,11 @@ class lockin_gui(object):
 
         self.log = logger()
         self._spec = self.log.get_spec()
-        self.line, = self.ax.plot(self.log.get_wl(), self._spec)
+        self._wl = self.log.get_wl()
+        self.line, = self.ax.plot(self._wl, self._spec)
+
+        self.lamp = None
+        self.dark = None
 
 
     def quit(self,*args):
@@ -113,7 +126,7 @@ class lockin_gui(object):
         else:
             self.status.set_label('Paused')
             self.stop_thread()
-            if self.worker_mode is 'live':
+            if not self.worker_mode is 'acquire':
                 self.status.set_label('Acquiring ...')
                 self.start_thread(self.acquire_spectrum, 'acquire')
 
@@ -124,13 +137,14 @@ class lockin_gui(object):
         else:
             self.status.set_label('Paused')
             self.stop_thread()
-            if self.worker_mode is 'acquire':
+            if not self.worker_mode is 'live':
                 self.status.set_label('Liveview')
                 self.start_thread(self.live_spectrum, 'live')
 
     def on_save_clicked(self, widget):
-        if not self.log.spectra is None:
-            self.log.save_data()
+        if self.log._new_spectrum:
+            self.status.set_label("Saving Data ...")
+            self.save_data()
             self.log.reset()
             self.status.set_label('Data saved')
         else:
@@ -139,11 +153,53 @@ class lockin_gui(object):
     def on_stagetostart_clicked(self, widget):
         self.log.stage_to_starting_point()
 
+    def on_dark_clicked(self, widget):
+        if self.worker_thread is None:
+            self.status.set_label('Taking Dark Spectrum')
+            self.start_thread(self.take_spectrum, 'dark')
+        else:
+            self.status.set_label('Paused')
+            self.stop_thread()
+            if not self.worker_mode is 'dark':
+                self.status.set_label('Taking Dark Spectrum')
+                self.start_thread(self.take_spectrum, 'dark')
+
+    def on_lamp_clicked(self, widget):
+         if self.worker_thread is None:
+            self.status.set_label('Taking Lamp Spectrum')
+            self.start_thread(self.take_spectrum, 'lamp')
+         else:
+            self.status.set_label('Paused')
+            self.stop_thread()
+            if not self.worker_mode is 'lamp':
+                self.status.set_label('Taking Lamp Spectrum')
+                self.start_thread(self.take_spectrum, 'lamp')
+
+    def take_spectrum(self, e):
+        data = np.zeros(1024,dtype=np.float32)
+        for i in range(300):
+            data = (data + self.log.get_spec())/2
+
+            self._progress_fraction =  float(i+1) / 300
+
+            if e.is_set():
+                if self.worker_mode is 'dark':
+                    self.dark = None
+                if self.worker_mode is 'lamp':
+                    self.lamp = None
+
+        if self.worker_mode is 'dark':
+            self.dark = data
+        if self.worker_mode is 'lamp':
+            self.lamp = data
+        self._spec = data
+        self.status.set_label('Spectra taken')
+        return True
+
     def acquire_spectrum(self, e):
         #self._plotting = False
         while True:
             self._spec, running = self.log.measure_spectrum()
-            #running = self.log.measure_spectrum()
 
             self._progress_fraction =  float(self.log.get_scan_index()) / self.log.get_number_of_samples()
 
@@ -155,12 +211,21 @@ class lockin_gui(object):
             if e.is_set():
                 self.log.reset()
                 break
-        #self._plotting = True
         return True
 
     def live_spectrum(self, e):
         while not e.is_set():
             self._spec = self.log.get_spec()
+            if not self.dark is None:
+                self._spec = self._spec - self.dark
+                if not self.lamp is None:
+                    self._spec = self._spec/(self.lamp-self.dark)
+            #if not self.dark is None:
+            #    if not self.lamp is None:
+            #        self._spec = self._spec/self.lamp-self.dark
+            #    else:
+            #        self._spec = self._spec - self.dark
+
         return True
 
     def update_plot(self):
@@ -198,11 +263,36 @@ class lockin_gui(object):
         ref = self.log.data[:,1]
         for i in range(2,1026):
             buf = self.log.data[:,i]
+            if not self.dark is None:
+                buf = buf - self.dark[i-2]
+                if not self.lamp is None:
+                    buf = buf/(self.lamp[i-2]-self.dark[i-2])
             buf = buf*diff*ref
             buf = np.sum(buf)
             #res = np.append(res,buf)
             res[i-2] = buf
         return res
+
+    def _gen_filename(self):
+        return str(datetime.now().year) + str(datetime.now().month).zfill(2) \
+               + str(datetime.now().day).zfill(2)+'_'+str(datetime.now().hour).zfill(2) +\
+               str(datetime.now().minute).zfill(2) + str(datetime.now().second).zfill(2) + '.csv'
+
+
+    def save_data(self):
+        filename = self._gen_filename()
+        cols = ('t','ref')+ tuple(map(str,np.round(self._wl,1)))
+        data = pandas.DataFrame(self.log.data,columns=cols)
+        data.to_csv('spectrum_'+filename, header=True,index=False)
+        if not self.dark is None:
+            data = np.append(np.round(self._wl,1).reshape(self._wl.shape[0],1),self.dark.reshape(self.dark.shape[0],1), 1)
+            data = pandas.DataFrame(data,columns=('wavelength','intensity'))
+            data.to_csv('dark_'+filename, header=True,index=False)
+        if not self.lamp is None:
+            data = np.append(np.round(self._wl,1).reshape(self._wl.shape[0],1),self.lamp.reshape(self.lamp.shape[0],1), 1)
+            data = pandas.DataFrame(data,columns=('wavelength','intensity'))
+            data.to_csv('lamp_'+filename, header=True,index=False)
+
 
 
 if __name__ == "__main__":
