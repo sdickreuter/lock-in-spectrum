@@ -32,8 +32,8 @@ class logger(object):
         self._init_nanocontrol()
 
     def _init_nanocontrol(self):
-        self.stage = nano.NanoControl()
-        #self.stage = nano.NanoControl_Dummy()
+        #self.stage = nano.NanoControl()
+        self.stage = nano.NanoControl_Dummy()
 
     def _millis(self):
         dt = datetime.now() - self._starttime
@@ -43,8 +43,8 @@ class logger(object):
     def _init_spectrometer(self):
         try:
             #self.spectrometer = oceanoptics.STS()
-            self._spectrometer = oceanoptics.QE65000()
-            #self._spectrometer = oceanoptics.Dummy()
+            #self._spectrometer = oceanoptics.QE65000()
+            self._spectrometer = oceanoptics.Dummy()
             self._spectrometer.integration_time(self._integration_time)
             sp = self._spectrometer.spectrum()
             self._wl = sp[0]
@@ -52,7 +52,7 @@ class logger(object):
             self._filename = self._gen_filename()
             #self.spectra = pandas.DataFrame()
             self.spectra = None
-            self.data = np.zeros((self._number_of_samples, 1026))
+            self.data = np.zeros((self._number_of_samples, 1026), dtype=np.float32)
             #self._starttime = datetime.now()
         except:
             raise RuntimeError("Error opening spectrometer. Exiting...")
@@ -91,7 +91,7 @@ class logger(object):
 
     def reset(self):
         self.spectra = None
-        self.data = np.zeros((self._number_of_samples, 1026))
+        self.data = np.zeros((self._number_of_samples, 1026), dtype=np.float32)
         self._juststarted = True
         self._scan_index = 0
 

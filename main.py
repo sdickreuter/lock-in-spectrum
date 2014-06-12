@@ -17,7 +17,7 @@ class mpl:
 
 class lockin_gui(object):
     _window_title = "GTK_CV_test"
-    _heartbeat = 100  # s
+    _heartbeat = 200  # s
 
     def __init__(self):
         GObject.threads_init()  # all Gtk is in the main thread;
