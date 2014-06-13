@@ -18,10 +18,13 @@ class logger(object):
     _number_of_samples = 1000
 
     # Stage control
-    _stage_amplitude = 2047  # amplitude in nm
+    #_stage_amplitude = 2047  # amplitude in nm
+    #_cycle_time = 0  # cycle duration in s
+    #_cycle_time_start = 10 # cycle duration in s, staring value
+    #_cycle_factor = 0.2 # cycle time is calculated using this factor
     _cycle_time = 0  # cycle duration in s
-    _cycle_time_start = 10 # cycle duration in s, staring value
-    _cycle_factor = 0.2 # cycle time is calculated using this factor
+    _cycle_time_start = _integration_time/10 # cycle duration in s, staring value
+    _cycle_factor = 200/_number_of_samples # cycle time is calculated using this factor
 
     #General
     _starttime = None
@@ -34,8 +37,8 @@ class logger(object):
         self._init_nanocontrol()
 
     def _init_nanocontrol(self):
-        self.stage = nano.NanoControl()
-        #self.stage = nano.NanoControl_Dummy()
+        #self.stage = nano.NanoControl()
+        self.stage = nano.NanoControl_Dummy()
 
     def _millis(self):
         dt = datetime.now() - self._starttime
@@ -45,8 +48,8 @@ class logger(object):
     def _init_spectrometer(self):
         try:
             #self.spectrometer = oceanoptics.STS()
-            self._spectrometer = oceanoptics.QE65000()
-            #self._spectrometer = oceanoptics.Dummy()
+           # self._spectrometer = oceanoptics.QE65000()
+            self._spectrometer = oceanoptics.Dummy()
             self._spectrometer.integration_time(self._integration_time)
             sp = self._spectrometer.spectrum()
             self._wl = sp[0]
@@ -89,7 +92,7 @@ class logger(object):
         ref = math.cos(2 * math.pi / self._cycle_time  * t)
         #print "Val: {0:6} | t: {1:.3f}".format(int(A*sin_value),t) + '  ' + '#'.rjust(int(10*sin_value+10))
         #print(self._scan_index)
-
+        print(self._cycle_time)
         if not self.worker_thread is None: self.worker_thread.join()
         self.worker_thread = threading.Thread(target=self.stage._fine, args=('B', self._stage_amplitude * ref))
         self.worker_thread.daemon = True
