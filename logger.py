@@ -19,7 +19,9 @@ class logger(object):
 
     # Stage control
     _stage_amplitude = 2047  # amplitude in nm
-    _cycle_time = 20  # cycle duration in s
+    _cycle_time = 0  # cycle duration in s
+    _cycle_time_start = 10 # cycle duration in s, staring value
+    _cycle_factor = 0.2 # cycle time is calculated using this factor
 
     #General
     _starttime = None
@@ -81,7 +83,9 @@ class logger(object):
 
         t = self._millis() / 1000
 
-        ref = math.cos(2 * math.pi / float(self._cycle_time) * t)
+        #ref = math.cos(2 * math.pi / float(self._cycle_time) * t)
+        self._cycle_time = self._cycle_factor*t+self._cycle_time_start
+        ref = math.cos(2 * math.pi / self._cycle_time  * t)
         #print "Val: {0:6} | t: {1:.3f}".format(int(A*sin_value),t) + '  ' + '#'.rjust(int(10*sin_value+10))
         #print(self._scan_index)
 
