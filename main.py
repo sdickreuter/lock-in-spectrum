@@ -127,6 +127,7 @@ class lockin_gui(object):
             self.status.set_label('Paused')
             self.stop_thread()
             if not self.worker_mode is 'acquire':
+                self.log.reset()
                 self.status.set_label('Acquiring ...')
                 self.start_thread(self.acquire_spectrum, 'acquire')
 
@@ -177,10 +178,10 @@ class lockin_gui(object):
 
     def take_spectrum(self, e):
         data = np.zeros(1024,dtype=np.float32)
-        for i in range(300):
+        for i in range(500):
             data = (data + self.log.get_spec())/2
 
-            self._progress_fraction =  float(i+1) / 300
+            self._progress_fraction =  float(i+1) / 500
 
             if e.is_set():
                 if self.worker_mode is 'dark':
@@ -219,7 +220,7 @@ class lockin_gui(object):
             if not self.dark is None:
                 self._spec = self._spec - self.dark
                 if not self.lamp is None:
-                    self._spec = self._spec/(self.lamp-self.dark)
+                    self._spec = self._spec/(self.lamp)
             #if not self.dark is None:
             #    if not self.lamp is None:
             #        self._spec = self._spec/self.lamp-self.dark
@@ -266,7 +267,8 @@ class lockin_gui(object):
             if not self.dark is None:
                 buf = buf - self.dark[i-2]
                 if not self.lamp is None:
-                    buf = buf/(self.lamp[i-2]-self.dark[i-2])
+                    #buf = buf/(self.lamp[i-2]-self.dark[i-2])
+                    buf = buf/(self.lamp[i-2])
             buf = buf*diff*ref
             buf = np.sum(buf)
             #res = np.append(res,buf)
