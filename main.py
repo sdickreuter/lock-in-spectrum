@@ -204,6 +204,11 @@ class lockin_gui(object):
 
             self._progress_fraction =  float(self.log.get_scan_index()) / self.log.get_number_of_samples()
 
+            if not self.dark is None:
+                self._spec = self._spec - self.dark
+                if not self.lamp is None:
+                    self._spec = self._spec/(self.lamp)
+
             if not running:
                 self._spec = self.calc_lock_in()
                 self.status.set_label('Spectra acquired')
@@ -221,12 +226,6 @@ class lockin_gui(object):
                 self._spec = self._spec - self.dark
                 if not self.lamp is None:
                     self._spec = self._spec/(self.lamp)
-            #if not self.dark is None:
-            #    if not self.lamp is None:
-            #        self._spec = self._spec/self.lamp-self.dark
-            #    else:
-            #        self._spec = self._spec - self.dark
-
         return True
 
     def update_plot(self):
@@ -244,7 +243,6 @@ class lockin_gui(object):
         """	run main gtk thread """
         try:
             GLib.timeout_add(self._heartbeat, self._update)
-            #GLib.timeout_add(self.log._integration_time, self.update_plot)
             Gtk.main()
         except KeyboardInterrupt:
             pass
@@ -267,11 +265,9 @@ class lockin_gui(object):
             if not self.dark is None:
                 buf = buf - self.dark[i-2]
                 if not self.lamp is None:
-                    #buf = buf/(self.lamp[i-2]-self.dark[i-2])
                     buf = buf/(self.lamp[i-2])
             buf = buf*diff*ref
             buf = np.sum(buf)
-            #res = np.append(res,buf)
             res[i-2] = buf
         return res
 
