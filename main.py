@@ -20,7 +20,7 @@ class mpl:
 
 class lockin_gui(object):
     _window_title = "Lock-in Spectrum"
-    _heartbeat = 200  # s
+    _heartbeat = 250  # s
 
     def __init__(self):
         GObject.threads_init()  # all Gtk is in the main thread;
@@ -40,6 +40,8 @@ class lockin_gui(object):
         self.button_save = Gtk.Button(label="Save Data")
         self.button_dark = Gtk.Button(label="Take Dark Spectrum")
         self.button_lamp = Gtk.Button(label="Take Lamp Spectrum")
+        self.button_normal = Gtk.Button(label="Take Normal Spectrum")
+
 
         self.window.connect("delete-event", self.quit)
         self.button_aquire.connect("clicked", self.on_aquire_clicked)
@@ -48,6 +50,8 @@ class lockin_gui(object):
         self.button_save.connect("clicked", self.on_save_clicked)
         self.button_dark.connect("clicked", self.on_dark_clicked)
         self.button_lamp.connect("clicked", self.on_lamp_clicked)
+        self.button_normal.connect("clicked", self.on_normal_clicked)
+
 
         self.status = Gtk.Label(label="Initialized")
         self.progress = Gtk.ProgressBar()
@@ -62,6 +66,8 @@ class lockin_gui(object):
         self.sidebox.add(self.button_save)
         self.sidebox.add(self.button_dark)
         self.sidebox.add(self.button_lamp)
+        self.sidebox.add(self.button_normal)
+
 
         # MPL stuff
         self.figure = mpl.Figure()
@@ -98,6 +104,7 @@ class lockin_gui(object):
 
         self.lamp = None
         self.dark = None
+        self.normal = None
 
 
     def quit(self,*args):
@@ -109,6 +116,7 @@ class lockin_gui(object):
     def start_thread(self, target, mode):
         self.worker_mode = mode
         self.worker_running_event.clear()
+        if not self.worker_thread is None: self.worker_thread.join(0.2)
         self.worker_thread = threading.Thread(target=target, args=(self.worker_running_event,))
         self.worker_thread.daemon = True
         self.worker_thread.start()
@@ -176,23 +184,44 @@ class lockin_gui(object):
                 self.status.set_label('Taking Lamp Spectrum')
                 self.start_thread(self.take_spectrum, 'lamp')
 
+    def on_normal_clicked(self, widget):
+         if self.worker_thread is None:
+            self.status.set_label('Taking Normal Spectrum')
+            self.start_thread(self.take_spectrum, 'normal')
+         else:
+            self.status.set_label('Paused')
+            self.stop_thread()
+            if not self.worker_mode is 'normal':
+                self.status.set_label('Taking Normal Spectrum')
+                self.start_thread(self.take_spectrum, 'normal')
+
     def take_spectrum(self, e):
         data = np.zeros(1024,dtype=np.float32)
-        for i in range(500):
+        for i in range(self.log._number_of_samples):
             data = (data + self.log.get_spec())/2
 
-            self._progress_fraction =  float(i+1) / 500
+            self._progress_fraction =  float(i+1) / self.log._number_of_samples
 
             if e.is_set():
                 if self.worker_mode is 'dark':
                     self.dark = None
                 if self.worker_mode is 'lamp':
                     self.lamp = None
+                if self.worker_mode is 'normal':
+                    self.normal = None
+                break
 
         if self.worker_mode is 'dark':
             self.dark = data
         if self.worker_mode is 'lamp':
             self.lamp = data
+        if self.worker_mode is 'normal':
+            self.normal = data
+            #if not self.dark is None:
+            #    data = data - self.dark
+            #    if not self.lamp is None:
+            #        data = data/(self.lamp)
+
         self._spec = data
         self.status.set_label('Spectra taken')
         return True
@@ -233,6 +262,7 @@ class lockin_gui(object):
             self.line.set_ydata(self._spec)
             self.ax.relim()
             self.ax.autoscale_view(False, False, True)
+            self.canvas.draw()
         return True
 
     def update_progress(self):
@@ -251,7 +281,6 @@ class lockin_gui(object):
     def _update(self, _suff=cycle('/|\-')):
         #self.window.set_title('%s %s' % (self._window_title, next(_suff)))
         self.update_plot()
-        self.canvas.draw()
         self.progress.set_fraction(self._progress_fraction)
         return True
 
@@ -290,6 +319,10 @@ class lockin_gui(object):
             data = np.append(np.round(self._wl,1).reshape(self._wl.shape[0],1),self.lamp.reshape(self.lamp.shape[0],1), 1)
             data = pandas.DataFrame(data,columns=('wavelength','intensity'))
             data.to_csv('lamp_'+filename, header=True,index=False)
+        if not self.normal is None:
+            data = np.append(np.round(self._wl,1).reshape(self._wl.shape[0],1),self.normal.reshape(self.normal.shape[0],1), 1)
+            data = pandas.DataFrame(data,columns=('wavelength','intensity'))
+            data.to_csv('normal_'+filename, header=True,index=False)
 
 
 
