@@ -20,7 +20,7 @@ class mpl:
 
 class lockin_gui(object):
     _window_title = "Lock-in Spectrum"
-    _heartbeat = 250  # s
+    _heartbeat = 250  # ms delay at which the plot/gui is refreshed
 
     def __init__(self):
         GObject.threads_init()  # all Gtk is in the main thread;
@@ -102,21 +102,18 @@ class lockin_gui(object):
 
         self.window.show_all()
 
-
-        # Thread stuff
+        # Thread used for taking spectra
         self.worker_running_event = threading.Event()
         self.worker_thread = None
         self.worker_mode = None
-        self.worker_lock = threading.Lock()
+        self.worker_lock = threading.Lock() # to signal the thread to stop
 
-        self._plotting = True
+        self.log = logger() # logger class which coordinates the spectrometer and the stage
+        self._spec = self.log.get_spec() # get an initial spectrum for display
+        self._wl = self.log.get_wl() # get the wavelengths
+        self.line, = self.ax.plot(self._wl, self._spec) # plot initial spectrum
 
-        self.log = logger()
-        self._spec = self.log.get_spec()
-        self._wl = self.log.get_wl()
-        self.line, = self.ax.plot(self._wl, self._spec)
-
-
+        # variables for storing the spectras
         self.lamp = None
         self.dark = None
         self.normal = None
@@ -124,27 +121,36 @@ class lockin_gui(object):
 
 
     def quit(self,*args):
+        """
+        Function for quitting the programm, will also stop the worker thread
+        :param args:
+        """
         if not self.worker_thread is None:
             self.stop_thread()
         self.log = None
         Gtk.main_quit(*args)
 
     def start_thread(self, target, mode):
-        self.integration_time_spin.set_sensitive(False)
-        self.number_of_samples_spin.set_sensitive(False)
+        """
+        Starts the working thread which takes spectra
+        :param target: function the thread shall execute
+        :param mode: which kind of spectrum the thread is taking (dark, lamp, lock-in ...)
+        """
+        self.integration_time_spin.set_sensitive(False) # disable spinbutton which sets integration time
+        self.number_of_samples_spin.set_sensitive(False) # disable spinbutton which sets number of samples
         self.worker_mode = mode
         self.worker_running_event.clear()
-        if not self.worker_thread is None: self.worker_thread.join(0.2)
+        if not self.worker_thread is None: self.worker_thread.join(0.2) # wait 200ms for thread to finish
         self.worker_thread = threading.Thread(target=target, args=(self.worker_running_event,))
         self.worker_thread.daemon = True
         self.worker_thread.start()
 
     def stop_thread(self):
         self.worker_running_event.set()
-        self.worker_thread.join(1)
+        self.worker_thread.join(1) # wait 1 s for thread to finish
         self.worker_thread = None
-        self.integration_time_spin.set_sensitive(True)
-        self.number_of_samples_spin.set_sensitive(True)
+        self.integration_time_spin.set_sensitive(True) # re-enable spinbutton which sets integration time
+        self.number_of_samples_spin.set_sensitive(True) # re-enable spinbutton which sets number of samples
 
 
     def on_integration_time_change(self, widget):
