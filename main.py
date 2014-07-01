@@ -42,6 +42,7 @@ class lockin_gui(object):
         self.button_dark = Gtk.Button(label="Take Dark Spectrum")
         self.button_lamp = Gtk.Button(label="Take Lamp Spectrum")
         self.button_normal = Gtk.Button(label="Take Normal Spectrum")
+        self.button_reset = Gtk.Button(label="Reset")
 
         # Connect Buttons
         self.window.connect("delete-event", self.quit)
@@ -52,6 +53,7 @@ class lockin_gui(object):
         self.button_dark.connect("clicked", self.on_dark_clicked)
         self.button_lamp.connect("clicked", self.on_lamp_clicked)
         self.button_normal.connect("clicked", self.on_normal_clicked)
+        self.button_reset.connect("clicked", self.on_reset_clicked)
 
         # Spinbuttons
         self.integration_time_adj = Gtk.Adjustment(value=100, lower=80, upper=1000, step_incr=10, page_incr=10, page_size=0)
@@ -79,6 +81,7 @@ class lockin_gui(object):
         self.sidebox.add(self.integration_time_spin)
         self.sidebox.add(Gtk.Label(label="Number of Samples"))
         self.sidebox.add(self.number_of_samples_spin)
+        self.sidebox.add(self.button_reset)
 
         # MPL stuff
         self.figure = mpl.Figure()
@@ -127,6 +130,8 @@ class lockin_gui(object):
         Gtk.main_quit(*args)
 
     def start_thread(self, target, mode):
+        self.integration_time_spin.set_sensitive(False)
+        self.number_of_samples_spin.set_sensitive(False)
         self.worker_mode = mode
         self.worker_running_event.clear()
         if not self.worker_thread is None: self.worker_thread.join(0.2)
@@ -138,12 +143,25 @@ class lockin_gui(object):
         self.worker_running_event.set()
         self.worker_thread.join(1)
         self.worker_thread = None
+        self.integration_time_spin.set_sensitive(True)
+        self.number_of_samples_spin.set_sensitive(True)
+
 
     def on_integration_time_change(self, widget):
         self.log.set_integration_time(self.integration_time_spin.get_value_as_int())
 
     def on_number_of_samples_change(self, widget):
         self.log.set_number_of_samples(self.number_of_samples_spin.get_value_as_int())
+
+    def on_reset_clicked(self, widget):
+        self.log.reset()
+        self.dark=None
+        self.lamp=None
+        self.lockin=None
+        self.normal=None
+        self.integration_time_spin.set_sensitive(True)
+        self.number_of_samples_spin.set_sensitive(True)
+
 
     def on_aquire_clicked(self, widget):
         if self.worker_thread is None:
@@ -230,9 +248,14 @@ class lockin_gui(object):
                     self.normal = None
                 break
 
+        self.integration_time_spin.set_sensitive(True)
+        self.number_of_samples_spin.set_sensitive(True)
+
         if self.worker_mode is 'dark':
+            self.number_of_samples_spin.set_sensitive(False)
             self.dark = data
         if self.worker_mode is 'lamp':
+            self.number_of_samples_spin.set_sensitive(False)
             self.lamp = data
         if self.worker_mode is 'normal':
             self.normal = data
@@ -263,6 +286,9 @@ class lockin_gui(object):
             if e.is_set():
                 self.log.reset()
                 break
+
+        self.integration_time_spin.set_sensitive(True)
+        self.number_of_samples_spin.set_sensitive(True)
         return True
 
     def live_spectrum(self, e):
