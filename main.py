@@ -34,6 +34,7 @@ class lockin_gui(object):
         self.grid.set_column_spacing(5)
         self.window.add(self.grid)
 
+        # Buttons
         self.button_live = Gtk.Button(label="Liveview")
         self.button_aquire = Gtk.Button(label="Aquire Spectrum")
         self.button_stagetostart = Gtk.Button(label="Stage to Start Pos.")
@@ -42,7 +43,7 @@ class lockin_gui(object):
         self.button_lamp = Gtk.Button(label="Take Lamp Spectrum")
         self.button_normal = Gtk.Button(label="Take Normal Spectrum")
 
-
+        # Connect Buttons
         self.window.connect("delete-event", self.quit)
         self.button_aquire.connect("clicked", self.on_aquire_clicked)
         self.button_live.connect("clicked", self.on_live_clicked)
@@ -52,6 +53,13 @@ class lockin_gui(object):
         self.button_lamp.connect("clicked", self.on_lamp_clicked)
         self.button_normal.connect("clicked", self.on_normal_clicked)
 
+        # Spinbuttons
+        self.integration_time_adj = Gtk.Adjustment(value=100, lower=80, upper=1000, step_incr=10, page_incr=10, page_size=0)
+        self.integration_time_spin = Gtk.SpinButton(adjustment=self.integration_time_adj, climb_rate=0.1, digits=0)
+        self.number_of_samples_adj = Gtk.Adjustment(value=1000, lower=100, upper=10000, step_incr=100, page_incr=10, page_size=0)
+        self.number_of_samples_spin = Gtk.SpinButton(adjustment=self.number_of_samples_adj, climb_rate=0.1, digits=0)
+        self.integration_time_spin.connect("value-changed",self.on_integration_time_change)
+        self.number_of_samples_adj.connect("value-changed",self.on_number_of_samples_change)
 
         self.status = Gtk.Label(label="Initialized")
         self.progress = Gtk.ProgressBar()
@@ -67,7 +75,10 @@ class lockin_gui(object):
         self.sidebox.add(self.button_dark)
         self.sidebox.add(self.button_lamp)
         self.sidebox.add(self.button_normal)
-
+        self.sidebox.add(Gtk.Label(label="Integration Time [ms]"))
+        self.sidebox.add(self.integration_time_spin)
+        self.sidebox.add(Gtk.Label(label="Number of Samples"))
+        self.sidebox.add(self.number_of_samples_spin)
 
         # MPL stuff
         self.figure = mpl.Figure()
@@ -102,9 +113,11 @@ class lockin_gui(object):
         self._wl = self.log.get_wl()
         self.line, = self.ax.plot(self._wl, self._spec)
 
+
         self.lamp = None
         self.dark = None
         self.normal = None
+        self.lockin = None
 
 
     def quit(self,*args):
@@ -125,6 +138,12 @@ class lockin_gui(object):
         self.worker_running_event.set()
         self.worker_thread.join(1)
         self.worker_thread = None
+
+    def on_integration_time_change(self, widget):
+        self.log.set_integration_time(self.integration_time_spin.get_value_as_int())
+
+    def on_number_of_samples_change(self, widget):
+        self.log.set_number_of_samples(self.number_of_samples_spin.get_value_as_int())
 
     def on_aquire_clicked(self, widget):
         if self.worker_thread is None:
@@ -217,10 +236,6 @@ class lockin_gui(object):
             self.lamp = data
         if self.worker_mode is 'normal':
             self.normal = data
-            #if not self.dark is None:
-            #    data = data - self.dark
-            #    if not self.lamp is None:
-            #        data = data/(self.lamp)
 
         self._spec = data
         self.status.set_label('Spectra taken')
@@ -228,6 +243,7 @@ class lockin_gui(object):
 
     def acquire_spectrum(self, e):
         #self._plotting = False
+        self.lockin = None
         while True:
             self._spec, running = self.log.measure_spectrum()
 
@@ -240,6 +256,7 @@ class lockin_gui(object):
 
             if not running:
                 self._spec = self.calc_lock_in()
+                self.lockin = self._spec
                 self.status.set_label('Spectra acquired')
                 break
 
@@ -305,7 +322,6 @@ class lockin_gui(object):
                + str(datetime.now().day).zfill(2)+'_'+str(datetime.now().hour).zfill(2) +\
                str(datetime.now().minute).zfill(2) + str(datetime.now().second).zfill(2) + '.csv'
 
-
     def save_data(self):
         filename = self._gen_filename()
         cols = ('t','ref')+ tuple(map(str,np.round(self._wl,1)))
@@ -323,8 +339,14 @@ class lockin_gui(object):
             data = np.append(np.round(self._wl,1).reshape(self._wl.shape[0],1),self.normal.reshape(self.normal.shape[0],1), 1)
             data = pandas.DataFrame(data,columns=('wavelength','intensity'))
             data.to_csv('normal_'+filename, header=True,index=False)
-
-
+        if not self.normal is None:
+            data = np.append(np.round(self._wl,1).reshape(self._wl.shape[0],1),self.normal.reshape(self.normal.shape[0],1), 1)
+            data = pandas.DataFrame(data,columns=('wavelength','intensity'))
+            data.to_csv('normal_'+filename, header=True,index=False)
+        if not self.lockin is None:
+            data = np.append(np.round(self._wl,1).reshape(self._wl.shape[0],1),self.lockin.reshape(self.lockin.shape[0],1), 1)
+            data = pandas.DataFrame(data,columns=('wavelength','intensity'))
+            data.to_csv('lockin_'+filename, header=True,index=False)
 
 if __name__ == "__main__":
     gui = lockin_gui()
