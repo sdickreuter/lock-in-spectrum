@@ -36,13 +36,22 @@ class lockin_gui(object):
 
         # Buttons
         self.button_live = Gtk.Button(label="Liveview")
+        self.button_live.set_tooltip_text("Start/Stop Liveview of Spectrum")
         self.button_aquire = Gtk.Button(label="Aquire Spectrum")
+        self.button_aquire.set_tooltip_text("Start/Stop aquiring Lock-In Spectrum")
         self.button_stagetostart = Gtk.Button(label="Stage to Start Pos.")
+        self.button_stagetostart.set_tooltip_text("Set Stage to Staring Position")
         self.button_save = Gtk.Button(label="Save Data")
+        self.button_save.set_tooltip_text("Save all spectral Data in .csv")
         self.button_dark = Gtk.Button(label="Take Dark Spectrum")
+        self.button_dark.set_tooltip_text("Take dark spectrum which will substracted from spectrum")
         self.button_lamp = Gtk.Button(label="Take Lamp Spectrum")
+        self.button_lamp.set_tooltip_text("Take lamp spectrum to normalize spectrum")
         self.button_normal = Gtk.Button(label="Take Normal Spectrum")
+        self.button_normal.set_tooltip_text("Start/Stop taking a normal spectrum as comparison to the Lock-In spectrum")
         self.button_reset = Gtk.Button(label="Reset")
+        self.button_reset.set_tooltip_text("Reset all spectral data (if not saved data is lost!)")
+
 
         # Connect Buttons
         self.window.connect("delete-event", self.quit)
@@ -58,8 +67,10 @@ class lockin_gui(object):
         # Spinbuttons
         self.integration_time_adj = Gtk.Adjustment(value=100, lower=80, upper=1000, step_incr=10, page_incr=10, page_size=0)
         self.integration_time_spin = Gtk.SpinButton(adjustment=self.integration_time_adj, climb_rate=0.1, digits=0)
+        self.integration_time_spin.set_tooltip_text("Set Integration time of the spectrometer")
         self.number_of_samples_adj = Gtk.Adjustment(value=1000, lower=100, upper=10000, step_incr=100, page_incr=10, page_size=0)
         self.number_of_samples_spin = Gtk.SpinButton(adjustment=self.number_of_samples_adj, climb_rate=0.1, digits=0)
+        self.number_of_samples_spin.set_tooltip_text("Set how many samples are taken at each run")
         self.integration_time_spin.connect("value-changed",self.on_integration_time_change)
         self.number_of_samples_adj.connect("value-changed",self.on_number_of_samples_change)
 
@@ -113,7 +124,7 @@ class lockin_gui(object):
         self._wl = self.log.get_wl() # get the wavelengths
         self.line, = self.ax.plot(self._wl, self._spec) # plot initial spectrum
 
-        # variables for storing the spectras
+        # variables for storing the spectra
         self.lamp = None
         self.dark = None
         self.normal = None
@@ -122,7 +133,7 @@ class lockin_gui(object):
 
     def quit(self,*args):
         """
-        Function for quitting the programm, will also stop the worker thread
+        Function for quitting the program, will also stop the worker thread
         :param args:
         """
         if not self.worker_thread is None:
@@ -307,11 +318,11 @@ class lockin_gui(object):
         return True
 
     def update_plot(self):
-        if self._plotting:
-            self.line.set_ydata(self._spec)
-            self.ax.relim()
-            self.ax.autoscale_view(False, False, True)
-            self.canvas.draw()
+        #if self._plotting:
+        self.line.set_ydata(self._spec)
+        self.ax.relim()
+        self.ax.autoscale_view(False, False, True)
+        self.canvas.draw()
         return True
 
     def update_progress(self):
