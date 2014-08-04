@@ -65,7 +65,7 @@ class lockin_gui(object):
         self.button_reset.connect("clicked", self.on_reset_clicked)
 
         # Spinbuttons
-        self.integration_time_adj = Gtk.Adjustment(value=100, lower=80, upper=1000, step_incr=10, page_incr=10, page_size=0)
+        self.integration_time_adj = Gtk.Adjustment(value=0.1, lower=0.08, upper=1, step_incr=0.01, page_incr=0.01, page_size=0)
         self.integration_time_spin = Gtk.SpinButton(adjustment=self.integration_time_adj, climb_rate=0.1, digits=0)
         self.integration_time_spin.set_tooltip_text("Set Integration time of the spectrometer")
         self.number_of_samples_adj = Gtk.Adjustment(value=1000, lower=100, upper=10000, step_incr=100, page_incr=10, page_size=0)
@@ -250,7 +250,7 @@ class lockin_gui(object):
                 self.start_thread(self.take_spectrum, 'normal')
 
     def take_spectrum(self, e):
-        data = np.zeros(1024,dtype=np.float32)
+        data = np.zeros(1024,dtype=np.float64)
         for i in range(self.log._number_of_samples):
             data = (data + self.log.get_spec())/2
 

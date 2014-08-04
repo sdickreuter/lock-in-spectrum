@@ -13,7 +13,7 @@ class logger(object):
     _spectrometer = None
     _wl = None
     _filename = None
-    _integration_time = 100
+    _integration_time = 0.1
     _scan_index = 0
     _number_of_samples = 1000
 
@@ -23,7 +23,7 @@ class logger(object):
     #_cycle_time_start = 10 # cycle duration in s, staring value
     #_cycle_factor = 0.2 # cycle time is calculated using this factor
     _cycle_time = 0  # cycle duration in s
-    _cycle_time_start = 3*_integration_time/10 # cycle duration in s, starting value
+    _cycle_time_start = 3*_integration_time*1000/10 # cycle duration in s, starting value
     _cycle_factor = -float(180)/_number_of_samples # cycle time is calculated using this factor
 
     #General
@@ -47,7 +47,7 @@ class logger(object):
 
     def set_integration_time(self,integration_time):
         self._integration_time = integration_time
-        self._cycle_time_start = 3*self._integration_time/10 # cycle duration in s, starting value
+        self._cycle_time_start = 3*self._integration_time*1000/10 # cycle duration in s, starting value
         self._spectrometer.integration_time(self._integration_time)
 
     def set_number_of_samples(self,number_of_samples):
@@ -56,13 +56,16 @@ class logger(object):
 
     def _init_spectrometer(self):
         try:
-            #self._spectrometer = oceanoptics.QE65000()
-            self._spectrometer = oceanoptics.Dummy()
-            #self._spectrometer.integration_time(self._integration_time)
+            self._spectrometer = oceanoptics.QE65000()
+            #self._spectrometer = oceanoptics.Dummy()
+            self._spectrometer.integration_time(self._integration_time)
+            print('0')
             sp = self._spectrometer.spectrum()
+            print('1')
             self._wl = sp[0]
             self.spectra = None
-            self.data = np.zeros((self._number_of_samples, 1026), dtype=np.float32)
+            self.data = np.zeros((self._number_of_samples, 1026), dtype=np.float64)
+            print("2")
             self._spectrometer.integration_time(self._integration_time)
         except:
             raise RuntimeError("Error opening spectrometer. Exiting...")
@@ -84,7 +87,7 @@ class logger(object):
 
     def reset(self):
         self._new_spectrum=False
-        self.data = np.zeros((self._number_of_samples, 1026), dtype=np.float32)
+        self.data = np.zeros((self._number_of_samples, 1026), dtype=np.float64)
         self._juststarted = True
         self._scan_index = 0
 
