@@ -66,7 +66,7 @@ class lockin_gui(object):
 
         # Spinbuttons
         self.integration_time_adj = Gtk.Adjustment(value=0.1, lower=0.08, upper=1, step_incr=0.01, page_incr=0.01, page_size=0)
-        self.integration_time_spin = Gtk.SpinButton(adjustment=self.integration_time_adj, climb_rate=0.1, digits=0)
+        self.integration_time_spin = Gtk.SpinButton(adjustment=self.integration_time_adj, climb_rate=0.1, digits=2)
         self.integration_time_spin.set_tooltip_text("Set Integration time of the spectrometer")
         self.number_of_samples_adj = Gtk.Adjustment(value=1000, lower=100, upper=10000, step_incr=100, page_incr=10, page_size=0)
         self.number_of_samples_spin = Gtk.SpinButton(adjustment=self.number_of_samples_adj, climb_rate=0.1, digits=0)
@@ -88,7 +88,7 @@ class lockin_gui(object):
         self.sidebox.add(self.button_dark)
         self.sidebox.add(self.button_lamp)
         self.sidebox.add(self.button_normal)
-        self.sidebox.add(Gtk.Label(label="Integration Time [ms]"))
+        self.sidebox.add(Gtk.Label(label="Integration Time [s]"))
         self.sidebox.add(self.integration_time_spin)
         self.sidebox.add(Gtk.Label(label="Number of Samples"))
         self.sidebox.add(self.number_of_samples_spin)

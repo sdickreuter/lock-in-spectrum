@@ -59,13 +59,10 @@ class logger(object):
             self._spectrometer = oceanoptics.QE65000()
             #self._spectrometer = oceanoptics.Dummy()
             self._spectrometer.integration_time(self._integration_time)
-            print('0')
             sp = self._spectrometer.spectrum()
-            print('1')
             self._wl = sp[0]
             self.spectra = None
             self.data = np.zeros((self._number_of_samples, 1026), dtype=np.float64)
-            print("2")
             self._spectrometer.integration_time(self._integration_time)
         except:
             raise RuntimeError("Error opening spectrometer. Exiting...")
