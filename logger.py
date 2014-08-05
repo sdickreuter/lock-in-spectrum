@@ -37,8 +37,8 @@ class logger(object):
         self._init_nanocontrol()
 
     def _init_nanocontrol(self):
-        #self.stage = nano.NanoControl()
-        self.stage = nano.NanoControl_Dummy()
+        self.stage = nano.NanoControl()
+        #self.stage = nano.NanoControl_Dummy()
 
     def _millis(self):
         dt = datetime.now() - self._starttime
