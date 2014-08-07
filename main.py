@@ -1,17 +1,18 @@
+
+
 import pandas
-
-__author__ = 'sei'
-
 import time
 from logger import logger
 import threading
 from itertools import cycle
 import numpy as np
 from datetime import datetime
+import os
 
 from gi.repository import Gtk
 from gi.repository import GObject
 from gi.repository import GLib
+
 
 class mpl:
     from matplotlib.figure import Figure
@@ -51,6 +52,10 @@ class lockin_gui(object):
         self.button_normal.set_tooltip_text("Start/Stop taking a normal spectrum as comparison to the Lock-In spectrum")
         self.button_reset = Gtk.Button(label="Reset")
         self.button_reset.set_tooltip_text("Reset all spectral data (if not saved data is lost!)")
+        self.button_loaddark = Gtk.Button(label="Loard Dark Spectrum")
+        self.button_loaddark.set_tooltip_text("Load Dark Spectrum from file")
+        self.button_loadlamp = Gtk.Button(label="Loard Lamp Spectrum")
+        self.button_loadlamp.set_tooltip_text("Load Lamp Spectrum from file")
 
 
         # Connect Buttons
@@ -63,16 +68,20 @@ class lockin_gui(object):
         self.button_lamp.connect("clicked", self.on_lamp_clicked)
         self.button_normal.connect("clicked", self.on_normal_clicked)
         self.button_reset.connect("clicked", self.on_reset_clicked)
+        self.button_loaddark.connect("clicked", self.on_loaddark_clicked)
+        self.button_loadlamp.connect("clicked", self.on_loadlamp_clicked)
 
         # Spinbuttons
-        self.integration_time_adj = Gtk.Adjustment(value=10, lower=80, upper=1000, step_incr=10, page_incr=10, page_size=0)
+        self.integration_time_adj = Gtk.Adjustment(value=10, lower=80, upper=1000, step_incr=10, page_incr=10,
+                                                   page_size=0)
         self.integration_time_spin = Gtk.SpinButton(adjustment=self.integration_time_adj, climb_rate=0.1, digits=0)
         self.integration_time_spin.set_tooltip_text("Set Integration time of the spectrometer")
-        self.number_of_samples_adj = Gtk.Adjustment(value=1000, lower=100, upper=10000, step_incr=100, page_incr=10, page_size=0)
+        self.number_of_samples_adj = Gtk.Adjustment(value=1000, lower=100, upper=10000, step_incr=100, page_incr=10,
+                                                    page_size=0)
         self.number_of_samples_spin = Gtk.SpinButton(adjustment=self.number_of_samples_adj, climb_rate=0.1, digits=0)
         self.number_of_samples_spin.set_tooltip_text("Set how many samples are taken at each run")
-        self.integration_time_spin.connect("value-changed",self.on_integration_time_change)
-        self.number_of_samples_adj.connect("value-changed",self.on_number_of_samples_change)
+        self.integration_time_spin.connect("value-changed", self.on_integration_time_change)
+        self.number_of_samples_adj.connect("value-changed", self.on_number_of_samples_change)
 
         self.status = Gtk.Label(label="Initialized")
         self.progress = Gtk.ProgressBar()
@@ -93,6 +102,8 @@ class lockin_gui(object):
         self.sidebox.add(Gtk.Label(label="Number of Samples"))
         self.sidebox.add(self.number_of_samples_spin)
         self.sidebox.add(self.button_reset)
+        self.sidebox.add(self.button_loaddark)
+        self.sidebox.add(self.button_loadlamp)
 
         # MPL stuff
         self.figure = mpl.Figure()
@@ -117,12 +128,12 @@ class lockin_gui(object):
         self.worker_running_event = threading.Event()
         self.worker_thread = None
         self.worker_mode = None
-        self.worker_lock = threading.Lock() # to signal the thread to stop
+        self.worker_lock = threading.Lock()  # to signal the thread to stop
 
-        self.log = logger() # logger class which coordinates the spectrometer and the stage
-        self._spec = self.log.get_spec() # get an initial spectrum for display
-        self._wl = self.log.get_wl() # get the wavelengths
-        self.line, = self.ax.plot(self._wl, self._spec) # plot initial spectrum
+        self.log = logger()  # logger class which coordinates the spectrometer and the stage
+        self._spec = self.log.get_spec()  # get an initial spectrum for display
+        self._wl = self.log.get_wl()  # get the wavelengths
+        self.line, = self.ax.plot(self._wl, self._spec)  # plot initial spectrum
 
         # variables for storing the spectra
         self.lamp = None
@@ -131,7 +142,7 @@ class lockin_gui(object):
         self.lockin = None
 
 
-    def quit(self,*args):
+    def quit(self, *args):
         """
         Function for quitting the program, will also stop the worker thread
         :param args:
@@ -147,25 +158,25 @@ class lockin_gui(object):
         :param target: function the thread shall execute
         :param mode: which kind of spectrum the thread is taking (dark, lamp, lock-in ...)
         """
-        self.integration_time_spin.set_sensitive(False) # disable spinbutton which sets integration time
-        self.number_of_samples_spin.set_sensitive(False) # disable spinbutton which sets number of samples
+        self.integration_time_spin.set_sensitive(False)  # disable spinbutton which sets integration time
+        self.number_of_samples_spin.set_sensitive(False)  # disable spinbutton which sets number of samples
         self.worker_mode = mode
         self.worker_running_event.clear()
-        if not self.worker_thread is None: self.worker_thread.join(0.2) # wait 200ms for thread to finish
+        if not self.worker_thread is None: self.worker_thread.join(0.2)  # wait 200ms for thread to finish
         self.worker_thread = threading.Thread(target=target, args=(self.worker_running_event,))
         self.worker_thread.daemon = True
         self.worker_thread.start()
 
     def stop_thread(self):
         self.worker_running_event.set()
-        self.worker_thread.join(1) # wait 1 s for thread to finish
+        self.worker_thread.join(1)  # wait 1 s for thread to finish
         self.worker_thread = None
-        self.integration_time_spin.set_sensitive(True) # re-enable spinbutton which sets integration time
-        self.number_of_samples_spin.set_sensitive(True) # re-enable spinbutton which sets number of samples
+        self.integration_time_spin.set_sensitive(True)  # re-enable spinbutton which sets integration time
+        self.number_of_samples_spin.set_sensitive(True)  # re-enable spinbutton which sets number of samples
 
 
     def on_integration_time_change(self, widget):
-        self.log.set_integration_time(float(self.integration_time_spin.get_value_as_int())/1000)
+        self.log.set_integration_time(float(self.integration_time_spin.get_value_as_int()) / 1000)
         time.sleep(0.1)
 
     def on_number_of_samples_change(self, widget):
@@ -173,10 +184,10 @@ class lockin_gui(object):
 
     def on_reset_clicked(self, widget):
         self.log.reset()
-        self.dark=None
-        self.lamp=None
-        self.lockin=None
-        self.normal=None
+        self.dark = None
+        self.lamp = None
+        self.lockin = None
+        self.normal = None
         self.integration_time_spin.set_sensitive(True)
         self.number_of_samples_spin.set_sensitive(True)
 
@@ -229,10 +240,10 @@ class lockin_gui(object):
                 self.start_thread(self.take_spectrum, 'dark')
 
     def on_lamp_clicked(self, widget):
-         if self.worker_thread is None:
+        if self.worker_thread is None:
             self.status.set_label('Taking Lamp Spectrum')
             self.start_thread(self.take_spectrum, 'lamp')
-         else:
+        else:
             self.status.set_label('Paused')
             self.stop_thread()
             if not self.worker_mode is 'lamp':
@@ -240,22 +251,51 @@ class lockin_gui(object):
                 self.start_thread(self.take_spectrum, 'lamp')
 
     def on_normal_clicked(self, widget):
-         if self.worker_thread is None:
+        if self.worker_thread is None:
             self.status.set_label('Taking Normal Spectrum')
             self.start_thread(self.take_spectrum, 'normal')
-         else:
+        else:
             self.status.set_label('Paused')
             self.stop_thread()
             if not self.worker_mode is 'normal':
                 self.status.set_label('Taking Normal Spectrum')
                 self.start_thread(self.take_spectrum, 'normal')
 
-    def take_spectrum(self, e):
-        data = np.zeros(1024,dtype=np.float64)
-        for i in range(self.log._number_of_samples):
-            data = (data + self.log.get_spec())/2
+    def _load_spectrum_from_file(self):
+        dialog = Gtk.FileChooserDialog("Please choose a file", self.window,
+            Gtk.FileChooserAction.OPEN,
+            (Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+             Gtk.STOCK_OPEN, Gtk.ResponseType.OK))
 
-            self._progress_fraction =  float(i+1) / self.log._number_of_samples
+        filter_text = Gtk.FileFilter()
+        filter_text.set_name("CSV Spectrum files")
+        filter_text.add_pattern("*.csv")
+        dialog.add_filter(filter_text)
+        dialog.set_current_folder(os.path.dirname(os.path.abspath(__file__)))
+        response = dialog.run()
+        if response == Gtk.ResponseType.OK:
+           data = pandas.DataFrame(pandas.read_csv(dialog.get_filename()))
+           data = data['intensity']
+        elif response == Gtk.ResponseType.CANCEL:
+           data = None
+        dialog.destroy()
+        return data
+
+    def on_loaddark_clicked(self, widget):
+        buf = self._load_spectrum_from_file()
+        if not buf is None: self.dark = buf
+
+    def on_loadlamp_clicked(self, widget):
+        buf = self._load_spectrum_from_file()
+        if not buf is None: self.lamp = buf
+
+
+    def take_spectrum(self, e):
+        data = np.zeros(1024, dtype=np.float64)
+        for i in range(self.log._number_of_samples):
+            data = (data + self.log.get_spec()) / 2
+
+            self._progress_fraction = float(i + 1) / self.log._number_of_samples
 
             if e.is_set():
                 if self.worker_mode is 'dark':
@@ -283,17 +323,17 @@ class lockin_gui(object):
         return True
 
     def acquire_spectrum(self, e):
-        #self._plotting = False
+        # self._plotting = False
         self.lockin = None
         while True:
             self._spec, running = self.log.measure_spectrum()
 
-            self._progress_fraction =  float(self.log.get_scan_index()) / self.log.get_number_of_samples()
+            self._progress_fraction = float(self.log.get_scan_index()) / self.log.get_number_of_samples()
 
             if not self.dark is None:
                 self._spec = self._spec - self.dark
                 if not self.lamp is None:
-                    self._spec = self._spec/(self.lamp)
+                    self._spec = self._spec / (self.lamp)
 
             if not running:
                 self._spec = self.calc_lock_in()
@@ -315,11 +355,11 @@ class lockin_gui(object):
             if not self.dark is None:
                 self._spec = self._spec - self.dark
                 if not self.lamp is None:
-                    self._spec = self._spec/(self.lamp)
+                    self._spec = self._spec / (self.lamp)
         return True
 
     def update_plot(self):
-        #if self._plotting:
+        # if self._plotting:
         self.line.set_ydata(self._spec)
         self.ax.relim()
         self.ax.autoscale_view(False, False, True)
@@ -340,7 +380,7 @@ class lockin_gui(object):
 
 
     def _update(self, _suff=cycle('/|\-')):
-        #self.window.set_title('%s %s' % (self._window_title, next(_suff)))
+        # self.window.set_title('%s %s' % (self._window_title, next(_suff)))
         self.update_plot()
         self.progress.set_fraction(self._progress_fraction)
         return True
@@ -348,49 +388,55 @@ class lockin_gui(object):
     def calc_lock_in(self):
         shape = self.log.data.shape
         res = np.empty(1024)
-        diff = np.diff( np.append(0,self.log.data[:,0]) )
-        ref = self.log.data[:,1]
-        for i in range(2,1026):
-            buf = self.log.data[:,i]
+        diff = np.diff(np.append(0, self.log.data[:, 0]))
+        ref = self.log.data[:, 1]
+        for i in range(2, 1026):
+            buf = self.log.data[:, i]
             if not self.dark is None:
-                buf = buf - self.dark[i-2]
+                buf = buf - self.dark[i - 2]
                 if not self.lamp is None:
-                    buf = buf/(self.lamp[i-2])
-            buf = buf*diff*ref
+                    buf = buf / (self.lamp[i - 2])
+            buf = buf * diff * ref
             buf = np.sum(buf)
-            res[i-2] = buf
+            res[i - 2] = buf
         return res
 
     def _gen_filename(self):
         return str(datetime.now().year) + str(datetime.now().month).zfill(2) \
-               + str(datetime.now().day).zfill(2)+'_'+str(datetime.now().hour).zfill(2) +\
+               + str(datetime.now().day).zfill(2) + '_' + str(datetime.now().hour).zfill(2) + \
                str(datetime.now().minute).zfill(2) + str(datetime.now().second).zfill(2) + '.csv'
 
     def save_data(self):
         filename = self._gen_filename()
-        cols = ('t','ref')+ tuple(map(str,np.round(self._wl,1)))
-        data = pandas.DataFrame(self.log.data,columns=cols)
-        data.to_csv('spectrum_'+filename, header=True,index=False)
+        cols = ('t', 'ref') + tuple(map(str, np.round(self._wl, 1)))
+        data = pandas.DataFrame(self.log.data, columns=cols)
+        data.to_csv('spectrum_' + filename, header=True, index=False)
         if not self.dark is None:
-            data = np.append(np.round(self._wl,1).reshape(self._wl.shape[0],1),self.dark.reshape(self.dark.shape[0],1), 1)
-            data = pandas.DataFrame(data,columns=('wavelength','intensity'))
-            data.to_csv('dark_'+filename, header=True,index=False)
+            data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
+                             self.dark.reshape(self.dark.shape[0], 1), 1)
+            data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
+            data.to_csv('dark_' + filename, header=True, index=False)
         if not self.lamp is None:
-            data = np.append(np.round(self._wl,1).reshape(self._wl.shape[0],1),self.lamp.reshape(self.lamp.shape[0],1), 1)
-            data = pandas.DataFrame(data,columns=('wavelength','intensity'))
-            data.to_csv('lamp_'+filename, header=True,index=False)
+            data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
+                             self.lamp.reshape(self.lamp.shape[0], 1), 1)
+            data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
+            data.to_csv('lamp_' + filename, header=True, index=False)
         if not self.normal is None:
-            data = np.append(np.round(self._wl,1).reshape(self._wl.shape[0],1),self.normal.reshape(self.normal.shape[0],1), 1)
-            data = pandas.DataFrame(data,columns=('wavelength','intensity'))
-            data.to_csv('normal_'+filename, header=True,index=False)
+            data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
+                             self.normal.reshape(self.normal.shape[0], 1), 1)
+            data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
+            data.to_csv('normal_' + filename, header=True, index=False)
         if not self.normal is None:
-            data = np.append(np.round(self._wl,1).reshape(self._wl.shape[0],1),self.normal.reshape(self.normal.shape[0],1), 1)
-            data = pandas.DataFrame(data,columns=('wavelength','intensity'))
-            data.to_csv('normal_'+filename, header=True,index=False)
+            data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
+                             self.normal.reshape(self.normal.shape[0], 1), 1)
+            data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
+            data.to_csv('normal_' + filename, header=True, index=False)
         if not self.lockin is None:
-            data = np.append(np.round(self._wl,1).reshape(self._wl.shape[0],1),self.lockin.reshape(self.lockin.shape[0],1), 1)
-            data = pandas.DataFrame(data,columns=('wavelength','intensity'))
-            data.to_csv('lockin_'+filename, header=True,index=False)
+            data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
+                             self.lockin.reshape(self.lockin.shape[0], 1), 1)
+            data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
+            data.to_csv('lockin_' + filename, header=True, index=False)
+
 
 if __name__ == "__main__":
     gui = lockin_gui()
