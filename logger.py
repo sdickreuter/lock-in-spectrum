@@ -64,8 +64,7 @@ class logger(object):
             self._wl = sp[0]
             self.spectra = None
             self.data = np.zeros((self._number_of_samples, 1026), dtype=np.float64)
-            self._spectrometer.integration_time(self._integration_time)
-        except:
+         except:
             raise RuntimeError("Error opening spectrometer. Exiting...")
 
     def get_wl(self):
