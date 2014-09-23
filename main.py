@@ -8,11 +8,14 @@ from itertools import cycle
 import numpy as np
 from datetime import datetime
 import os
+import PIStage
 
 from gi.repository import Gtk
 from gi.repository import GObject
 from gi.repository import GLib
 
+import dialogs
+from settings import Settings
 
 class mpl:
     from matplotlib.figure import Figure
@@ -24,6 +27,9 @@ class lockin_gui(object):
     _heartbeat = 250  # ms delay at which the plot/gui is refreshed
 
     def __init__(self):
+        self.settings = Settings()
+
+
         GObject.threads_init()  # all Gtk is in the main thread;
         # only GObject.idle_add() is in the background thread
         self.window = Gtk.Window(title=self._window_title)
@@ -35,13 +41,19 @@ class lockin_gui(object):
         self.grid.set_column_spacing(5)
         self.window.add(self.grid)
 
+        #Dialogs
+        self.settings_dialog = dialogs.Settings_Dialog(self.window, self.settings)
+        self.direction_dialog = dialogs.Direction_Dialog(self.window, self.settings)
+
         # Buttons
         self.button_live = Gtk.Button(label="Liveview")
         self.button_live.set_tooltip_text("Start/Stop Liveview of Spectrum")
         self.button_aquire = Gtk.Button(label="Aquire Spectrum")
         self.button_aquire.set_tooltip_text("Start/Stop aquiring Lock-In Spectrum")
-        self.button_stagetostart = Gtk.Button(label="Stage to Start Pos.")
-        self.button_stagetostart.set_tooltip_text("Set Stage to Staring Position")
+        self.button_direction = Gtk.Button(label="Set Direction")
+        self.button_direction.set_tooltip_text("Set Direction of Stage Movement")
+        self.button_settings = Gtk.Button(label="Settings")
+        self.button_settings.set_tooltip_text("Set Integration Time and Number of Samples")
         self.button_save = Gtk.Button(label="Save Data")
         self.button_save.set_tooltip_text("Save all spectral Data in .csv")
         self.button_dark = Gtk.Button(label="Take Dark Spectrum")
@@ -57,12 +69,12 @@ class lockin_gui(object):
         self.button_loadlamp = Gtk.Button(label="Loard Lamp Spectrum")
         self.button_loadlamp.set_tooltip_text("Load Lamp Spectrum from file")
 
-
         # Connect Buttons
         self.window.connect("delete-event", self.quit)
         self.button_aquire.connect("clicked", self.on_aquire_clicked)
+        self.button_direction.connect("clicked", self.on_direction_clicked)
         self.button_live.connect("clicked", self.on_live_clicked)
-        self.button_stagetostart.connect("clicked", self.on_stagetostart_clicked)
+        self.button_settings.connect("clicked", self.on_settings_clicked)
         self.button_save.connect("clicked", self.on_save_clicked)
         self.button_dark.connect("clicked", self.on_dark_clicked)
         self.button_lamp.connect("clicked", self.on_lamp_clicked)
@@ -71,17 +83,8 @@ class lockin_gui(object):
         self.button_loaddark.connect("clicked", self.on_loaddark_clicked)
         self.button_loadlamp.connect("clicked", self.on_loadlamp_clicked)
 
-        # Spinbuttons
-        self.integration_time_adj = Gtk.Adjustment(value=10, lower=80, upper=1000, step_incr=10, page_incr=10,
-                                                   page_size=0)
-        self.integration_time_spin = Gtk.SpinButton(adjustment=self.integration_time_adj, climb_rate=0.1, digits=0)
-        self.integration_time_spin.set_tooltip_text("Set Integration time of the spectrometer")
-        self.number_of_samples_adj = Gtk.Adjustment(value=1000, lower=100, upper=10000, step_incr=100, page_incr=10,
-                                                    page_size=0)
-        self.number_of_samples_spin = Gtk.SpinButton(adjustment=self.number_of_samples_adj, climb_rate=0.1, digits=0)
-        self.number_of_samples_spin.set_tooltip_text("Set how many samples are taken at each run")
-        self.integration_time_spin.connect("value-changed", self.on_integration_time_change)
-        self.number_of_samples_adj.connect("value-changed", self.on_number_of_samples_change)
+        #self.integration_time_spin.connect("value-changed", self.on_integration_time_change)
+        #self.number_of_samples_adj.connect("value-changed", self.on_number_of_samples_change)
 
         self.status = Gtk.Label(label="Initialized")
         self.progress = Gtk.ProgressBar()
@@ -92,15 +95,12 @@ class lockin_gui(object):
 
         self.sidebox.add(self.button_live)
         self.sidebox.add(self.button_aquire)
-        self.sidebox.add(self.button_stagetostart)
+        self.sidebox.add(self.button_direction)
         self.sidebox.add(self.button_save)
         self.sidebox.add(self.button_dark)
         self.sidebox.add(self.button_lamp)
         self.sidebox.add(self.button_normal)
-        self.sidebox.add(Gtk.Label(label="Integration Time [s]"))
-        self.sidebox.add(self.integration_time_spin)
-        self.sidebox.add(Gtk.Label(label="Number of Samples"))
-        self.sidebox.add(self.number_of_samples_spin)
+        self.sidebox.add(self.button_settings)
         self.sidebox.add(self.button_reset)
         self.sidebox.add(self.button_loaddark)
         self.sidebox.add(self.button_loadlamp)
@@ -130,7 +130,9 @@ class lockin_gui(object):
         self.worker_mode = None
         self.worker_lock = threading.Lock()  # to signal the thread to stop
 
-        self.log = logger()  # logger class which coordinates the spectrometer and the stage
+        self.stage = PIStage.Dummy();
+
+        self.log = logger(self.stage, self.settings)  # logger class which coordinates the spectrometer and the stage
         self._spec = self.log.get_spec()  # get an initial spectrum for display
         self._wl = self.log.get_wl()  # get the wavelengths
         self.line, = self.ax.plot(self._wl, self._spec)  # plot initial spectrum
@@ -158,8 +160,6 @@ class lockin_gui(object):
         :param target: function the thread shall execute
         :param mode: which kind of spectrum the thread is taking (dark, lamp, lock-in ...)
         """
-        self.integration_time_spin.set_sensitive(False)  # disable spinbutton which sets integration time
-        self.number_of_samples_spin.set_sensitive(False)  # disable spinbutton which sets number of samples
         self.worker_mode = mode
         self.worker_running_event.clear()
         if not self.worker_thread is None: self.worker_thread.join(0.2)  # wait 200ms for thread to finish
@@ -171,9 +171,6 @@ class lockin_gui(object):
         self.worker_running_event.set()
         self.worker_thread.join(1)  # wait 1 s for thread to finish
         self.worker_thread = None
-        self.integration_time_spin.set_sensitive(True)  # re-enable spinbutton which sets integration time
-        self.number_of_samples_spin.set_sensitive(True)  # re-enable spinbutton which sets number of samples
-
 
     def on_integration_time_change(self, widget):
         self.log.set_integration_time(float(self.integration_time_spin.get_value_as_int()) / 1000)
@@ -188,8 +185,6 @@ class lockin_gui(object):
         self.lamp = None
         self.lockin = None
         self.normal = None
-        self.integration_time_spin.set_sensitive(True)
-        self.number_of_samples_spin.set_sensitive(True)
 
 
     def on_aquire_clicked(self, widget):
@@ -204,6 +199,10 @@ class lockin_gui(object):
                 self.log.reset()
                 self.status.set_label('Acquiring ...')
                 self.start_thread(self.acquire_spectrum, 'acquire')
+
+    def on_direction_clicked(self, widget):
+        self.direction_dialog.rundialog()
+
 
     def on_live_clicked(self, widget):
         if self.worker_thread is None:
@@ -225,8 +224,8 @@ class lockin_gui(object):
         else:
             self.status.set_label('No Data found')
 
-    def on_stagetostart_clicked(self, widget):
-        self.log.stage_to_starting_point()
+    def on_settings_clicked(self, widget):
+        self.settings_dialog.rundialog()
 
     def on_dark_clicked(self, widget):
         if self.worker_thread is None:
