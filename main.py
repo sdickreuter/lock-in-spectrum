@@ -29,7 +29,6 @@ class lockin_gui(object):
     def __init__(self):
         self.settings = Settings()
 
-
         GObject.threads_init()  # all Gtk is in the main thread;
         # only GObject.idle_add() is in the background thread
         self.window = Gtk.Window(title=self._window_title)
@@ -131,6 +130,7 @@ class lockin_gui(object):
         self.worker_lock = threading.Lock()  # to signal the thread to stop
 
         self.stage = PIStage.Dummy();
+        #self.stage = PIStage.E545();
 
         self.log = logger(self.stage, self.settings)  # logger class which coordinates the spectrometer and the stage
         self._spec = self.log.get_spec()  # get an initial spectrum for display
@@ -185,31 +185,34 @@ class lockin_gui(object):
         self.lamp = None
         self.lockin = None
         self.normal = None
+        self.settings_dialog.enable_number_of_samples()
 
 
     def on_aquire_clicked(self, widget):
         if self.worker_thread is None:
             self.log.reset()
+            self.button_direction.set_sensitive(False)
             self.status.set_label('Acquiring ...')
             self.start_thread(self.acquire_spectrum, 'acquire')
         else:
-            self.status.set_label('Paused')
+            self.status.set_label('Stopped')
+            self.button_direction.set_sensitive(True)
             self.stop_thread()
             if not self.worker_mode is 'acquire':
                 self.log.reset()
+                self.button_direction.set_sensitive(False)
                 self.status.set_label('Acquiring ...')
                 self.start_thread(self.acquire_spectrum, 'acquire')
 
     def on_direction_clicked(self, widget):
         self.direction_dialog.rundialog()
 
-
     def on_live_clicked(self, widget):
         if self.worker_thread is None:
             self.status.set_label('Liveview')
             self.start_thread(self.live_spectrum, 'live')
         else:
-            self.status.set_label('Paused')
+            self.status.set_label('Stopped')
             self.stop_thread()
             if not self.worker_mode is 'live':
                 self.status.set_label('Liveview')
@@ -232,7 +235,7 @@ class lockin_gui(object):
             self.status.set_label('Taking Dark Spectrum')
             self.start_thread(self.take_spectrum, 'dark')
         else:
-            self.status.set_label('Paused')
+            self.status.set_label('Stopped')
             self.stop_thread()
             if not self.worker_mode is 'dark':
                 self.status.set_label('Taking Dark Spectrum')
@@ -243,7 +246,7 @@ class lockin_gui(object):
             self.status.set_label('Taking Lamp Spectrum')
             self.start_thread(self.take_spectrum, 'lamp')
         else:
-            self.status.set_label('Paused')
+            self.status.set_label('Stopped')
             self.stop_thread()
             if not self.worker_mode is 'lamp':
                 self.status.set_label('Taking Lamp Spectrum')
@@ -254,7 +257,7 @@ class lockin_gui(object):
             self.status.set_label('Taking Normal Spectrum')
             self.start_thread(self.take_spectrum, 'normal')
         else:
-            self.status.set_label('Paused')
+            self.status.set_label('Stopped')
             self.stop_thread()
             if not self.worker_mode is 'normal':
                 self.status.set_label('Taking Normal Spectrum')
@@ -288,7 +291,6 @@ class lockin_gui(object):
         buf = self._load_spectrum_from_file()
         if not buf is None: self.lamp = buf
 
-
     def take_spectrum(self, e):
         data = np.zeros(1024, dtype=np.float64)
         for i in range(self.log._number_of_samples):
@@ -305,14 +307,13 @@ class lockin_gui(object):
                     self.normal = None
                 break
 
-        self.integration_time_spin.set_sensitive(True)
-        self.number_of_samples_spin.set_sensitive(True)
+        self.settings_dialog.enable_number_of_samples()
 
         if self.worker_mode is 'dark':
-            self.number_of_samples_spin.set_sensitive(False)
+            self.settings_dialog.disable_number_of_samples()
             self.dark = data
         if self.worker_mode is 'lamp':
-            self.number_of_samples_spin.set_sensitive(False)
+            self.settings_dialog.disable_number_of_samples()
             self.lamp = data
         if self.worker_mode is 'normal':
             self.normal = data
@@ -323,6 +324,7 @@ class lockin_gui(object):
 
     def acquire_spectrum(self, e):
         # self._plotting = False
+        self.button_direction.set_sensitive(False)
         self.lockin = None
         while True:
             self._spec, running = self.log.measure_spectrum()
@@ -332,7 +334,7 @@ class lockin_gui(object):
             if not self.dark is None:
                 self._spec = self._spec - self.dark
                 if not self.lamp is None:
-                    self._spec = self._spec / (self.lamp)
+                    self._spec = self._spec / self.lamp
 
             if not running:
                 self._spec = self.calc_lock_in()
@@ -344,8 +346,8 @@ class lockin_gui(object):
                 self.log.reset()
                 break
 
-        self.integration_time_spin.set_sensitive(True)
-        self.number_of_samples_spin.set_sensitive(True)
+        self.settings_dialog.enable_number_of_samples()
+        self.button_direction.set_sensitive(True)
         return True
 
     def live_spectrum(self, e):

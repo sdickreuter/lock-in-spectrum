@@ -30,18 +30,16 @@ class logger(object):
     _starttime = None
     _juststarted = True
     _new_spectrum = False
+    _startx = 10
+    _starty = 10
+    _startz = 10
+
 
     def __init__(self, stage, settings):
         self.worker_thread = None
         self._init_spectrometer()
         self.stage = stage
         self.settings = settings
-        #self._init_stage()
-
-    def _init_stage(self):
-        #self.stage = nano.NanoControl()
-        #self.stage = PI.Dummy()
-        pass
 
     def _millis(self):
         dt = datetime.now() - self._starttime
@@ -86,28 +84,32 @@ class logger(object):
         self.data = np.zeros((self._number_of_samples, 1026), dtype=np.float64)
         self._juststarted = True
         self._scan_index = 0
+        self.stage.moveabs(self._startx,self._starty,self._startz)
 
-    def move_stage(self, amplitude):
-        dx = self._stage_amplitude * amplitude * self.settings.direction_x
-        dy = self._stage_amplitude * amplitude * self.settings.direction_y
-        dz = self._stage_amplitude * amplitude * self.settings.direction_z
-        self.stage.moverel(dx, dy, dz)
+    def move_stage(self, dist):
+        x = self._startx - self._stage_amplitude/2 * dist * self.settings.direction_x
+        y = self._starty - self._stage_amplitude/2 * dist * self.settings.direction_y
+        z = self._startz - self._stage_amplitude/2 * dist * self.settings.direction_z
+        #print "X: {0:+8.4f} | Y: {1:8.4f} | Z: {2:8.4f}".format(x,y,z)
+        self.stage.moveabs(x, y, z)
 
     def measure_spectrum(self):
         if self._juststarted:
-            self._starttime = datetime.now()
             self._juststarted = False
             self._scan_index = 0
+            self._startx, self._starty, self._startz = self.stage.pos()
+            self._starttime = datetime.now()
 
         t = self._millis() / 1000
 
         self._cycle_time = self._cycle_factor * t + self._cycle_time_start
-        ref = math.cos(2 * math.pi / self._cycle_time * t)
+        ref = math.cos(2 * math.pi * t / self._cycle_time)
         #print "Val: {0:6} | t: {1:.3f}".format(int(A*sin_value),t) + '  ' + '#'.rjust(int(10*sin_value+10))
-        if not self.worker_thread is None: self.worker_thread.join(1)
-        self.worker_thread = threading.Thread(target=self.move_stage,args=(ref,))
-        self.worker_thread.daemon = True
-        self.worker_thread.start()
+        #if not self.worker_thread is None: self.worker_thread.join(1)
+        #self.worker_thread = threading.Thread(target=self.move_stage,args=(ref))
+        #self.worker_thread.daemon = True
+        #self.worker_thread.start()
+        self.move_stage(ref)
 
         data = self._spectrometer.intensities()
 
@@ -120,7 +122,8 @@ class logger(object):
         if self._scan_index >= self._number_of_samples:
             print("%s spectra aquired" % self._scan_index)
             print("time taken: %s s" % t )
-            self.worker_thread.join(1)
+            #self.worker_thread.join(1)
+            self.stage.moveabs(self._startx,self._starty,self._startz)
             self._new_spectrum = True
             return data, False
 
