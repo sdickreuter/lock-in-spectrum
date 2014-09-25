@@ -47,7 +47,7 @@ class logger(object):
         return ms
 
     def set_integration_time(self, integration_time):
-        self._integration_time = integration_time
+        self._integration_time = integration_time/1000
         self._cycle_time_start = 3 * self._integration_time * 1000 / 10  # cycle duration in s, starting value
         self._spectrometer.integration_time(self._integration_time)
 

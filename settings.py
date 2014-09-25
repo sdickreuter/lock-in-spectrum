@@ -15,6 +15,7 @@ class Settings(object):
             self.direction_y = self.config.getfloat('direction', 'y')
             self.direction_z = self.config.getfloat('direction', 'z')
             self.amplitude = self.config.getint('direction', 'amplitude')
+            self.stepsize = self.config.getfloat('stage', 'stepsize')
 
         except:
             RuntimeError("Error loading settings.")
@@ -23,14 +24,14 @@ class Settings(object):
             return
 
     def save(self):
-        """cPickle the information into the file"""
         try:
             self.config.set('spectrum', 'integration_time', self.integration_time)
             self.config.set('spectrum', 'number_of_samples', self.number_of_samples)
             self.config.set('direction', 'x', self.direction_x)
             self.config.set('direction', 'y', self.direction_y)
             self.config.set('direction', 'z', self.direction_z)
-            self.config.set('direction', 'amplitude', self.amplitude)
+            self.config.set('direction', 'amplitude', int(self.amplitude))
+            self.config.set('stage', 'stepsize', self.stepsize)
             f = open(self._filename,"wb")
             self.config.write(f)
             f.close()

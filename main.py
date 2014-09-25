@@ -67,6 +67,23 @@ class lockin_gui(object):
         self.button_loaddark.set_tooltip_text("Load Dark Spectrum from file")
         self.button_loadlamp = Gtk.Button(label="Loard Lamp Spectrum")
         self.button_loadlamp.set_tooltip_text("Load Lamp Spectrum from file")
+        # Stage Control Buttons
+        self.button_xup = Gtk.Button(label="x+")
+        self.button_xdown = Gtk.Button(label="x-")
+        self.button_yup = Gtk.Button(label="y+")
+        self.button_ydown = Gtk.Button(label="y-")
+        self.button_zup = Gtk.Button(label="z+")
+        self.button_zdown = Gtk.Button(label="z-")
+        self.button_stepup = Gtk.Button(label="+")
+        self.button_stepdown = Gtk.Button(label="-")
+        self.label_stepsize = Gtk.Label(label = str(self.settings.stepsize))
+        self.button_moverel = Gtk.Button(label="Move Stage rel.")
+        self.button_moveabs = Gtk.Button(label="Move Stage abs.")
+        # Stage position labels
+        self.label_x = Gtk.Label(label="x: 0.1")
+        self.label_y = Gtk.Label(label="y: 0.1")
+        self.label_z = Gtk.Label(label="z: 0.1")
+
 
         # Connect Buttons
         self.window.connect("delete-event", self.quit)
@@ -81,9 +98,36 @@ class lockin_gui(object):
         self.button_reset.connect("clicked", self.on_reset_clicked)
         self.button_loaddark.connect("clicked", self.on_loaddark_clicked)
         self.button_loadlamp.connect("clicked", self.on_loadlamp_clicked)
+        # Connect Stage Control Buttons
+        self.button_xup.connect("clicked", self.on_xup_clicked)
+        self.button_xdown.connect("clicked", self.on_xdown_clicked)
+        self.button_yup.connect("clicked", self.on_yup_clicked)
+        self.button_ydown.connect("clicked", self.on_ydown_clicked)
+        self.button_zup.connect("clicked", self.on_zup_clicked)
+        self.button_zdown.connect("clicked", self.on_zdown_clicked)
+        self.button_stepup.connect("clicked", self.on_stepup_clicked)
+        self.button_stepdown.connect("clicked", self.on_stepdown_clicked)
+        self.button_moverel.connect("clicked", self.on_moverel_clicked)
+        self.button_moveabs.connect("clicked", self.on_moveabs_clicked)
 
-        #self.integration_time_spin.connect("value-changed", self.on_integration_time_change)
-        #self.number_of_samples_adj.connect("value-changed", self.on_number_of_samples_change)
+        #Stage Control Button Table
+        self.table_stagecontrol = Gtk.Table(3, 4, True)
+        self.table_stagecontrol.attach(self.button_xup, 0, 1, 1, 2)
+        self.table_stagecontrol.attach(self.button_xdown, 2, 3, 1, 2)
+        self.table_stagecontrol.attach(self.button_yup, 1, 2, 0, 1)
+        self.table_stagecontrol.attach(self.button_ydown, 1, 2, 2, 3)
+        self.table_stagecontrol.attach(self.button_zup, 3, 4, 0, 1)
+        self.table_stagecontrol.attach(self.button_zdown, 3, 4, 2, 3)
+        #Stage Stepsize Table
+        self.table_stepsize = Gtk.Table(1,3, True)
+        self.table_stepsize.attach(self.button_stepup, 0, 1, 0, 1)
+        self.table_stepsize.attach(self.label_stepsize, 1, 2, 0, 1)
+        self.table_stepsize.attach(self.button_stepdown, 2, 3, 0, 1)
+        #Stage Position Label Table
+        self.table_position = Gtk.Table(1,3, True)
+        self.table_position.attach(self.label_x, 0, 1, 0, 1)
+        self.table_position.attach(self.label_y, 1, 2, 0, 1)
+        self.table_position.attach(self.label_z, 2, 3, 0, 1)
 
         self.status = Gtk.Label(label="Initialized")
         self.progress = Gtk.ProgressBar()
@@ -92,17 +136,32 @@ class lockin_gui(object):
 
         self.sidebox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
 
+        self.sidebox.add(Gtk.Separator())
         self.sidebox.add(self.button_live)
+        self.sidebox.add(Gtk.Separator())
+        self.sidebox.add(Gtk.Label("Lock-In Spectrum"))
         self.sidebox.add(self.button_aquire)
         self.sidebox.add(self.button_direction)
-        self.sidebox.add(self.button_save)
+        self.sidebox.add(Gtk.Separator())
+        self.sidebox.add(Gtk.Label(label="Additional Spectra"))
         self.sidebox.add(self.button_dark)
         self.sidebox.add(self.button_lamp)
         self.sidebox.add(self.button_normal)
+        self.sidebox.add(Gtk.Separator())
+        self.sidebox.add(Gtk.Label(label="Miscellaneous"))
+        self.sidebox.add(self.button_save)
         self.sidebox.add(self.button_settings)
         self.sidebox.add(self.button_reset)
         self.sidebox.add(self.button_loaddark)
         self.sidebox.add(self.button_loadlamp)
+        self.sidebox.add(Gtk.Separator())
+        self.sidebox.add(Gtk.Label(label="Stage Control"))
+        self.sidebox.add(self.table_stagecontrol)
+        self.sidebox.add(Gtk.Label(label="Set Stepsize"))
+        self.sidebox.add(self.table_stepsize)
+        self.sidebox.add(self.button_moverel)
+        self.sidebox.add(self.button_moveabs)
+        self.sidebox.add(self.table_position)
 
         # MPL stuff
         self.figure = mpl.Figure()
@@ -111,7 +170,7 @@ class lockin_gui(object):
         self.canvas = mpl.FigureCanvas(self.figure)
         # self.line, = self.ax.plot(self.wl, self.sp[:,0])
 
-        self.canvas.set_size_request(600, 600)
+        self.canvas.set_size_request(750, 750)
         self.sidebox.set_size_request(100, -1)
         self.progress.set_size_request(-1, 15)
         self.status.set_size_request(100, -1)
@@ -160,6 +219,8 @@ class lockin_gui(object):
         :param target: function the thread shall execute
         :param mode: which kind of spectrum the thread is taking (dark, lamp, lock-in ...)
         """
+        self.log.set_integration_time(self.settings.integration_time)
+        self.log.set_number_of_samples(self.settings.number_of_samples)
         self.worker_mode = mode
         self.worker_running_event.clear()
         if not self.worker_thread is None: self.worker_thread.join(0.2)  # wait 200ms for thread to finish
@@ -290,6 +351,60 @@ class lockin_gui(object):
     def on_loadlamp_clicked(self, widget):
         buf = self._load_spectrum_from_file()
         if not buf is None: self.lamp = buf
+
+
+###---------------- Stage Control Button Connect functions ----------
+
+    def show_pos(self):
+        pos = self.stage.pos()
+        self.label_x.set_text("x: "+ str(pos[0]))
+        self.label_z.set_text("y: "+ str(pos[1]))
+        self.label_y.set_text("z: "+ str(pos[2]))
+
+    def on_xup_clicked(self, widget):
+        self.stage.moverel(dx=self.settings.stepsize)
+        self.show_pos()
+
+    def on_xdown_clicked(self, widget):
+        self.stage.moverel(dx=-self.settings.stepsize)
+        self.show_pos()
+
+    def on_yup_clicked(self, widget):
+        self.stage.moverel(dy=self.settings.stepsize)
+        self.show_pos()
+
+    def on_ydown_clicked(self, widget):
+        self.stage.moverel(dy=-self.settings.stepsize)
+        self.show_pos()
+
+    def on_zup_clicked(self, widget):
+        self.stage.moverel(dz=self.settings.stepsize)
+        self.show_pos()
+
+    def on_zdown_clicked(self, widget):
+        self.stage.moverel(dz=-self.settings.stepsize)
+        self.show_pos()
+
+    def on_stepup_clicked(self, widget):
+        self.settings.stepsize = 10*self.settings.stepsize
+        if self.settings.stepsize > 10: self.settings.stepsize = 10.0
+        self.label_stepsize.set_text(str(self.settings.stepsize))
+        self.settings.save()
+
+    def on_stepdown_clicked(self, widget):
+        self.settings.stepsize = self.settings.stepsize/10
+        if self.settings.stepsize < 0.001: self.settings.stepsize = 0.001
+        self.label_stepsize.set_text(str(self.settings.stepsize))
+        self.settings.save()
+
+    def on_moverel_clicked(self, widget):
+        pass
+
+    def on_moveabs_clicked(self, widget):
+        pass
+
+
+###---------------- END Stage Control Button Connect functions ------
 
     def take_spectrum(self, e):
         data = np.zeros(1024, dtype=np.float64)
