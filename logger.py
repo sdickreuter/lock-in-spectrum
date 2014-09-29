@@ -87,9 +87,9 @@ class logger(object):
         self.stage.moveabs(self._startx,self._starty,self._startz)
 
     def move_stage(self, dist):
-        x = self._startx - self._stage_amplitude/2 * dist * self.settings.direction_x
-        y = self._starty - self._stage_amplitude/2 * dist * self.settings.direction_y
-        z = self._startz - self._stage_amplitude/2 * dist * self.settings.direction_z
+        x = self._startx - self.settings.amplitude/2 * dist * self.settings.direction_x
+        y = self._starty - self.settings.amplitude/2 * dist * self.settings.direction_y
+        z = self._startz - self.settings.amplitude/2 * dist * self.settings.direction_z
         #print "X: {0:+8.4f} | Y: {1:8.4f} | Z: {2:8.4f}".format(x,y,z)
         self.stage.moveabs(x, y, z)
 

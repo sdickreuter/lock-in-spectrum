@@ -40,10 +40,6 @@ class lockin_gui(object):
         self.grid.set_column_spacing(5)
         self.window.add(self.grid)
 
-        #Dialogs
-        self.settings_dialog = dialogs.Settings_Dialog(self.window, self.settings)
-        self.direction_dialog = dialogs.Direction_Dialog(self.window, self.settings)
-
         # Buttons
         self.button_live = Gtk.Button(label="Liveview")
         self.button_live.set_tooltip_text("Start/Stop Liveview of Spectrum")
@@ -157,7 +153,7 @@ class lockin_gui(object):
         self.sidebox.add(Gtk.Separator())
         self.sidebox.add(Gtk.Label(label="Stage Control"))
         self.sidebox.add(self.table_stagecontrol)
-        self.sidebox.add(Gtk.Label(label="Set Stepsize"))
+        self.sidebox.add(Gtk.Label(label="Set Stepsize [um]"))
         self.sidebox.add(self.table_stepsize)
         self.sidebox.add(self.button_moverel)
         self.sidebox.add(self.button_moveabs)
@@ -195,6 +191,11 @@ class lockin_gui(object):
         self._spec = self.log.get_spec()  # get an initial spectrum for display
         self._wl = self.log.get_wl()  # get the wavelengths
         self.line, = self.ax.plot(self._wl, self._spec)  # plot initial spectrum
+
+        #Dialogs
+        self.settings_dialog = dialogs.Settings_Dialog(self.window, self.settings)
+        self.direction_dialog = dialogs.Direction_Dialog(self.window, self.settings)
+        self.moveabs_dialog = dialogs.MoveAbs_Dialog(self.window, self.stage)
 
         # variables for storing the spectra
         self.lamp = None
@@ -401,7 +402,7 @@ class lockin_gui(object):
         pass
 
     def on_moveabs_clicked(self, widget):
-        pass
+        self.moveabs_dialog.rundialog()
 
 
 ###---------------- END Stage Control Button Connect functions ------
