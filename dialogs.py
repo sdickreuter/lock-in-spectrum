@@ -218,5 +218,97 @@ class MoveAbs_Dialog(Gtk.Dialog):
        self.show_all()
        result = self.run()
        if (result==Gtk.ResponseType.OK):
-           self.stage.moveabs()
+           self.stage.moveabs(self.x,self.y,self.z)
+       self.hide()
+
+class MoveRel_Dialog(Gtk.Dialog):
+
+    def __init__(self, parent, stage):
+       #super(Settings_Dialog, self).__init__(self, "Settings", parent, 0, (Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,Gtk.STOCK_OK, Gtk.ResponseType.OK))
+       Gtk.Dialog.__init__(self, "Move Stage Relative to Position", parent, 0, (Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, Gtk.STOCK_OK, Gtk.ResponseType.OK))
+       #self.set_default_size(150, 100)
+
+       self.box = self.get_content_area()
+       self.box.set_spacing(6)
+
+       #buttons
+
+       self.stage = stage
+       self.x = .0
+       self.y = .0
+       self.z = .0
+       self.dx = .0
+       self.dy = .0
+       self.dz = .0
+
+       self.entry_x = Gtk.Entry()
+       self.entry_x.set_text(str(self.x))
+       self.entry_x.set_alignment(1)
+       self.entry_x.set_max_length(7)
+       self.entry_y = Gtk.Entry()
+       self.entry_y.set_text(str(self.y))
+       self.entry_y.set_alignment(1)
+       self.entry_y.set_max_length(7)
+       self.entry_z = Gtk.Entry()
+       self.entry_z.set_text(str(self.z))
+       self.entry_z.set_alignment(1)
+       self.entry_z.set_max_length(7)
+
+       #Stage Control Button Table
+       self.table = Gtk.Table(3, 3, True)
+       self.table.attach(Gtk.Label(label="dx [um]"),0,1,0,1)
+       self.table.attach(Gtk.Label(label="dy [um]"),0,1,1,2)
+       self.table.attach(Gtk.Label(label="dz [um]"),0,1,2,3)
+       self.table.attach(self.entry_x,1,3,0,1)
+       self.table.attach(self.entry_y,1,3,1,2)
+       self.table.attach(self.entry_z,1,3,2,3)
+
+       #self.number_of_samples_spin.set_value(self.settings.number_of_samples)
+       #self.integration_time_spin.set_value(self.settings.integration_time)
+       self.box.add(self.table)
+
+       self.entry_x.connect("changed", self.on_change)
+       self.entry_y.connect("changed", self.on_change)
+       self.entry_z.connect("changed", self.on_change)
+
+       self.hide()
+
+    def on_change(self, widget):
+        dx = self.entry_x.get_text()
+        dy = self.entry_y.get_text()
+        dz = self.entry_z.get_text()
+        try:
+            dx = float(dx)
+        except ValueError:
+            dx = 0
+        try:
+            dy = float(dy)
+        except ValueError:
+            dy =0
+        try:
+            dz = float(dz)
+        except ValueError:
+            dz = 0
+        if ((self.x + dx) > 200): dx = 0
+        if ((self.x + dx) < 0): dx = 0
+        if ((self.y + dy) > 200): dy = 0
+        if ((self.y + dy) < 0): dy = 0
+        if ((self.z + dz) > 200): dz = 0.0
+        if ((self.z + dz) < 0): dz = 0.0
+        self.entry_x.set_text(str(dx))
+        self.entry_y.set_text(str(dy))
+        self.entry_z.set_text(str(dz))
+        self.dx = dx
+        self.dy = dy
+        self.dz = dz
+
+    def rundialog(self):
+       pos = self.stage.pos()
+       self.x = pos[0]
+       self.y = pos[1]
+       self.z = pos[2]
+       self.show_all()
+       result = self.run()
+       if (result==Gtk.ResponseType.OK):
+           self.stage.moverel(self.dx,self.dy,self.dz)
        self.hide()

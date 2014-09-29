@@ -196,6 +196,7 @@ class lockin_gui(object):
         self.settings_dialog = dialogs.Settings_Dialog(self.window, self.settings)
         self.direction_dialog = dialogs.Direction_Dialog(self.window, self.settings)
         self.moveabs_dialog = dialogs.MoveAbs_Dialog(self.window, self.stage)
+        self.moverel_dialog = dialogs.MoveRel_Dialog(self.window, self.stage)
 
         # variables for storing the spectra
         self.lamp = None
@@ -399,7 +400,8 @@ class lockin_gui(object):
         self.settings.save()
 
     def on_moverel_clicked(self, widget):
-        pass
+        self.moverel_dialog.rundialog()
+        self.show_pos()
 
     def on_moveabs_clicked(self, widget):
         self.moveabs_dialog.rundialog()
