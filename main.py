@@ -403,6 +403,7 @@ class lockin_gui(object):
 
     def on_moveabs_clicked(self, widget):
         self.moveabs_dialog.rundialog()
+        self.show_pos()
 
 
 ###---------------- END Stage Control Button Connect functions ------
