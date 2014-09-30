@@ -15,7 +15,6 @@ class logger(object):
     _filename = None
     _integration_time = 0.1
     _scan_index = 0
-    _number_of_samples = 1000
 
     # Stage control
     _stage_amplitude = 5  # amplitude in um
@@ -24,7 +23,7 @@ class logger(object):
     #_cycle_factor = 0.2 # cycle time is calculated using this factor
     _cycle_time = 0  # cycle duration in s
     _cycle_time_start = 3 * _integration_time * 1000 / 10  # cycle duration in s, starting value
-    _cycle_factor = -float(180) / _number_of_samples  # cycle time is calculated using this factor
+    _cycle_factor = 0  # cycle time is calculated using this factor
 
     #General
     _starttime = None
@@ -36,10 +35,12 @@ class logger(object):
 
 
     def __init__(self, stage, settings):
+        self.settings = settings
         self.worker_thread = None
         self._init_spectrometer()
         self.stage = stage
-        self.settings = settings
+        self._cycle_factor = -float(180) / settings.number_of_samples  # cycle time is calculated using this factor
+
 
     def _millis(self):
         dt = datetime.now() - self._starttime
@@ -51,10 +52,6 @@ class logger(object):
         self._cycle_time_start = 3 * self._integration_time * 1000 / 10  # cycle duration in s, starting value
         self._spectrometer.integration_time(self._integration_time)
 
-    def set_number_of_samples(self, number_of_samples):
-        self._number_of_samples = number_of_samples
-        self._cycle_factor = -float(180) / self._number_of_samples  # cycle time is calculated using this factor
-
     def _init_spectrometer(self):
         try:
             #self._spectrometer = oceanoptics.QE65000()
@@ -63,7 +60,7 @@ class logger(object):
             sp = self._spectrometer.spectrum()
             self._wl = sp[0]
             self.spectra = None
-            self.data = np.zeros((self._number_of_samples, 1026), dtype=np.float64)
+            self.data = np.zeros((self.settings.number_of_samples, 1026), dtype=np.float64)
         except:
             raise RuntimeError("Error opening spectrometer. Exiting...")
 
@@ -76,12 +73,9 @@ class logger(object):
     def get_scan_index(self):
         return self._scan_index
 
-    def get_number_of_samples(self):
-        return self._number_of_samples
-
     def reset(self):
         self._new_spectrum = False
-        self.data = np.zeros((self._number_of_samples, 1026), dtype=np.float64)
+        self.data = np.zeros((self.settings.number_of_samples, 1026), dtype=np.float64)
         self._juststarted = True
         self._scan_index = 0
         self.stage.moveabs(self._startx,self._starty,self._startz)
@@ -95,6 +89,7 @@ class logger(object):
 
     def measure_spectrum(self):
         if self._juststarted:
+            self._cycle_factor = -float(180) / self.settings.number_of_samples  # cycle time is calculated using this factor
             self._juststarted = False
             self._scan_index = 0
             self._startx, self._starty, self._startz = self.stage.pos()
@@ -119,7 +114,7 @@ class logger(object):
 
         self._scan_index += 1
 
-        if self._scan_index >= self._number_of_samples:
+        if self._scan_index >= self.settings.number_of_samples:
             print("%s spectra aquired" % self._scan_index)
             print("time taken: %s s" % t )
             #self.worker_thread.join(1)

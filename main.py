@@ -247,7 +247,6 @@ class lockin_gui(object):
         :param mode: which kind of spectrum the thread is taking (dark, lamp, lock-in ...)
         """
         self.log.set_integration_time(self.settings.integration_time)
-        self.log.set_number_of_samples(self.settings.number_of_samples)
         self.worker_mode = mode
         self.worker_running_event.clear()
         if not self.worker_thread is None: self.worker_thread.join(0.2)  # wait 200ms for thread to finish
@@ -281,6 +280,7 @@ class lockin_gui(object):
     def on_aquire_clicked(self, widget):
         if self.worker_thread is None:
             self.log.reset()
+            self.settings_dialog.enable_number_of_samples()
             self.button_direction.set_sensitive(False)
             self.status.set_label('Acquiring ...')
             self.start_thread(self.acquire_spectrum, 'acquire')
@@ -290,6 +290,7 @@ class lockin_gui(object):
             self.stop_thread()
             if not self.worker_mode is 'acquire':
                 self.log.reset()
+                self.settings_dialog.enable_number_of_samples()
                 self.button_direction.set_sensitive(False)
                 self.status.set_label('Acquiring ...')
                 self.start_thread(self.acquire_spectrum, 'acquire')
@@ -319,6 +320,7 @@ class lockin_gui(object):
             self.status.set_label("Saving Data ...")
             self.save_data()
             self.log.reset()
+            self.settings_dialog.enable_number_of_samples()
             self.status.set_label('Data saved')
         else:
             self.status.set_label('No Data found')
@@ -448,11 +450,11 @@ class lockin_gui(object):
 ###---------------- functions for taking and showing Spectra ----------
 
     def take_spectrum(self, e):
+        self.settings_dialog.disable_number_of_samples()
         data = np.zeros(1024, dtype=np.float64)
-        for i in range(self.log._number_of_samples):
+        for i in range(self.settings.number_of_samples):
             data = (data + self.log.get_spec()) / 2
-
-            self._progress_fraction = float(i + 1) / self.log._number_of_samples
+            self._progress_fraction = float(i + 1) / self.settings.number_of_samples
 
             if e.is_set():
                 if self.worker_mode is 'dark':
@@ -481,11 +483,12 @@ class lockin_gui(object):
     def acquire_spectrum(self, e):
         # self._plotting = False
         self.button_direction.set_sensitive(False)
+        self.settings_dialog.disable_number_of_samples()
         self.lockin = None
         while True:
             self._spec, running = self.log.measure_spectrum()
 
-            self._progress_fraction = float(self.log.get_scan_index()) / self.log.get_number_of_samples()
+            self._progress_fraction = float(self.log.get_scan_index()) / self.settings.number_of_samples
 
             if not self.dark is None:
                 self._spec = self._spec - self.dark
@@ -500,6 +503,7 @@ class lockin_gui(object):
 
             if e.is_set():
                 self.log.reset()
+                self.settings_dialog.enable_number_of_samples()
                 break
 
         self.settings_dialog.enable_number_of_samples()

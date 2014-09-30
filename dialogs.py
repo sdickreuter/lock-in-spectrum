@@ -51,10 +51,10 @@ class Settings_Dialog(Gtk.Dialog):
         self.hide()
 
     def enable_number_of_samples(self):
-        self.number_of_samples_spin.set_sensitive(False)  # disable spinbutton which sets number of samples
+        self.number_of_samples_spin.set_sensitive(True)  # enables spinbutton which sets number of samples
 
     def disable_number_of_samples(self):
-        self.number_of_samples_spin.set_sensitive(True)  # re-enable spinbutton which sets number of samples
+        self.number_of_samples_spin.set_sensitive(False)  # re-enable spinbutton which sets number of samples
 
 
 
