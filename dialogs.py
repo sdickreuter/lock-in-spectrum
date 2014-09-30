@@ -148,9 +148,10 @@ class MoveAbs_Dialog(Gtk.Dialog):
        #buttons
 
        self.stage = stage
-       self.x = .0
-       self.y = .0
-       self.z = .0
+       pos = stage.pos()
+       self.x = float(pos[0])
+       self.y = float(pos[1])
+       self.z = float(pos[2])
 
        self.entry_x = Gtk.Entry()
        self.entry_x.set_text(str(self.x))

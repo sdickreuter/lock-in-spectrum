@@ -31,6 +31,9 @@ class lockin_gui(object):
     def __init__(self):
         self.settings = Settings()
 
+        self.stage = PIStage.Dummy();
+        #self.stage = PIStage.E545();
+
         GObject.threads_init()  # all Gtk is in the main thread;
         # only GObject.idle_add() is in the background thread
         self.window = Gtk.Window(title=self._window_title)
@@ -80,10 +83,10 @@ class lockin_gui(object):
         self.button_moverel = Gtk.Button(label="Move Stage rel.")
         self.button_moveabs = Gtk.Button(label="Move Stage abs.")
         # Stage position labels
-        self.label_x = Gtk.Label(label="x: 0.1")
-        self.label_y = Gtk.Label(label="y: 0.1")
-        self.label_z = Gtk.Label(label="z: 0.1")
-
+        self.label_x = Gtk.Label()
+        self.label_y = Gtk.Label()
+        self.label_z = Gtk.Label()
+        self.show_pos()
 
         # Connect Buttons
         self.window.connect("delete-event", self.quit)
@@ -124,11 +127,6 @@ class lockin_gui(object):
         self.table_stepsize.attach(self.button_stepup, 0, 1, 0, 1)
         self.table_stepsize.attach(self.label_stepsize, 1, 2, 0, 1)
         self.table_stepsize.attach(self.button_stepdown, 2, 3, 0, 1)
-        #Stage Position Label Table
-        self.table_position = Gtk.Table(1,3, True)
-        self.table_position.attach(self.label_x, 0, 1, 0, 1)
-        self.table_position.attach(self.label_y, 1, 2, 0, 1)
-        self.table_position.attach(self.label_z, 2, 3, 0, 1)
 
         self.status = Gtk.Label(label="Initialized")
         self.progress = Gtk.ProgressBar()
@@ -163,7 +161,9 @@ class lockin_gui(object):
         self.sidebox.add(self.table_stepsize)
         self.sidebox.add(self.button_moverel)
         self.sidebox.add(self.button_moveabs)
-        self.sidebox.add(self.table_position)
+        self.sidebox.add(self.label_x)
+        self.sidebox.add(self.label_y)
+        self.sidebox.add(self.label_z)
 
         # MPL stuff
         self.figure = mpl.Figure()
@@ -173,7 +173,7 @@ class lockin_gui(object):
         self.canvas = mpl.FigureCanvas(self.figure)
         # self.line, = self.ax.plot(self.wl, self.sp[:,0])
 
-        self.canvas.set_size_request(750, 750)
+        self.canvas.set_size_request(900, 800)
         self.sidebox.set_size_request(100, -1)
         self.progress.set_size_request(-1, 15)
         self.status.set_size_request(100, -1)
@@ -190,9 +190,6 @@ class lockin_gui(object):
         self.worker_thread = None
         self.worker_mode = None
         self.worker_lock = threading.Lock()  # to signal the thread to stop
-
-        self.stage = PIStage.Dummy();
-        #self.stage = PIStage.E545();
 
         self.log = logger(self.stage, self.settings)  # logger class which coordinates the spectrometer and the stage
         self._spec = self.log.get_spec()  # get an initial spectrum for display
@@ -312,7 +309,10 @@ class lockin_gui(object):
                 self.start_thread(self.live_spectrum, 'live')
 
     def on_search_clicked(self, widget):
+        self.status.set_text("Searching Max.")
         self.search_max_int();
+        self.status.set_text("Max. approached")
+
 
     def on_save_clicked(self, widget):
         if self.log._new_spectrum:
@@ -394,9 +394,9 @@ class lockin_gui(object):
 
     def show_pos(self):
         pos = self.stage.pos()
-        self.label_x.set_text("x: "+ str(pos[0]))
-        self.label_z.set_text("y: "+ str(pos[1]))
-        self.label_y.set_text("z: "+ str(pos[2]))
+        self.label_x.set_text("x: {0:+8.4f}".format(pos[0]))
+        self.label_y.set_text("y: {0:+8.4f}".format(pos[1]))
+        self.label_z.set_text("z: {0:+8.4f}".format(pos[2]))
 
     def on_xup_clicked(self, widget):
         self.stage.moverel(dx=self.settings.stepsize)
@@ -493,7 +493,7 @@ class lockin_gui(object):
                     self._spec = self._spec / self.lamp
 
             if not running:
-                self._spec = self.calc_lock_in()
+                self._spec = self.calc_lockin()
                 self.lockin = self._spec
                 self.status.set_label('Spectra acquired')
                 break
@@ -552,7 +552,7 @@ class lockin_gui(object):
         self.progress.set_fraction(self._progress_fraction)
         return True
 
-    def calc_lock_in(self):
+    def calc_lockin(self):
         shape = self.log.data.shape
         res = np.empty(1024)
         diff = np.diff(np.append(0, self.log.data[:, 0]))
