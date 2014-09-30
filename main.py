@@ -9,6 +9,7 @@ import numpy as np
 from datetime import datetime
 import os
 import PIStage
+import math
 
 from gi.repository import Gtk
 from gi.repository import GObject
@@ -21,6 +22,7 @@ class mpl:
     from matplotlib.figure import Figure
     from matplotlib.backends.backend_gtk3agg import FigureCanvasGTK3Agg as FigureCanvas
 
+from scipy.interpolate import interp1d
 
 class lockin_gui(object):
     _window_title = "Lock-in Spectrum"
@@ -49,6 +51,8 @@ class lockin_gui(object):
         self.button_direction.set_tooltip_text("Set Direction of Stage Movement")
         self.button_settings = Gtk.Button(label="Settings")
         self.button_settings.set_tooltip_text("Set Integration Time and Number of Samples")
+        self.button_search = Gtk.Button(label="Search for Max")
+        self.button_search.set_tooltip_text("Search for position with maximum Intensity")
         self.button_save = Gtk.Button(label="Save Data")
         self.button_save.set_tooltip_text("Save all spectral Data in .csv")
         self.button_dark = Gtk.Button(label="Take Dark Spectrum")
@@ -87,6 +91,7 @@ class lockin_gui(object):
         self.button_direction.connect("clicked", self.on_direction_clicked)
         self.button_live.connect("clicked", self.on_live_clicked)
         self.button_settings.connect("clicked", self.on_settings_clicked)
+        self.button_search.connect("clicked", self.on_search_clicked)
         self.button_save.connect("clicked", self.on_save_clicked)
         self.button_dark.connect("clicked", self.on_dark_clicked)
         self.button_lamp.connect("clicked", self.on_lamp_clicked)
@@ -145,6 +150,7 @@ class lockin_gui(object):
         self.sidebox.add(self.button_normal)
         self.sidebox.add(Gtk.Separator())
         self.sidebox.add(Gtk.Label(label="Miscellaneous"))
+        self.sidebox.add(self.button_search)
         self.sidebox.add(self.button_save)
         self.sidebox.add(self.button_settings)
         self.sidebox.add(self.button_reset)
@@ -163,6 +169,7 @@ class lockin_gui(object):
         self.figure = mpl.Figure()
         self.ax = self.figure.add_subplot(1, 1, 1)
         self.ax.grid(True)
+        #self.ax.set_color_cycle(["b", ""])
         self.canvas = mpl.FigureCanvas(self.figure)
         # self.line, = self.ax.plot(self.wl, self.sp[:,0])
 
@@ -190,7 +197,9 @@ class lockin_gui(object):
         self.log = logger(self.stage, self.settings)  # logger class which coordinates the spectrometer and the stage
         self._spec = self.log.get_spec()  # get an initial spectrum for display
         self._wl = self.log.get_wl()  # get the wavelengths
-        self.line, = self.ax.plot(self._wl, self._spec)  # plot initial spectrum
+        self.lines = []
+        self.lines.extend( self.ax.plot(self._wl, self._spec,"-") )
+        self.lines.extend( self.ax.plot(self._wl, self.smooth(self._spec),"-",c="black") )  # plot initial spectrum
 
         #Dialogs
         self.settings_dialog = dialogs.Settings_Dialog(self.window, self.settings)
@@ -204,6 +213,25 @@ class lockin_gui(object):
         self.normal = None
         self.lockin = None
 
+    def smooth(self, x):
+        """
+        modified from: http://wiki.scipy.org/Cookbook/SignalSmooth
+        """
+        window_len=151
+
+        s = np.r_[x[window_len-1:0:-1],x,x[-1:-window_len:-1]]
+
+        window='hanning'
+        #window='flat'
+
+        if window == 'flat': #moving average
+            w=np.ones(window_len,'d')
+        else:
+            w=eval('np.'+window+'(window_len)')
+
+        y = np.convolve(w/w.sum(),s,mode='valid')
+        y = y[(window_len/2):-(window_len/2)]
+        return y
 
     def quit(self, *args):
         """
@@ -241,6 +269,8 @@ class lockin_gui(object):
 
     def on_number_of_samples_change(self, widget):
         self.log.set_number_of_samples(self.number_of_samples_spin.get_value_as_int())
+
+###---------------- button connect functions ----------
 
     def on_reset_clicked(self, widget):
         self.log.reset()
@@ -280,6 +310,9 @@ class lockin_gui(object):
             if not self.worker_mode is 'live':
                 self.status.set_label('Liveview')
                 self.start_thread(self.live_spectrum, 'live')
+
+    def on_search_clicked(self, widget):
+        self.search_max_int();
 
     def on_save_clicked(self, widget):
         if self.log._new_spectrum:
@@ -326,6 +359,16 @@ class lockin_gui(object):
                 self.status.set_label('Taking Normal Spectrum')
                 self.start_thread(self.take_spectrum, 'normal')
 
+    def on_loaddark_clicked(self, widget):
+        buf = self._load_spectrum_from_file()
+        if not buf is None: self.dark = buf
+
+    def on_loadlamp_clicked(self, widget):
+        buf = self._load_spectrum_from_file()
+        if not buf is None: self.lamp = buf
+
+###---------------- END button connect functions ----------
+
     def _load_spectrum_from_file(self):
         dialog = Gtk.FileChooserDialog("Please choose a file", self.window,
             Gtk.FileChooserAction.OPEN,
@@ -345,14 +388,6 @@ class lockin_gui(object):
            data = None
         dialog.destroy()
         return data
-
-    def on_loaddark_clicked(self, widget):
-        buf = self._load_spectrum_from_file()
-        if not buf is None: self.dark = buf
-
-    def on_loadlamp_clicked(self, widget):
-        buf = self._load_spectrum_from_file()
-        if not buf is None: self.lamp = buf
 
 
 ###---------------- Stage Control Button Connect functions ----------
@@ -409,6 +444,8 @@ class lockin_gui(object):
 
 
 ###---------------- END Stage Control Button Connect functions ------
+
+###---------------- functions for taking and showing Spectra ----------
 
     def take_spectrum(self, e):
         data = np.zeros(1024, dtype=np.float64)
@@ -480,15 +517,25 @@ class lockin_gui(object):
 
     def update_plot(self):
         # if self._plotting:
-        self.line.set_ydata(self._spec)
+        #self.lines.
+        self.lines[0].set_ydata(self._spec)
+        self.lines[1].set_ydata(self.smooth(self._spec))
         self.ax.relim()
         self.ax.autoscale_view(False, False, True)
+        #self.ax.draw_artist(self.ax.patch)
+        #self.ax.draw_artist(self.lines[0])
+        #self.ax.draw_artist(self.lines[1])
+        #self.canvas
+        #self.canvas.flush_events()
         self.canvas.draw()
         return True
 
     def update_progress(self):
         self.progress.set_fraction(self._progress_fraction)
         return True
+
+###---------------- END functions for taking and showing Spectra ----------
+
 
     def run(self):
         """	run main gtk thread """
@@ -556,6 +603,33 @@ class lockin_gui(object):
                              self.lockin.reshape(self.lockin.shape[0], 1), 1)
             data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
             data.to_csv('lockin_' + filename, header=True, index=False)
+
+    def _get_hexagon(self, a):
+        a = float(a)
+        return ( (a,0), (0.5*a,math.sqrt(3)/2*a), (-0.5*a,math.sqrt(3)/2*a), (-a,0), (0.5*a,-math.sqrt(3)/2*a), (-0.5*a,-math.sqrt(3)/2*a) )
+
+    def search_max_int(self):
+        sizes = (1.0,0.2,0.01)
+
+        for size in sizes:
+            hex = self._get_hexagon(size)
+
+            origin = self.stage.pos()
+
+            dirx = 0
+            diry = 0
+            for pos in hex:
+                self.stage.moverel(dx=pos[0],dy=pos[1])
+                int = np.max(self.smooth(self.log.get_spec()))
+                dirx += pos[0]*int
+                diry += pos[1]*int
+                #print (dirx, diry)
+                self.stage.moveabs(origin[0],origin[1],origin[2])
+
+            norm = math.sqrt( dirx*dirx + diry*diry)
+            dirx = size*dirx/norm
+            diry = size*diry/norm
+            self.stage.moverel(dx=dirx, dy=diry)
 
 
 if __name__ == "__main__":
