@@ -2,7 +2,7 @@ __author__ = 'sei'
 
 from datetime import datetime
 import math
-import threading
+import time
 
 #from PIStage._base import Controller
 import oceanoptics
@@ -54,8 +54,8 @@ class logger(object):
 
     def _init_spectrometer(self):
         try:
-            #self._spectrometer = oceanoptics.QE65000()
-            self._spectrometer = oceanoptics.Dummy()
+            self._spectrometer = oceanoptics.QE65000()
+            #self._spectrometer = oceanoptics.Dummy()
             self._spectrometer.integration_time(self._integration_time)
             sp = self._spectrometer.spectrum()
             self._wl = sp[0]
@@ -81,10 +81,10 @@ class logger(object):
         self.stage.moveabs(self._startx,self._starty,self._startz)
 
     def move_stage(self, dist):
-        x = self._startx - self.settings.amplitude/2 * dist * self.settings.direction_x
-        y = self._starty - self.settings.amplitude/2 * dist * self.settings.direction_y
-        z = self._startz - self.settings.amplitude/2 * dist * self.settings.direction_z
-        #print "X: {0:+8.4f} | Y: {1:8.4f} | Z: {2:8.4f}".format(x,y,z)
+        x = self._startx - self.settings.amplitude/2 * (dist) * self.settings.direction_x
+        y = self._starty - self.settings.amplitude/2 * (dist) * self.settings.direction_y
+        z = self._startz - self.settings.amplitude/2 * (dist) * self.settings.direction_z
+        #print "X: {0:+8.4f} | Y: {1:8.4f} | Z: {2:8.4f} || X: {3:+8.4f} | Y: {4:8.4f} | Z: {5:8.4f}".format(x,y,z,self._startx,self._starty,self._startz)
         self.stage.moveabs(x, y, z)
 
     def measure_spectrum(self):
@@ -96,16 +96,10 @@ class logger(object):
             self._starttime = datetime.now()
 
         t = self._millis() / 1000
-
         self._cycle_time = self._cycle_factor * t + self._cycle_time_start
-        ref = math.cos(2 * math.pi * t / self._cycle_time)
-        #print "Val: {0:6} | t: {1:.3f}".format(int(A*sin_value),t) + '  ' + '#'.rjust(int(10*sin_value+10))
-        #if not self.worker_thread is None: self.worker_thread.join(1)
-        #self.worker_thread = threading.Thread(target=self.move_stage,args=(ref))
-        #self.worker_thread.daemon = True
-        #self.worker_thread.start()
+        ref = 1-math.cos(2 * math.pi * t / self._cycle_time)
         self.move_stage(ref)
-
+        time.sleep(0.01)
         data = self._spectrometer.intensities()
 
         self.data[self._scan_index, 0] = t

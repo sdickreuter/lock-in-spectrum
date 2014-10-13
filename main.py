@@ -31,8 +31,8 @@ class lockin_gui(object):
     def __init__(self):
         self.settings = Settings()
 
-        self.stage = PIStage.Dummy();
-        #self.stage = PIStage.E545();
+        #self.stage = PIStage.Dummy();
+        self.stage = PIStage.E545();
 
         GObject.threads_init()  # all Gtk is in the main thread;
         # only GObject.idle_add() is in the background thread
@@ -613,7 +613,12 @@ class lockin_gui(object):
         return ( (a,0), (0.5*a,math.sqrt(3)/2*a), (-0.5*a,math.sqrt(3)/2*a), (-a,0), (0.5*a,-math.sqrt(3)/2*a), (-0.5*a,-math.sqrt(3)/2*a) )
 
     def search_max_int(self):
-        sizes = (1.0,0.2,0.01)
+
+        if self.worker_thread is not None:
+            self.status.set_label('Stopped')
+            self.stop_thread()
+
+        sizes = (.1,.05,0.01,0.005)
 
         for size in sizes:
             hex = self._get_hexagon(size)
@@ -633,7 +638,10 @@ class lockin_gui(object):
             norm = math.sqrt( dirx*dirx + diry*diry)
             dirx = size*dirx/norm
             diry = size*diry/norm
-            self.stage.moverel(dx=dirx, dy=diry)
+            #print (dirx,diry)
+            self.stage.moverel(dx=dirx/2, dy=diry/2)
+
+        self._spec = self.log.get_spec()
 
 
 if __name__ == "__main__":
