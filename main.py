@@ -31,8 +31,8 @@ class lockin_gui(object):
     def __init__(self):
         self.settings = Settings()
 
-        #self.stage = PIStage.Dummy();
-        self.stage = PIStage.E545();
+        self.stage = PIStage.Dummy();
+        #self.stage = PIStage.E545();
 
         GObject.threads_init()  # all Gtk is in the main thread;
         # only GObject.idle_add() is in the background thread
@@ -609,29 +609,34 @@ class lockin_gui(object):
             self.status.set_label('Stopped')
             self.stop_thread()
 
-        sizes = (.1,.05,0.01,0.005)
+        sizes = (1.,1.,.8,.8,.4,.4,.2,.2,.1,.1)
 
         for size in sizes:
             hex = self._get_hexagon(size)
 
             origin = self.stage.pos()
+            int_origin = np.max(self.smooth(self.log.get_spec()))
+            #print(origin)
 
             dirx = 0
             diry = 0
             for pos in hex:
                 self.stage.moveabs(origin[0]+pos[0],origin[1]+pos[1])
                 int = np.max(self.smooth(self.log.get_spec()))
-                dirx += pos[0]*int
-                diry += pos[1]*int
+                vecx = pos[0]*((int-int_origin)/(int_origin+int))
+                vecy = pos[1]*((int-int_origin)/(int_origin+int))
+                dirx += vecx*100
+                diry += vecy*100
                 #print (dirx, diry)
 
-            norm = math.sqrt( dirx*dirx + diry*diry)
-            dirx = size*dirx/norm
-            diry = size*diry/norm
+            #norm = math.sqrt( dirx*dirx + diry*diry)
+            dirx = size*dirx#/norm
+            diry = size*diry#/norm
             #print (dirx,diry)
             self.stage.moveabs(origin[0]+dirx,origin[1]+diry,origin[2])
 
         self._spec = self.log.get_spec()
+        self.show_pos()
 
 
 if __name__ == "__main__":
