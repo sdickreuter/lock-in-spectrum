@@ -520,17 +520,10 @@ class lockin_gui(object):
         return True
 
     def update_plot(self):
-        # if self._plotting:
-        #self.lines.
         self.lines[0].set_ydata(self._spec)
         self.lines[1].set_ydata(self.smooth(self._spec))
         self.ax.relim()
         self.ax.autoscale_view(False, False, True)
-        #self.ax.draw_artist(self.ax.patch)
-        #self.ax.draw_artist(self.lines[0])
-        #self.ax.draw_artist(self.lines[1])
-        #self.canvas
-        #self.canvas.flush_events()
         self.canvas.draw()
         return True
 
@@ -540,7 +533,6 @@ class lockin_gui(object):
 
 ###---------------- END functions for taking and showing Spectra ----------
 
-
     def run(self):
         """	run main gtk thread """
         try:
@@ -548,7 +540,6 @@ class lockin_gui(object):
             Gtk.main()
         except KeyboardInterrupt:
             pass
-
 
     def _update(self, _suff=cycle('/|\-')):
         # self.window.set_title('%s %s' % (self._window_title, next(_suff)))
@@ -628,18 +619,17 @@ class lockin_gui(object):
             dirx = 0
             diry = 0
             for pos in hex:
-                self.stage.moverel(dx=pos[0],dy=pos[1])
+                self.stage.moveabs(origin[0]+pos[0],origin[1]+pos[1])
                 int = np.max(self.smooth(self.log.get_spec()))
                 dirx += pos[0]*int
                 diry += pos[1]*int
                 #print (dirx, diry)
-                self.stage.moveabs(origin[0],origin[1],origin[2])
 
             norm = math.sqrt( dirx*dirx + diry*diry)
             dirx = size*dirx/norm
             diry = size*diry/norm
             #print (dirx,diry)
-            self.stage.moverel(dx=dirx/2, dy=diry/2)
+            self.stage.moveabs(origin[0]+dirx,origin[1]+diry,origin[2])
 
         self._spec = self.log.get_spec()
 
