@@ -610,10 +610,6 @@ class lockin_gui(object):
         g = offset + amplitude*np.exp(-( np.power(x - xo, 2.) + np.power(y - yo, 2.) ) / (2 * np.power(sigma, 2.)))
         return g.ravel()
 
-    def _get_hexagon(self, a):
-        a = float(a)
-        return ( (a,0), (0.5*a,math.sqrt(3)/2*a), (-0.5*a,math.sqrt(3)/2*a), (-a,0), (0.5*a,-math.sqrt(3)/2*a), (-0.5*a,-math.sqrt(3)/2*a) )
-
     def search_max_int(self):
 
         # check if there are spectra taken at the moment, if yes stop them
@@ -671,6 +667,7 @@ class lockin_gui(object):
             print "Position of Particle: {0:+2.2f}, {1:+2.2f}".format(popt[1],popt[2])
 
         #------------ Plot scanned map and fitted 2dgauss to file
+        # modified from: http://stackoverflow.com/questions/21566379/fitting-a-2d-gaussian-function-using-scipy-optimize-curve-fit-valueerror-and-m#comment33999040_21566831
         plt.figure()
         plt.imshow(int.reshape(raster, raster))
         plt.colorbar()
