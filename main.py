@@ -603,7 +603,8 @@ class lockin_gui(object):
             data.to_csv('lockin_' + filename, header=True, index=False)
 
     # modified from: http://stackoverflow.com/questions/21566379/fitting-a-2d-gaussian-function-using-scipy-optimize-curve-fit-valueerror-and-m#comment33999040_21566831
-    def Gauss2D(self,(x, y), amplitude, xo, yo, sigma, offset):
+    def Gauss2D(self,(x, y), amplitude, xo, yo, FWHM, offset):
+        sigma = FWHM/2.3548
         xo = float(xo)
         yo = float(yo)
         g = offset + amplitude*np.exp(-( np.power(x - xo, 2.) + np.power(y - yo, 2.) ) / (2 * np.power(sigma, 2.)))
@@ -615,50 +616,63 @@ class lockin_gui(object):
 
     def search_max_int(self):
 
+        # check if there are spectra taken at the moment, if yes stop them
         if self.worker_thread is not None:
             self.status.set_label('Stopped')
             self.stop_thread()
 
-        x = np.linspace(-2.5, 2.5, 5)
-        y = np.linspace(-2.5, 2.5, 5)
-        #x = np.array([-2,-1,-0.5,0,0.5,1,2])
-        #y = np.array([-2,-1,-0.5,0,0.5,1,2])
-
+        # use position of stage as origin
         origin = self.stage.pos()
+        # round origin position to 1um, so that grid will be regular for all possible origins
         x_or = round(origin[0])
         y_or = round(origin[1])
-        int = np.zeros((len(x),len(y)))
+
+        raster = 7  # set dimension of scanning raster
+        # make scanning raster
+        x = np.linspace(-2, 2, raster)
+        y = np.linspace(-2, 2, raster)
+        # add origin to raster to get absolute positions
+        x = x + x_or
+        y = y + y_or
+
+        int = np.zeros((len(x),len(y))) # matrix for saving the scanned maximum intensities
+
+        # take spectra and get min and max values for use as values for the inital guess
         spec = self.smooth(self.log.get_spec())
-        #spec = self.smooth(self.log.get_spec()-self.dark)
         min = np.min(spec)
         max = np.max(spec)
 
+        # iterate through the raster, take spectrum and save maximum value of smoothed spectrum to int
         for xi in range(len(x)) :
             for yi in range(len(y)) :
-                self.stage.moveabs(x_or+x[xi],y_or+y[yi])
+                self.stage.moveabs(x[xi],y[yi])
                 int[xi,yi] = np.max(self.smooth(self.log.get_spec()))
-                #int[xi,yi] = np.sum(self.smooth(self.log.get_spec()-self.dark))
+
+        # find max value of int and use this as the inital value for the position
+        ind = np.argmax(int)
+        ind = np.unravel_index(ind,int.shape)
 
         int = int.ravel()
-        initial_guess = (max,10.,10.,60,min)
+
+        initial_guess = (max-min,x[ind[1]],y[ind[0]],10,min)
         x, y = np.meshgrid(x, y)
+
         popt = None
         try :
             popt, pcov = opt.curve_fit(self.Gauss2D, (x, y), int, p0=initial_guess)
-            print popt
-            #if popt[0] < 2000: RuntimeError("Peak is to small")
+            #print popt
+            if popt[0] < 20: RuntimeError("Peak is to small")
         except RuntimeError as e:
+            print e
             print "Could not determine particle position"
             self.stage.moveabs(origin[0],origin[1],origin[2])
         else:
-            self.stage.moveabs(x_or+float(popt[1]),y_or+float(popt[2]))
-            print "Position of Particle: {0:+2.2f}, {1:+2.2f}".format(x_or+popt[1],y_or+popt[2])
+            self.stage.moveabs(float(popt[1]),float(popt[2]))
+            print "Position of Particle: {0:+2.2f}, {1:+2.2f}".format(popt[1],popt[2])
 
-        #imgplot = plt.imshow(int.reshape(5,5))
-        #imgplot.set_interpolation('nearest')
-        #plt.savefig("map_particle_search.png")
+        #------------ Plot scanned map and fitted 2dgauss to file
         plt.figure()
-        plt.imshow(int.reshape(5, 5))
+        plt.imshow(int.reshape(raster, raster))
         plt.colorbar()
         if popt is not None:
             data_fitted = self.Gauss2D((x, y), *popt)
@@ -668,10 +682,11 @@ class lockin_gui(object):
 
         fig, ax = plt.subplots(1, 1)
         ax.hold(True)
-        ax.imshow(int.reshape(5, 5), cmap=plt.cm.jet, origin='bottom',
+        ax.imshow(int.reshape(raster, raster), cmap=plt.cm.jet, origin='bottom',
             extent=(x.min(), x.max(), y.min(), y.max()),interpolation='nearest')
-        ax.contour(x, y, data_fitted.reshape(5, 5), 8, colors='w')
+        ax.contour(x, y, data_fitted.reshape(raster, raster), 8, colors='w')
         plt.savefig("map_particle_search.png")
+        #------------ END Plot scanned map and fitted 2dgauss to file
 
         self._spec = self.log.get_spec()
         self.show_pos()
