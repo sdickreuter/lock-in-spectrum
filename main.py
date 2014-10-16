@@ -10,6 +10,9 @@ from datetime import datetime
 import os
 import PIStage
 import math
+import scipy.optimize as opt
+
+import matplotlib.pyplot as plt
 
 from gi.repository import Gtk
 from gi.repository import GObject
@@ -599,6 +602,13 @@ class lockin_gui(object):
             data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
             data.to_csv('lockin_' + filename, header=True, index=False)
 
+    # modified from: http://stackoverflow.com/questions/21566379/fitting-a-2d-gaussian-function-using-scipy-optimize-curve-fit-valueerror-and-m#comment33999040_21566831
+    def Gauss2D(self,(x, y), amplitude, xo, yo, sigma, offset):
+        xo = float(xo)
+        yo = float(yo)
+        g = offset + amplitude*np.exp(-( np.power(x - xo, 2.) + np.power(y - yo, 2.) ) / (2 * np.power(sigma, 2.)))
+        return g.ravel()
+
     def _get_hexagon(self, a):
         a = float(a)
         return ( (a,0), (0.5*a,math.sqrt(3)/2*a), (-0.5*a,math.sqrt(3)/2*a), (-a,0), (0.5*a,-math.sqrt(3)/2*a), (-0.5*a,-math.sqrt(3)/2*a) )
@@ -609,31 +619,59 @@ class lockin_gui(object):
             self.status.set_label('Stopped')
             self.stop_thread()
 
-        sizes = (1.,1.,.8,.8,.4,.4,.2,.2,.1,.1)
+        x = np.linspace(-2.5, 2.5, 5)
+        y = np.linspace(-2.5, 2.5, 5)
+        #x = np.array([-2,-1,-0.5,0,0.5,1,2])
+        #y = np.array([-2,-1,-0.5,0,0.5,1,2])
 
-        for size in sizes:
-            hex = self._get_hexagon(size)
+        origin = self.stage.pos()
+        x_or = round(origin[0])
+        y_or = round(origin[1])
+        int = np.zeros((len(x),len(y)))
+        spec = self.smooth(self.log.get_spec())
+        #spec = self.smooth(self.log.get_spec()-self.dark)
+        min = np.min(spec)
+        max = np.max(spec)
 
-            origin = self.stage.pos()
-            int_origin = np.max(self.smooth(self.log.get_spec()))
-            #print(origin)
+        for xi in range(len(x)) :
+            for yi in range(len(y)) :
+                self.stage.moveabs(x_or+x[xi],y_or+y[yi])
+                int[xi,yi] = np.max(self.smooth(self.log.get_spec()))
+                #int[xi,yi] = np.sum(self.smooth(self.log.get_spec()-self.dark))
 
-            dirx = 0
-            diry = 0
-            for pos in hex:
-                self.stage.moveabs(origin[0]+pos[0],origin[1]+pos[1])
-                int = np.max(self.smooth(self.log.get_spec()))
-                vecx = pos[0]*((int-int_origin)/(int_origin+int))
-                vecy = pos[1]*((int-int_origin)/(int_origin+int))
-                dirx += vecx*100
-                diry += vecy*100
-                #print (dirx, diry)
+        int = int.ravel()
+        initial_guess = (max,10.,10.,60,min)
+        x, y = np.meshgrid(x, y)
+        popt = None
+        try :
+            popt, pcov = opt.curve_fit(self.Gauss2D, (x, y), int, p0=initial_guess)
+            print popt
+            #if popt[0] < 2000: RuntimeError("Peak is to small")
+        except RuntimeError as e:
+            print "Could not determine particle position"
+            self.stage.moveabs(origin[0],origin[1],origin[2])
+        else:
+            self.stage.moveabs(x_or+float(popt[1]),y_or+float(popt[2]))
+            print "Position of Particle: {0:+2.2f}, {1:+2.2f}".format(x_or+popt[1],y_or+popt[2])
 
-            #norm = math.sqrt( dirx*dirx + diry*diry)
-            dirx = size*dirx#/norm
-            diry = size*diry#/norm
-            #print (dirx,diry)
-            self.stage.moveabs(origin[0]+dirx,origin[1]+diry,origin[2])
+        #imgplot = plt.imshow(int.reshape(5,5))
+        #imgplot.set_interpolation('nearest')
+        #plt.savefig("map_particle_search.png")
+        plt.figure()
+        plt.imshow(int.reshape(5, 5))
+        plt.colorbar()
+        if popt is not None:
+            data_fitted = self.Gauss2D((x, y), *popt)
+        else:
+            data_fitted = self.Gauss2D((x, y), *initial_guess)
+            print initial_guess
+
+        fig, ax = plt.subplots(1, 1)
+        ax.hold(True)
+        ax.imshow(int.reshape(5, 5), cmap=plt.cm.jet, origin='bottom',
+            extent=(x.min(), x.max(), y.min(), y.max()),interpolation='nearest')
+        ax.contour(x, y, data_fitted.reshape(5, 5), 8, colors='w')
+        plt.savefig("map_particle_search.png")
 
         self._spec = self.log.get_spec()
         self.show_pos()
