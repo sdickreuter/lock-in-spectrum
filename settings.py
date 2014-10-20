@@ -11,11 +11,16 @@ class Settings(object):
             self.config.read(self._filename)
             self.integration_time = self.config.getfloat('spectrum', 'integration_time')
             self.number_of_samples = self.config.getint('spectrum', 'number_of_samples')
+
             self.direction_x = self.config.getfloat('direction', 'x')
             self.direction_y = self.config.getfloat('direction', 'y')
             self.direction_z = self.config.getfloat('direction', 'z')
             self.amplitude = self.config.getint('direction', 'amplitude')
+
             self.stepsize = self.config.getfloat('stage', 'stepsize')
+
+            self.sigma = self.config.getfloat('gauss', 'sigma')
+
 
         except:
             RuntimeError("Error loading settings.")
@@ -32,6 +37,7 @@ class Settings(object):
             self.config.set('direction', 'z', self.direction_z)
             self.config.set('direction', 'amplitude', int(self.amplitude))
             self.config.set('stage', 'stepsize', self.stepsize)
+            #self.config.set('gauss', 'sigma', self.sigma)
             f = open(self._filename,"wb")
             self.config.write(f)
             f.close()

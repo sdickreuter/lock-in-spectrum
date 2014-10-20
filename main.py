@@ -650,7 +650,7 @@ class lockin_gui(object):
 
         int = int.ravel()
 
-        initial_guess = (max-min,x[ind[1]],y[ind[0]],1,min)
+        initial_guess = (max-min,x[ind[1]],y[ind[0]],self.settings.sigma,min)
         x, y = np.meshgrid(x, y)
 
         popt = None
