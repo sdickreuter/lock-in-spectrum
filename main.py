@@ -34,8 +34,8 @@ class lockin_gui(object):
     def __init__(self):
         self.settings = Settings()
 
-        self.stage = PIStage.Dummy();
-        #self.stage = PIStage.E545();
+        #self.stage = PIStage.Dummy();
+        self.stage = PIStage.E545();
 
         GObject.threads_init()  # all Gtk is in the main thread;
         # only GObject.idle_add() is in the background thread
@@ -623,10 +623,10 @@ class lockin_gui(object):
         x_or = round(origin[0])
         y_or = round(origin[1])
 
-        raster = 7  # set dimension of scanning raster
+        raster = 8  # set dimension of scanning raster
         # make scanning raster
-        x = np.linspace(-2, 2, raster)
-        y = np.linspace(-2, 2, raster)
+        x = np.linspace(-1.5, 1.5, raster)
+        y = np.linspace(-1.5, 1.5, raster)
         # add origin to raster to get absolute positions
         x = x + x_or
         y = y + y_or
@@ -650,13 +650,13 @@ class lockin_gui(object):
 
         int = int.ravel()
 
-        initial_guess = (max-min,x[ind[1]],y[ind[0]],10,min)
+        initial_guess = (max-min,x[ind[1]],y[ind[0]],1,min)
         x, y = np.meshgrid(x, y)
 
         popt = None
         try :
             popt, pcov = opt.curve_fit(self.Gauss2D, (x, y), int, p0=initial_guess)
-            #print popt
+            print popt
             if popt[0] < 20: RuntimeError("Peak is to small")
         except RuntimeError as e:
             print e
