@@ -623,10 +623,10 @@ class lockin_gui(object):
         x_or = round(origin[0])
         y_or = round(origin[1])
 
-        raster = 8  # set dimension of scanning raster
+        raster = 10  # set dimension of scanning raster
         # make scanning raster
-        x = np.linspace(-1.5, 1.5, raster)
-        y = np.linspace(-1.5, 1.5, raster)
+        x = np.linspace(-1.0, 1.0, raster)
+        y = np.linspace(-1.0, 1.0, raster)
         # add origin to raster to get absolute positions
         x = x + x_or
         y = y + y_or
@@ -684,6 +684,7 @@ class lockin_gui(object):
         ax.contour(x, y, data_fitted.reshape(raster, raster), 8, colors='w')
         plt.savefig("map_particle_search.png")
         #------------ END Plot scanned map and fitted 2dgauss to file
+        plt.close()
 
         self._spec = self.log.get_spec()
         self.show_pos()
