@@ -19,7 +19,9 @@ class Settings(object):
 
             self.stepsize = self.config.getfloat('stage', 'stepsize')
 
-            self.sigma = self.config.getfloat('gauss', 'sigma')
+            self.sigma = self.config.getfloat('searchmax', 'sigma')
+            self.rasterdim = self.config.getint('searchmax', 'rasterdim')
+            self.rasterwidth = self.config.getfloat('searchmax', 'rasterwidth')
 
 
         except:
@@ -37,7 +39,9 @@ class Settings(object):
             self.config.set('direction', 'z', self.direction_z)
             self.config.set('direction', 'amplitude', int(self.amplitude))
             self.config.set('stage', 'stepsize', self.stepsize)
-            #self.config.set('gauss', 'sigma', self.sigma)
+            #self.config.set('searchmax', 'sigma', self.sigma)
+            #self.config.set('searchmax', 'rasterdim', self.rasterdim)
+            #self.config.set('searchmax', 'rasterwidth', self.rasterwidth)
             f = open(self._filename,"wb")
             self.config.write(f)
             f.close()
