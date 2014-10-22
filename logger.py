@@ -22,7 +22,7 @@ class logger(object):
     #_cycle_time_start = 10 # cycle duration in s, staring value
     #_cycle_factor = 0.2 # cycle time is calculated using this factor
     _cycle_time = 0  # cycle duration in s
-    _cycle_time_start = 3 * _integration_time * 1000 / 10  # cycle duration in s, starting value
+    _cycle_time_start = 0  # cycle duration in s, starting value
     _cycle_factor = 0  # cycle time is calculated using this factor
 
     #General
@@ -39,7 +39,7 @@ class logger(object):
         self.worker_thread = None
         self.stage = stage
         self._init_spectrometer()
-        self._cycle_factor = -float(180) / settings.number_of_samples  # cycle time is calculated using this factor
+        self._cycle_time_start = 250
 
 
     def _millis(self):
@@ -49,7 +49,7 @@ class logger(object):
 
     def set_integration_time(self, integration_time):
         self._integration_time = integration_time/1000
-        self._cycle_time_start = 3 * self._integration_time * 1000 / 10  # cycle duration in s, starting value
+        #self._cycle_time_start = 3 * self._integration_time * 1000 / 10  # cycle duration in s, starting value
         self._spectrometer.integration_time(self._integration_time)
 
     def _init_spectrometer(self):
@@ -83,28 +83,27 @@ class logger(object):
 
     def move_stage(self, dist):
         x = self._startx + self.settings.amplitude/2 * (dist) * self.settings.direction_x
-        #y = self._starty - self.settings.amplitude/2 * (dist) * self.settings.direction_y
-        #z = self._startz - self.settings.amplitude/2 * (dist) * self.settings.direction_z
+        y = self._starty + self.settings.amplitude/2 * (dist) * self.settings.direction_y
+        z = self._startz + self.settings.amplitude/2 * (dist) * self.settings.direction_z
         #print "X: {0:+8.4f} | Y: {1:8.4f} | Z: {2:8.4f} || X: {3:+8.4f} | Y: {4:8.4f} | Z: {5:8.4f}".format(x,y,z,self._startx,self._starty,self._startz)
-        #self.stage.moveabs(x, y, z)
-        self.stage.moveabs(x=x)
+        self.stage.moveabs(x, y, z)
+        #self.stage.moveabs(x=x)
 
     def measure_spectrum(self):
         if self._juststarted:
-            self._cycle_factor = -float(250) / self.settings.number_of_samples  # cycle time is calculated using this factor
+            self._cycle_factor = -1.0 / (6.0 * self.settings.number_of_samples/1000)  # cycle time is calculated using this factor
             self._juststarted = False
             self._scan_index = 0
             self._startx, self._starty, self._startz = self.stage.pos()
             self._starttime = datetime.now()
 
-        t = self._millis() / 1000
-        self._cycle_time = self._cycle_factor * t + self._cycle_time_start
-        ref = math.cos(2 * math.pi * t / self._cycle_time)
+        self._cycle_time = self._cycle_factor * self._scan_index + self._cycle_time_start
+        ref = math.cos(2 * math.pi * self._scan_index / self._cycle_time)
         self.move_stage((-ref+1)/2)
-        time.sleep(0.01)
+        #self.stage.pos()
         data = self._spectrometer.intensities()
 
-        self.data[self._scan_index, 0] = t
+        self.data[self._scan_index, 0] = self._scan_index
         self.data[self._scan_index, 1] = ref
         self.data[self._scan_index, 2:] = data
 
@@ -112,7 +111,7 @@ class logger(object):
 
         if self._scan_index >= self.settings.number_of_samples:
             print("%s spectra aquired" % self._scan_index)
-            print("time taken: %s s" % t )
+            print("time taken: %s s" % (self._millis() / 1000) )
             #self.worker_thread.join(1)
             self.stage.moveabs(self._startx,self._starty,self._startz)
             self._new_spectrum = True

@@ -544,9 +544,11 @@ class lockin_gui(object):
     def take_spectrum(self, e):
         self.settings_dialog.disable_number_of_samples()
         data = np.zeros(1024, dtype=np.float64)
-        for i in range(self.settings.number_of_samples):
+        data = self.log.get_spec()
+        for i in range(self.settings.number_of_samples-1):
             data = (data + self.log.get_spec()) / 2
             self._progress_fraction = float(i + 1) / self.settings.number_of_samples
+            self._spec = data
 
             if e.is_set():
                 if self.worker_mode is 'dark':
@@ -568,7 +570,7 @@ class lockin_gui(object):
         if self.worker_mode is 'normal':
             self.normal = data
 
-        self._spec = data
+        #self._spec = data
         self.status.set_label('Spectra taken')
         return True
 
@@ -608,7 +610,7 @@ class lockin_gui(object):
             if not self.dark is None:
                 self._spec = self._spec - self.dark
                 if not self.lamp is None:
-                    self._spec = self._spec / (self.lamp)
+                    self._spec = self._spec / self.lamp
         return True
 
     def update_plot(self):
@@ -744,7 +746,7 @@ class lockin_gui(object):
         popt = None
         try :
             popt, pcov = opt.curve_fit(self.Gauss2D, (x, y), int, p0=initial_guess)
-            print popt
+            #print popt
             if popt[0] < 20: RuntimeError("Peak is to small")
         except RuntimeError as e:
             print e
@@ -752,7 +754,7 @@ class lockin_gui(object):
             self.stage.moveabs(origin[0],origin[1],origin[2])
         else:
             self.stage.moveabs(float(popt[1]),float(popt[2]))
-            print "Position of Particle: {0:+2.2f}, {1:+2.2f}".format(popt[1],popt[2])
+            #print "Position of Particle: {0:+2.2f}, {1:+2.2f}".format(popt[1],popt[2])
 
         #------------ Plot scanned map and fitted 2dgauss to file
         # modified from: http://stackoverflow.com/questions/21566379/fitting-a-2d-gaussian-function-using-scipy-optimize-curve-fit-valueerror-and-m#comment33999040_21566831

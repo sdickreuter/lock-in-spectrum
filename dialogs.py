@@ -72,9 +72,9 @@ class Direction_Dialog(Gtk.Dialog):
        #buttons
 
        # Spinbuttons
-       self.x_adj = Gtk.Adjustment(value=1, lower=0, upper=1, step_incr=0.1, page_incr=0.1, page_size=0)
-       self.y_adj = Gtk.Adjustment(value=0, lower=0, upper=1, step_incr=0.1, page_incr=0.1, page_size=0)
-       self.z_adj = Gtk.Adjustment(value=0, lower=0, upper=1, step_incr=0.1, page_incr=0.1, page_size=0)
+       self.x_adj = Gtk.Adjustment(value=1, lower=-1, upper=1, step_incr=0.1, page_incr=0.1, page_size=0)
+       self.y_adj = Gtk.Adjustment(value=0, lower=-1, upper=1, step_incr=0.1, page_incr=0.1, page_size=0)
+       self.z_adj = Gtk.Adjustment(value=0, lower=-1, upper=1, step_incr=0.1, page_incr=0.1, page_size=0)
        self.amp_adj = Gtk.Adjustment(value=5, lower=1, upper=20, step_incr=1, page_incr=1, page_size=0)
 
 
@@ -94,6 +94,10 @@ class Direction_Dialog(Gtk.Dialog):
        self.box.add(Gtk.Label(label="Amplitude of Movement [um]"))
        self.box.add(self.amp_spin)
 
+       self.x_spin.set_value(self.settings.direction_x)
+       self.y_spin.set_value(self.settings.direction_y)
+       self.z_spin.set_value(self.settings.direction_z)
+       self.amp_spin.set_value(self.settings.amplitude)
 
        self.x_spin.connect("value-changed", self.on_change)
        self.y_spin.connect("value-changed", self.on_change)
