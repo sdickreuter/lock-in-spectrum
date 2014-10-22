@@ -40,7 +40,7 @@ class lockin_gui(object):
         GObject.threads_init()  # all Gtk is in the main thread;
         # only GObject.idle_add() is in the background thread
         self.window = Gtk.Window(title=self._window_title)
-        self.window.set_resizable(False)
+        #self.window.set_resizable(False)
         self.window.set_border_width(3)
 
         self.grid = Gtk.Grid()
@@ -48,7 +48,7 @@ class lockin_gui(object):
         self.grid.set_column_spacing(5)
         self.window.add(self.grid)
 
-        # Buttons
+        # Buttons for spectrum stack
         self.button_live = Gtk.Button(label="Liveview")
         self.button_live.set_tooltip_text("Start/Stop Liveview of Spectrum")
         self.button_aquire = Gtk.Button(label="Aquire Spectrum")
@@ -136,55 +136,121 @@ class lockin_gui(object):
         self._progress_fraction = 0
         self.progress.set_fraction(self._progress_fraction)
 
-        self.sidebox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        #Box for control of taking single spectra
+        self.SpectrumBox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        self.SpectrumBox.add(Gtk.Separator())
+        self.SpectrumBox.add(self.button_live)
+        self.SpectrumBox.add(Gtk.Separator())
+        self.SpectrumBox.add(Gtk.Label("Lock-In Spectrum"))
+        self.SpectrumBox.add(self.button_aquire)
+        self.SpectrumBox.add(self.button_direction)
+        self.SpectrumBox.add(Gtk.Separator())
+        self.SpectrumBox.add(Gtk.Label(label="Additional Spectra"))
+        self.SpectrumBox.add(self.button_dark)
+        self.SpectrumBox.add(self.button_lamp)
+        self.SpectrumBox.add(self.button_normal)
+        self.SpectrumBox.add(Gtk.Separator())
+        self.SpectrumBox.add(Gtk.Label(label="Miscellaneous"))
+        self.SpectrumBox.add(self.button_search)
+        self.SpectrumBox.add(self.button_save)
+        self.SpectrumBox.add(self.button_settings)
+        self.SpectrumBox.add(self.button_reset)
+        self.SpectrumBox.add(self.button_loaddark)
+        self.SpectrumBox.add(self.button_loadlamp)
+        self.SpectrumBox.add(Gtk.Separator())
+        self.SpectrumBox.add(Gtk.Label(label="Stage Control"))
+        self.SpectrumBox.add(self.table_stagecontrol)
+        self.SpectrumBox.add(Gtk.Label(label="Set Stepsize [um]"))
+        self.SpectrumBox.add(self.table_stepsize)
+        self.SpectrumBox.add(self.button_moverel)
+        self.SpectrumBox.add(self.button_moveabs)
+        self.SpectrumBox.add(self.label_x)
+        self.SpectrumBox.add(self.label_y)
+        self.SpectrumBox.add(self.label_z)
 
-        self.sidebox.add(Gtk.Separator())
-        self.sidebox.add(self.button_live)
-        self.sidebox.add(Gtk.Separator())
-        self.sidebox.add(Gtk.Label("Lock-In Spectrum"))
-        self.sidebox.add(self.button_aquire)
-        self.sidebox.add(self.button_direction)
-        self.sidebox.add(Gtk.Separator())
-        self.sidebox.add(Gtk.Label(label="Additional Spectra"))
-        self.sidebox.add(self.button_dark)
-        self.sidebox.add(self.button_lamp)
-        self.sidebox.add(self.button_normal)
-        self.sidebox.add(Gtk.Separator())
-        self.sidebox.add(Gtk.Label(label="Miscellaneous"))
-        self.sidebox.add(self.button_search)
-        self.sidebox.add(self.button_save)
-        self.sidebox.add(self.button_settings)
-        self.sidebox.add(self.button_reset)
-        self.sidebox.add(self.button_loaddark)
-        self.sidebox.add(self.button_loadlamp)
-        self.sidebox.add(Gtk.Separator())
-        self.sidebox.add(Gtk.Label(label="Stage Control"))
-        self.sidebox.add(self.table_stagecontrol)
-        self.sidebox.add(Gtk.Label(label="Set Stepsize [um]"))
-        self.sidebox.add(self.table_stepsize)
-        self.sidebox.add(self.button_moverel)
-        self.sidebox.add(self.button_moveabs)
-        self.sidebox.add(self.label_x)
-        self.sidebox.add(self.label_y)
-        self.sidebox.add(self.label_z)
+
+        #Buttons for scanning stack
+        self.button_test = Gtk.Button('Test')
+        self.scan_hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        self.button_scan_add = Gtk.ToolButton(Gtk.STOCK_ADD)
+        self.button_scan_remove = Gtk.ToolButton(Gtk.STOCK_REMOVE)
+        self.scan_hbox.set_homogeneous(True)
+        self.scan_hbox.add(self.button_scan_add)
+        self.scan_hbox.add(self.button_scan_remove)
+
+        # Treeview for showing/settings scanning grid
+        self.scan_store = Gtk.ListStore(float, float)
+        self.scan_view = Gtk.TreeView(model=self.scan_store)
+        self.scan_xrenderer = Gtk.CellRendererText()
+        self.scan_xrenderer.set_property("editable", True)
+        self.scan_xcolumn = Gtk.TreeViewColumn("x", self.scan_xrenderer, text=0)
+        self.scan_xcolumn.set_min_width(100)
+        self.scan_xcolumn.set_alignment(0.5)
+        self.scan_view.append_column(self.scan_xcolumn)
+
+        self.scan_yrenderer = Gtk.CellRendererText()
+        self.scan_yrenderer.set_property("editable", True)
+        self.scan_ycolumn = Gtk.TreeViewColumn("y", self.scan_yrenderer, text=1)
+        self.scan_ycolumn.set_min_width(100)
+        self.scan_ycolumn.set_alignment(0.5)
+        self.scan_view.append_column(self.scan_ycolumn)
+
+        self.scan_scroller = Gtk.ScrolledWindow()
+        self.scan_scroller.set_vexpand(True)
+        self.scan_scroller.add(self.scan_view)
+
+        #Connections for scanning stack
+        self.button_scan_add.connect("clicked", self.on_scan_add)
+        self.button_scan_remove.connect("clicked", self.on_scan_remove)
+        self.scan_xrenderer.connect("edited", self.on_scan_xedited)
+        self.scan_yrenderer.connect("edited", self.on_scan_yedited)
+
+
+        self.scan_store.append([0.01,0.02])
+        self.scan_store.append([0.03,0.04])
+
+        #Box for control of scanning
+        self.ScanningBox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        self.ScanningBox.add(Gtk.Separator())
+        self.ScanningBox.add(self.button_test)
+        self.SpectrumBox.add(Gtk.Separator())
+        self.ScanningBox.add(Gtk.Label("Scanning Positions"))
+        self.ScanningBox.add(self.scan_hbox)
+        self.ScanningBox.add(self.scan_scroller)
+        self.SpectrumBox.add(Gtk.Separator())
+
 
         # MPL stuff
         self.figure = mpl.Figure()
         self.ax = self.figure.add_subplot(1, 1, 1)
         self.ax.grid(True)
-        #self.ax.set_color_cycle(["b", ""])
         self.canvas = mpl.FigureCanvas(self.figure)
-        # self.line, = self.ax.plot(self.wl, self.sp[:,0])
+        self.canvas.set_hexpand(True)
+        self.canvas.set_vexpand(True)
 
-        self.canvas.set_size_request(900, 800)
-        self.sidebox.set_size_request(100, -1)
-        self.progress.set_size_request(-1, 15)
-        self.status.set_size_request(100, -1)
+        self.canvas.set_size_request(800, 800)
+        #self.SpectrumBox.set_size_request(100, -1)
+        #self.progress.set_size_request(-1, 15)
+        #self.status.set_size_request(100, -1)
+
+        self.stack = Gtk.Stack()
+        self.stack.set_transition_type(Gtk.StackTransitionType.SLIDE_LEFT_RIGHT)
+        self.stack.set_transition_duration(500)
+
+        self.stack.add_titled(self.SpectrumBox, "spec", "Spectra")
+        self.stack.add_titled(self.ScanningBox, "scan", "Scanning")
+
+        self.stack_switcher = Gtk.StackSwitcher()
+        self.stack_switcher.set_stack(self.stack)
+
+        self.SideBox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        self.SideBox.add(self.stack_switcher)
+        self.SideBox.add(self.stack)
 
         self.grid.add(self.canvas)
-        self.grid.attach_next_to(self.sidebox, self.canvas, Gtk.PositionType.RIGHT, 1, 1)
+        self.grid.attach_next_to(self.SideBox, self.canvas, Gtk.PositionType.RIGHT, 1, 1)
         self.grid.attach_next_to(self.progress, self.canvas, Gtk.PositionType.BOTTOM, 1, 1)
-        self.grid.attach_next_to(self.status, self.sidebox, Gtk.PositionType.BOTTOM, 1, 1)
+        self.grid.attach_next_to(self.status, self.SideBox, Gtk.PositionType.BOTTOM, 1, 1)
 
         self.window.show_all()
 
@@ -212,6 +278,7 @@ class lockin_gui(object):
         self.dark = None
         self.normal = None
         self.lockin = None
+
 
     def smooth(self, x):
         """
@@ -393,6 +460,28 @@ class lockin_gui(object):
            data = None
         dialog.destroy()
         return data
+
+### ----------- scan Listview connect functions
+
+    def on_scan_xedited(self, widget, path, number):
+        self.scan_store[path][0] = float(number.replace(',', '.'))
+        #self.plotpoints()
+
+    def on_scan_yedited(self, widget, path, number):
+        self.scan_store[path][1] = float(number.replace(',', '.'))
+        #self.plotpoints()
+
+    def on_scan_add(self, widget):
+        self.scan_store.append()
+
+    def on_scan_remove(self, widget):
+        self.select = self.scan_view.get_selection()
+        self.model, self.treeiter = self.select.get_selected()
+        if self.treeiter is not None:
+            self.scan_store.remove(self.treeiter)
+
+
+### ----------- END scan Listview connect functions
 
 
 ###---------------- Stage Control Button Connect functions ----------
@@ -623,10 +712,9 @@ class lockin_gui(object):
         x_or = round(origin[0])
         y_or = round(origin[1])
 
-        raster = 10  # set dimension of scanning raster
         # make scanning raster
-        x = np.linspace(-1.0, 1.0, raster)
-        y = np.linspace(-1.0, 1.0, raster)
+        x = np.linspace(-self.settings.rasterwidth, self.settings.rasterwidth, self.settings.rasterdim)
+        y = np.linspace(-self.settings.rasterwidth, self.settings.rasterwidth, self.settings.rasterdim)
         # add origin to raster to get absolute positions
         x = x + x_or
         y = y + y_or
@@ -645,12 +733,12 @@ class lockin_gui(object):
                 int[xi,yi] = np.max(self.smooth(self.log.get_spec()))
 
         # find max value of int and use this as the inital value for the position
-        ind = np.argmax(int)
-        ind = np.unravel_index(ind,int.shape)
+        maxind = np.argmax(int)
+        maxind = np.unravel_index(maxind,int.shape)
 
         int = int.ravel()
 
-        initial_guess = (max-min,x[ind[1]],y[ind[0]],1,min)
+        initial_guess = (max-min,x[maxind[1]],y[maxind[0]],self.settings.sigma,min)
         x, y = np.meshgrid(x, y)
 
         popt = None
@@ -669,7 +757,7 @@ class lockin_gui(object):
         #------------ Plot scanned map and fitted 2dgauss to file
         # modified from: http://stackoverflow.com/questions/21566379/fitting-a-2d-gaussian-function-using-scipy-optimize-curve-fit-valueerror-and-m#comment33999040_21566831
         plt.figure()
-        plt.imshow(int.reshape(raster, raster))
+        plt.imshow(int.reshape(self.settings.rasterdim, self.settings.rasterdim))
         plt.colorbar()
         if popt is not None:
             data_fitted = self.Gauss2D((x, y), *popt)
@@ -679,9 +767,9 @@ class lockin_gui(object):
 
         fig, ax = plt.subplots(1, 1)
         ax.hold(True)
-        ax.imshow(int.reshape(raster, raster), cmap=plt.cm.jet, origin='bottom',
+        ax.imshow(int.reshape(self.settings.rasterdim, self.settings.rasterdim), cmap=plt.cm.jet, origin='bottom',
             extent=(x.min(), x.max(), y.min(), y.max()),interpolation='nearest')
-        ax.contour(x, y, data_fitted.reshape(raster, raster), 8, colors='w')
+        ax.contour(x, y, data_fitted.reshape(self.settings.rasterdim, self.settings.rasterdim), 8, colors='w')
         plt.savefig("map_particle_search.png")
         #------------ END Plot scanned map and fitted 2dgauss to file
         plt.close()
