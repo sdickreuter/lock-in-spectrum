@@ -152,7 +152,7 @@ class MoveAbs_Dialog(Gtk.Dialog):
        #buttons
 
        self.stage = stage
-       pos = stage.pos()
+       pos = self.stage.pos()
        self.x = float(pos[0])
        self.y = float(pos[1])
        self.z = float(pos[2])
@@ -161,10 +161,12 @@ class MoveAbs_Dialog(Gtk.Dialog):
        self.entry_x.set_text(str(self.x))
        self.entry_x.set_alignment(1)
        self.entry_x.set_max_length(7)
+
        self.entry_y = Gtk.Entry()
        self.entry_y.set_text(str(self.y))
        self.entry_y.set_alignment(1)
        self.entry_y.set_max_length(7)
+
        self.entry_z = Gtk.Entry()
        self.entry_z.set_text(str(self.z))
        self.entry_z.set_alignment(1)
@@ -183,9 +185,9 @@ class MoveAbs_Dialog(Gtk.Dialog):
        #self.integration_time_spin.set_value(self.settings.integration_time)
        self.box.add(self.table)
 
-       self.entry_x.connect("changed", self.on_change)
-       self.entry_y.connect("changed", self.on_change)
-       self.entry_z.connect("changed", self.on_change)
+       #self.entry_x.connect("changed", self.on_change)
+       #self.entry_y.connect("changed", self.on_change)
+       #self.entry_z.connect("changed", self.on_change)
 
        self.hide()
 
@@ -196,21 +198,24 @@ class MoveAbs_Dialog(Gtk.Dialog):
         try:
             self.x = float(x)
         except ValueError:
-            x = self.x
+            pass #x = self.x
         try:
             self.y = float(y)
         except ValueError:
-            y = self.y
+            pass #y = self.y
         try:
             self.z = float(z)
         except ValueError:
-            z = self.z
+            pass #z = self.z
         if (self.x > 200): self.x = 200.0
         if (self.x < 0): self.x = 0.0
+
         if (self.y > 200): self.y = 200.0
         if (self.y < 0): self.y = 0.0
+
         if (self.z > 200): self.z = 200.0
         if (self.z < 0): self.z = 0.0
+
         self.entry_x.set_text(str(self.x))
         self.entry_y.set_text(str(self.y))
         self.entry_z.set_text(str(self.z))
@@ -220,6 +225,10 @@ class MoveAbs_Dialog(Gtk.Dialog):
        self.x = pos[0]
        self.y = pos[1]
        self.z = pos[2]
+       #print "rundialog {0:+8.4f} {1:+8.4f} {2:+8.4f}".format(self.x, self.y, self.z)
+       self.entry_x.set_text(str(self.x))
+       self.entry_y.set_text(str(self.y))
+       self.entry_z.set_text(str(self.z))
        self.show_all()
        result = self.run()
        if (result==Gtk.ResponseType.OK):

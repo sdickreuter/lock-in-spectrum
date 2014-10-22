@@ -571,6 +571,7 @@ class lockin_gui(object):
             self.normal = data
 
         #self._spec = data
+        print "\a"
         self.status.set_label('Spectra taken')
         return True
 
@@ -602,6 +603,8 @@ class lockin_gui(object):
 
         self.settings_dialog.enable_number_of_samples()
         self.button_direction.set_sensitive(True)
+        self.show_pos()
+        print "\a"
         return True
 
     def live_spectrum(self, e):
