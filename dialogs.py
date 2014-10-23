@@ -326,3 +326,39 @@ class MoveRel_Dialog(Gtk.Dialog):
        if (result==Gtk.ResponseType.OK):
            self.stage.moverel(self.dx,self.dy,self.dz)
        self.hide()
+
+
+class SpanGrid_Dialog(Gtk.Dialog):
+
+    def __init__(self, parent):
+       #super(Settings_Dialog, self).__init__(self, "Settings", parent, 0, (Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,Gtk.STOCK_OK, Gtk.ResponseType.OK))
+       Gtk.Dialog.__init__(self, "Direction of Stage Movement", parent, 0, (Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, Gtk.STOCK_OK, Gtk.ResponseType.OK))
+       #self.set_default_size(150, 100)
+
+       self.box = self.get_content_area()
+       self.box.set_spacing(6)
+
+       # Spinbuttons
+       self.x_adj = Gtk.Adjustment(value=5, lower=2, upper=1000, step_incr=1, page_incr=1, page_size=0)
+       self.y_adj = Gtk.Adjustment(value=5, lower=2, upper=1000, step_incr=1, page_incr=1, page_size=0)
+
+       self.x_spin = Gtk.SpinButton(adjustment=self.x_adj, climb_rate=1, digits=0)
+       self.y_spin = Gtk.SpinButton(adjustment=self.y_adj, climb_rate=1, digits=0)
+
+       #self.number_of_samples_spin.set_value(self.settings.number_of_samples)
+       #self.integration_time_spin.set_value(self.settings.integration_time)
+       self.box.add(Gtk.Label(label="X Steps"))
+       self.box.add(self.x_spin)
+       self.box.add(Gtk.Label(label="Y Steps"))
+       self.box.add(self.y_spin)
+
+       self.hide()
+
+    def rundialog(self):
+        self.show_all()
+        result = self.run()
+        self.hide()
+        if (result==Gtk.ResponseType.OK):
+            return (self.x_spin.get_value(), self.x_spin.get_value())
+        else:
+            return (0,0)

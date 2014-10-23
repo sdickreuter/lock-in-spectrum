@@ -210,6 +210,11 @@ class lockin_gui(object):
         self.scan_scroller.set_vexpand(True)
         self.scan_scroller.add(self.scan_view)
 
+        self.scan_store.append([0.0,0.0])
+        self.scan_store.append([1.0,0.0])
+        self.scan_store.append([0.0,1.0])
+
+
         #Connections for scanning stack
         self.button_add_position.connect("clicked",self.on_add_position_clicked)
         self.button_spangrid.connect("clicked",self.on_spangrid_clicked)
@@ -287,6 +292,7 @@ class lockin_gui(object):
         self.direction_dialog = dialogs.Direction_Dialog(self.window, self.settings)
         self.moveabs_dialog = dialogs.MoveAbs_Dialog(self.window, self.stage)
         self.moverel_dialog = dialogs.MoveRel_Dialog(self.window, self.stage)
+        self.spangrid_dialog = dialogs.SpanGrid_Dialog(self.window)
 
         # variables for storing the spectra
         self.lamp = None
@@ -373,8 +379,8 @@ class lockin_gui(object):
 
     def on_spangrid_clicked(self, widget):
         iter = self.scan_store.get_iter_first()
-        #a, b, c = None
-        if len(self.scan_store) >= 3:
+        grid = self.spangrid_dialog.rundialog()
+        if (len(self.scan_store) >= 3) & (grid[0] is not 0):
             a = self.scan_store[iter][:]
             iter = self.scan_store.iter_next(iter)
             b = self.scan_store[iter][:]
@@ -386,8 +392,8 @@ class lockin_gui(object):
 
             self.scan_store.clear()
 
-            for x in range(4):
-                for y in range(4):
+            for x in range(int(grid[0])):
+                for y in range(int(grid[1])):
                     vec_x = a[0] + grid_vec_1[0]*x + grid_vec_2[0]*y
                     vec_y = a[1] + grid_vec_1[1]*x + grid_vec_2[1]*y
                     self.scan_store.append([vec_x,vec_y])
