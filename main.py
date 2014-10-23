@@ -7,9 +7,9 @@ import numpy as np
 from datetime import datetime
 import os
 import PIStage
-import math
 import scipy.optimize as opt
-
+import gc
+import objgraph
 import matplotlib.pyplot as plt
 
 from gi.repository import Gtk
@@ -30,6 +30,8 @@ class lockin_gui(object):
     _heartbeat = 250  # ms delay at which the plot/gui is refreshed
 
     def __init__(self):
+        self.savedir = "./Spectra/"
+
         self.settings = Settings()
 
         self.stage = PIStage.Dummy();
@@ -218,6 +220,7 @@ class lockin_gui(object):
         #Connections for scanning stack
         self.button_add_position.connect("clicked",self.on_add_position_clicked)
         self.button_spangrid.connect("clicked",self.on_spangrid_clicked)
+        self.button_scan_start.connect("clicked",self.on_start_scan_clicked)
         self.button_scan_add.connect("clicked", self.on_scan_add)
         self.button_scan_remove.connect("clicked", self.on_scan_remove)
         self.button_scan_clear.connect("clicked", self.on_scan_clear)
@@ -293,6 +296,7 @@ class lockin_gui(object):
         self.moveabs_dialog = dialogs.MoveAbs_Dialog(self.window, self.stage)
         self.moverel_dialog = dialogs.MoveRel_Dialog(self.window, self.stage)
         self.spangrid_dialog = dialogs.SpanGrid_Dialog(self.window)
+        self.prefix_dialog = dialogs.Prefix_Dialog(self.window)
 
         # variables for storing the spectra
         self.lamp = None
@@ -372,6 +376,24 @@ class lockin_gui(object):
         self.button_stop.set_sensitive(False)
 
 ###---------------- button connect functions ----------
+    def on_start_scan_clicked(self, widget):
+        os.chdir(self.savedir)
+
+        prefix = self.prefix_dialog.rundialog()
+
+        if prefix is not None:
+            try:
+#                os.path.exists(prefix)
+                os.mkdir(prefix)
+            except:
+                pass
+            self.path = self.savedir+prefix+'/'
+            self.status.set_label('Scanning')
+            self.start_thread(self.scan_spectra, 'scan')
+            self.disable_buttons()
+
+        os.chdir('../')
+
 
     def on_add_position_clicked(self, widget):
         pos = self.stage.pos()
@@ -426,8 +448,9 @@ class lockin_gui(object):
 
     def on_search_clicked(self, widget):
         self.status.set_text("Searching Max.")
-        self.search_max_int()
-        self.status.set_text("Max. approached")
+        #self.search_max_int()
+        self.start_thread(self.search_max_int, 'live')
+        self.disable_buttons()
 
     def on_save_clicked(self, widget):
         if self.log._new_spectrum:
@@ -569,8 +592,28 @@ class lockin_gui(object):
 
 ###---------------- functions for taking and showing Spectra ----------
 
+    def scan_spectra(self, e):
+        for point in self.scan_store:
+            self.stage.moveabs(x=point[0],y=point[1])
+            self.search_max_int(e)
+            self.log.reset()
+            self.acquire_spectrum(e)
+            self.disable_buttons()
+
+            filename = self.path + 'lockin_' + 'x_{0:3.2f}um_y_{0:3.2f}um'.format(point[0],point[1])+'.csv'
+            data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
+                             self.lockin.reshape(self.lockin.shape[0], 1), 1)
+            data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
+            data.to_csv( filename, header=True, index=False)
+            if e.is_set():
+                self.log.reset()
+                self.enable_buttons()
+                break
+
+        print objgraph.show_most_common_types()
+        self.enable_buttons();
+
     def take_spectrum(self, e):
-        self.settings_dialog.disable_number_of_samples()
         data = np.zeros(1024, dtype=np.float64)
         data = self.log.get_spec()
         for i in range(self.settings.number_of_samples-1):
@@ -587,8 +630,6 @@ class lockin_gui(object):
                     self.normal = None
                 break
 
-        self.settings_dialog.enable_number_of_samples()
-
         if self.worker_mode is 'dark':
             self.settings_dialog.disable_number_of_samples()
             self.dark = data
@@ -598,7 +639,7 @@ class lockin_gui(object):
         if self.worker_mode is 'normal':
             self.normal = data
 
-        #self._spec = data
+        self.enable_buttons()
         print "\a"
         self.status.set_label('Spectra taken')
         return True
@@ -626,12 +667,9 @@ class lockin_gui(object):
 
             if e.is_set():
                 self.log.reset()
-                self.settings_dialog.enable_number_of_samples()
                 break
 
-        self.settings_dialog.enable_number_of_samples()
-        self.button_direction.set_sensitive(True)
-        self.show_pos()
+        self.enable_buttons()
         print "\a"
         return True
 
@@ -653,7 +691,7 @@ class lockin_gui(object):
         return True
 
     def update_progress(self):
-        self.progress.set_fraction(self._progress_fraction)
+        #self.progress.set_fraction(self._progress_fraction)
         return True
 
 ###---------------- END functions for taking and showing Spectra ----------
@@ -694,6 +732,7 @@ class lockin_gui(object):
                str(datetime.now().minute).zfill(2) + str(datetime.now().second).zfill(2) + '.csv'
 
     def save_data(self):
+        prefix = self.prefix_dialog.rundialog()
         filename = self._gen_filename()
         cols = ('t', 'ref') + tuple(map(str, np.round(self._wl, 1)))
         data = pandas.DataFrame(self.log.data, columns=cols)
@@ -732,13 +771,8 @@ class lockin_gui(object):
         g = offset + amplitude*np.exp(-( np.power(x - xo, 2.) + np.power(y - yo, 2.) ) / (2 * np.power(sigma, 2.)))
         return g.ravel()
 
-    def search_max_int(self):
-
-        # check if there are spectra taken at the moment, if yes stop them
-        if self.worker_thread is not None:
-            self.status.set_label('Stopped')
-            self.stop_thread()
-
+    def search_max_int(self, e):
+        self._progress_fraction = 1
         # use position of stage as origin
         origin = self.stage.pos()
         # round origin position to 1um, so that grid will be regular for all possible origins
@@ -764,6 +798,10 @@ class lockin_gui(object):
             for yi in range(len(y)) :
                 self.stage.moveabs(x[xi],y[yi])
                 int[xi,yi] = np.max(self.smooth(self.log.get_spec()))
+                if e.is_set():
+                    self.stage.moveabs(origin[0],origin[1])
+                    return False
+                self.progress.pulse()
 
         # find max value of int and use this as the inital value for the position
         maxind = np.argmax(int)
@@ -791,7 +829,7 @@ class lockin_gui(object):
         # modified from: http://stackoverflow.com/questions/21566379/fitting-a-2d-gaussian-function-using-scipy-optimize-curve-fit-valueerror-and-m#comment33999040_21566831
         plt.figure()
         plt.imshow(int.reshape(self.settings.rasterdim, self.settings.rasterdim))
-        plt.colorbar()
+        #plt.colorbar()
         if popt is not None:
             data_fitted = self.Gauss2D((x, y), *popt)
         else:
@@ -807,8 +845,46 @@ class lockin_gui(object):
         #------------ END Plot scanned map and fitted 2dgauss to file
         plt.close()
 
+        measured = np.zeros(7)
+        self.stage.moverel(dx=-0.4)
+        for x in range(7):
+            self.stage.moverel(dx=0.1)
+            measured[x] = np.max(self.smooth(self.log.get_spec()))
+            if e.is_set():
+                self.stage.moveabs(origin[0],origin[1])
+                return False
+            self.progress.pulse()
+        maxind = np.argmax(measured)
+        self.stage.moverel(dx=-maxind*0.1)
+
+        measured = np.zeros(7)
+        self.stage.moverel(dy=-0.4)
+        for y in range(7):
+            self.stage.moverel(dy=0.1)
+            measured[y] = np.max(self.smooth(self.log.get_spec()))
+            if e.is_set():
+                self.stage.moveabs(origin[0],origin[1])
+                return False
+            self.progress.pulse()
+        maxind = np.argmax(measured)
+        self.stage.moverel(dy=-maxind*0.1)
+
+        measured = np.zeros(7)
+        self.stage.moverel(dx=-0.4)
+        for x in range(7):
+            self.stage.moverel(dx=0.1)
+            measured[x] = np.max(self.smooth(self.log.get_spec()))
+            if e.is_set():
+                self.stage.moveabs(origin[0],origin[1])
+                return False
+            self.progress.pulse()
+        maxind = np.argmax(measured)
+        self.stage.moverel(dx=-maxind*0.1)
+
         self._spec = self.log.get_spec()
         self.show_pos()
+        self.status.set_text("Max. approached")
+        self.enable_buttons()
 
 
 if __name__ == "__main__":

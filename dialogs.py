@@ -362,3 +362,35 @@ class SpanGrid_Dialog(Gtk.Dialog):
             return (self.x_spin.get_value(), self.x_spin.get_value())
         else:
             return (0,0)
+
+
+class Prefix_Dialog(Gtk.Dialog):
+
+    def __init__(self, parent):
+       #super(Settings_Dialog, self).__init__(self, "Settings", parent, 0, (Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,Gtk.STOCK_OK, Gtk.ResponseType.OK))
+       Gtk.Dialog.__init__(self, "Direction of Stage Movement", parent, 0, (Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, Gtk.STOCK_OK, Gtk.ResponseType.OK))
+       #self.set_default_size(150, 100)
+
+       self.box = self.get_content_area()
+       self.box.set_spacing(6)
+
+       # Spinbuttons
+       self.entry = Gtk.Entry()
+       self.entry.set_text('')
+
+       #self.number_of_samples_spin.set_value(self.settings.number_of_samples)
+       #self.integration_time_spin.set_value(self.settings.integration_time)
+       self.box.add(Gtk.Label(label="Prefix for Saving Spectra"))
+       self.box.add(self.entry)
+
+       self.hide()
+
+    def rundialog(self):
+        self.entry.set_text('')
+        self.show_all()
+        result = self.run()
+        self.hide()
+        if (result==Gtk.ResponseType.OK):
+            return self.entry.get_text()
+        else:
+            return None
