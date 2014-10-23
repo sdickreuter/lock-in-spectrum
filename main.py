@@ -159,10 +159,11 @@ class lockin_gui(object):
         self.SpectrumBox.add(self.button_reset)
         self.SpectrumBox.add(self.button_loaddark)
         self.SpectrumBox.add(self.button_loadlamp)
+        self.SpectrumBox.add(Gtk.Separator())
 
         # box for Stage control
         self.stage_hbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
-        self.stage_hbox.add(Gtk.Separator())
+        #self.stage_hbox.add(Gtk.Separator())
         self.stage_hbox.add(self.button_search)
         self.stage_hbox.add(Gtk.Label(label="Stage Control"))
         self.stage_hbox.add(self.table_stagecontrol)
@@ -175,14 +176,18 @@ class lockin_gui(object):
         self.stage_hbox.add(self.label_z)
 
         #Buttons for scanning stack
+        self.button_add_position = Gtk.Button('Add Position to List')
         self.button_spangrid = Gtk.Button('Span Grid')
         self.button_scan_start = Gtk.Button('Start Scan')
         self.scan_hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         self.button_scan_add = Gtk.ToolButton(Gtk.STOCK_ADD)
         self.button_scan_remove = Gtk.ToolButton(Gtk.STOCK_REMOVE)
+        self.button_scan_clear = Gtk.ToolButton(Gtk.STOCK_DELETE)
         self.scan_hbox.set_homogeneous(True)
         self.scan_hbox.add(self.button_scan_add)
         self.scan_hbox.add(self.button_scan_remove)
+        self.scan_hbox.add(self.button_scan_clear)
+
 
         # Treeview for showing/settings scanning grid
         self.scan_store = Gtk.ListStore(float, float)
@@ -206,18 +211,18 @@ class lockin_gui(object):
         self.scan_scroller.add(self.scan_view)
 
         #Connections for scanning stack
+        self.button_add_position.connect("clicked",self.on_add_position_clicked)
+        self.button_spangrid.connect("clicked",self.on_spangrid_clicked)
         self.button_scan_add.connect("clicked", self.on_scan_add)
         self.button_scan_remove.connect("clicked", self.on_scan_remove)
+        self.button_scan_clear.connect("clicked", self.on_scan_clear)
         self.scan_xrenderer.connect("edited", self.on_scan_xedited)
         self.scan_yrenderer.connect("edited", self.on_scan_yedited)
-
-
-        self.scan_store.append([0.01,0.02])
-        self.scan_store.append([0.03,0.04])
 
         #Box for control of scanning
         self.ScanningBox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
         self.ScanningBox.add(Gtk.Separator())
+        self.ScanningBox.add(self.button_add_position)
         self.ScanningBox.add(self.button_spangrid)
         self.ScanningBox.add(Gtk.Separator())
         self.ScanningBox.add(Gtk.Label("Scanning Positions"))
@@ -288,7 +293,6 @@ class lockin_gui(object):
         self.dark = None
         self.normal = None
         self.lockin = None
-
 
     def smooth(self, x):
         """
@@ -363,11 +367,35 @@ class lockin_gui(object):
 
 ###---------------- button connect functions ----------
 
+    def on_add_position_clicked(self, widget):
+        pos = self.stage.pos()
+        self.scan_store.append([pos[0],pos[1]])
+
+    def on_spangrid_clicked(self, widget):
+        iter = self.scan_store.get_iter_first()
+        #a, b, c = None
+        if len(self.scan_store) >= 3:
+            a = self.scan_store[iter][:]
+            iter = self.scan_store.iter_next(iter)
+            b = self.scan_store[iter][:]
+            iter = self.scan_store.iter_next(iter)
+            c = self.scan_store[iter][:]
+
+            grid_vec_1 = [b[0]-a[0],b[1]-b[1]]
+            grid_vec_2 = [c[0]-a[0],c[1]-b[1]]
+
+            self.scan_store.clear()
+
+            for x in range(4):
+                for y in range(4):
+                    vec_x = a[0] + grid_vec_1[0]*x + grid_vec_2[0]*y
+                    vec_y = a[1] + grid_vec_1[1]*x + grid_vec_2[1]*y
+                    self.scan_store.append([vec_x,vec_y])
+
     def on_stop_clicked(self, widget):
         self.stop_thread()
         self.enable_buttons()
         self.status.set_label('Stopped')
-
 
     def on_reset_clicked(self, widget):
         self.log.reset()
@@ -375,7 +403,6 @@ class lockin_gui(object):
         self.lamp = None
         self.lockin = None
         self.normal = None
-
 
     def on_aquire_clicked(self, widget):
         self.log.reset()
@@ -471,6 +498,9 @@ class lockin_gui(object):
         self.model, self.treeiter = self.select.get_selected()
         if self.treeiter is not None:
             self.scan_store.remove(self.treeiter)
+
+    def on_scan_clear(self, widget):
+        self.scan_store.clear()
 
 
 ### ----------- END scan Listview connect functions
