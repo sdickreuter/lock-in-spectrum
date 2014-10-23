@@ -50,9 +50,9 @@ class logger(object):
 
     def _init_spectrometer(self):
         try:
-            self._spectrometer = oceanoptics.QE65000()
+            #self._spectrometer = oceanoptics.QE65000()
             #self._spectrometer = oceanoptics.Dummy()
-            #self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage)
+            self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage)
             self._spectrometer.integration_time(self._integration_time)
             sp = self._spectrometer.spectrum()
             self._wl = sp[0]

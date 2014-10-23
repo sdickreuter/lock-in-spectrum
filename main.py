@@ -1,5 +1,3 @@
-
-
 import pandas
 import time
 from logger import logger
@@ -34,8 +32,8 @@ class lockin_gui(object):
     def __init__(self):
         self.settings = Settings()
 
-        #self.stage = PIStage.Dummy();
-        self.stage = PIStage.E545();
+        self.stage = PIStage.Dummy();
+        #self.stage = PIStage.E545();
 
         GObject.threads_init()  # all Gtk is in the main thread;
         # only GObject.idle_add() is in the background thread
@@ -51,6 +49,9 @@ class lockin_gui(object):
         # Buttons for spectrum stack
         self.button_live = Gtk.Button(label="Liveview")
         self.button_live.set_tooltip_text("Start/Stop Liveview of Spectrum")
+        self.button_stop = Gtk.Button(label="Stop")
+        self.button_stop.set_tooltip_text("Stop any ongoing Action")
+        self.button_stop.set_sensitive(False)
         self.button_aquire = Gtk.Button(label="Aquire Spectrum")
         self.button_aquire.set_tooltip_text("Start/Stop aquiring Lock-In Spectrum")
         self.button_direction = Gtk.Button(label="Set Direction")
@@ -73,6 +74,7 @@ class lockin_gui(object):
         self.button_loaddark.set_tooltip_text("Load Dark Spectrum from file")
         self.button_loadlamp = Gtk.Button(label="Loard Lamp Spectrum")
         self.button_loadlamp.set_tooltip_text("Load Lamp Spectrum from file")
+
         # Stage Control Buttons
         self.button_xup = Gtk.Button(label="x+")
         self.button_xdown = Gtk.Button(label="x-")
@@ -96,6 +98,7 @@ class lockin_gui(object):
         self.button_aquire.connect("clicked", self.on_aquire_clicked)
         self.button_direction.connect("clicked", self.on_direction_clicked)
         self.button_live.connect("clicked", self.on_live_clicked)
+        self.button_stop.connect("clicked", self.on_stop_clicked)
         self.button_settings.connect("clicked", self.on_settings_clicked)
         self.button_search.connect("clicked", self.on_search_clicked)
         self.button_save.connect("clicked", self.on_save_clicked)
@@ -151,27 +154,30 @@ class lockin_gui(object):
         self.SpectrumBox.add(self.button_normal)
         self.SpectrumBox.add(Gtk.Separator())
         self.SpectrumBox.add(Gtk.Label(label="Miscellaneous"))
-        self.SpectrumBox.add(self.button_search)
         self.SpectrumBox.add(self.button_save)
         self.SpectrumBox.add(self.button_settings)
         self.SpectrumBox.add(self.button_reset)
         self.SpectrumBox.add(self.button_loaddark)
         self.SpectrumBox.add(self.button_loadlamp)
-        self.SpectrumBox.add(Gtk.Separator())
-        self.SpectrumBox.add(Gtk.Label(label="Stage Control"))
-        self.SpectrumBox.add(self.table_stagecontrol)
-        self.SpectrumBox.add(Gtk.Label(label="Set Stepsize [um]"))
-        self.SpectrumBox.add(self.table_stepsize)
-        self.SpectrumBox.add(self.button_moverel)
-        self.SpectrumBox.add(self.button_moveabs)
-        self.SpectrumBox.add(self.label_x)
-        self.SpectrumBox.add(self.label_y)
-        self.SpectrumBox.add(self.label_z)
 
+        # box for Stage control
+        self.stage_hbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        self.stage_hbox.add(Gtk.Separator())
+        self.stage_hbox.add(self.button_search)
+        self.stage_hbox.add(Gtk.Label(label="Stage Control"))
+        self.stage_hbox.add(self.table_stagecontrol)
+        self.stage_hbox.add(Gtk.Label(label="Set Stepsize [um]"))
+        self.stage_hbox.add(self.table_stepsize)
+        self.stage_hbox.add(self.button_moverel)
+        self.stage_hbox.add(self.button_moveabs)
+        self.stage_hbox.add(self.label_x)
+        self.stage_hbox.add(self.label_y)
+        self.stage_hbox.add(self.label_z)
 
         #Buttons for scanning stack
-        self.button_test = Gtk.Button('Test')
-        self.scan_hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        self.button_spangrid = Gtk.Button('Span Grid')
+        self.button_scan_start = Gtk.Button('Start Scan')
+        self.scan_hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         self.button_scan_add = Gtk.ToolButton(Gtk.STOCK_ADD)
         self.button_scan_remove = Gtk.ToolButton(Gtk.STOCK_REMOVE)
         self.scan_hbox.set_homogeneous(True)
@@ -212,12 +218,13 @@ class lockin_gui(object):
         #Box for control of scanning
         self.ScanningBox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
         self.ScanningBox.add(Gtk.Separator())
-        self.ScanningBox.add(self.button_test)
-        self.SpectrumBox.add(Gtk.Separator())
+        self.ScanningBox.add(self.button_spangrid)
+        self.ScanningBox.add(Gtk.Separator())
         self.ScanningBox.add(Gtk.Label("Scanning Positions"))
         self.ScanningBox.add(self.scan_hbox)
         self.ScanningBox.add(self.scan_scroller)
-        self.SpectrumBox.add(Gtk.Separator())
+        self.ScanningBox.add(Gtk.Separator())
+        self.ScanningBox.add(self.button_scan_start)
 
 
         # MPL stuff
@@ -245,7 +252,10 @@ class lockin_gui(object):
 
         self.SideBox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
         self.SideBox.add(self.stack_switcher)
+        self.ScanningBox.add(Gtk.Separator())
+        self.SideBox.add(self.button_stop)
         self.SideBox.add(self.stack)
+        self.SideBox.add(self.stage_hbox)
 
         self.grid.add(self.canvas)
         self.grid.attach_next_to(self.SideBox, self.canvas, Gtk.PositionType.RIGHT, 1, 1)
@@ -336,7 +346,28 @@ class lockin_gui(object):
     def on_number_of_samples_change(self, widget):
         self.log.set_number_of_samples(self.number_of_samples_spin.get_value_as_int())
 
+    def disable_buttons(self):
+        self.stack_switcher.set_sensitive(False)
+        self.scan_hbox.set_sensitive(False)
+        self.SpectrumBox.set_sensitive(False)
+        self.stage_hbox.set_sensitive(False)
+        self.button_stop.set_sensitive(True)
+
+
+    def enable_buttons(self):
+        self.stack_switcher.set_sensitive(True)
+        self.scan_hbox.set_sensitive(True)
+        self.SpectrumBox.set_sensitive(True)
+        self.stage_hbox.set_sensitive(True)
+        self.button_stop.set_sensitive(False)
+
 ###---------------- button connect functions ----------
+
+    def on_stop_clicked(self, widget):
+        self.stop_thread()
+        self.enable_buttons()
+        self.status.set_label('Stopped')
+
 
     def on_reset_clicked(self, widget):
         self.log.reset()
@@ -344,53 +375,32 @@ class lockin_gui(object):
         self.lamp = None
         self.lockin = None
         self.normal = None
-        self.settings_dialog.enable_number_of_samples()
 
 
     def on_aquire_clicked(self, widget):
-        if self.worker_thread is None:
-            self.log.reset()
-            self.settings_dialog.enable_number_of_samples()
-            self.button_direction.set_sensitive(False)
-            self.status.set_label('Acquiring ...')
-            self.start_thread(self.acquire_spectrum, 'acquire')
-        else:
-            self.status.set_label('Stopped')
-            self.button_direction.set_sensitive(True)
-            self.stop_thread()
-            if not self.worker_mode is 'acquire':
-                self.log.reset()
-                self.settings_dialog.enable_number_of_samples()
-                self.button_direction.set_sensitive(False)
-                self.status.set_label('Acquiring ...')
-                self.start_thread(self.acquire_spectrum, 'acquire')
+        self.log.reset()
+        self.status.set_label('Acquiring ...')
+        self.start_thread(self.acquire_spectrum, 'acquire')
+        self.disable_buttons()
 
     def on_direction_clicked(self, widget):
         self.direction_dialog.rundialog()
 
     def on_live_clicked(self, widget):
-        if self.worker_thread is None:
-            self.status.set_label('Liveview')
-            self.start_thread(self.live_spectrum, 'live')
-        else:
-            self.status.set_label('Stopped')
-            self.stop_thread()
-            if not self.worker_mode is 'live':
-                self.status.set_label('Liveview')
-                self.start_thread(self.live_spectrum, 'live')
+        self.status.set_label('Liveview')
+        self.start_thread(self.live_spectrum, 'live')
+        self.disable_buttons()
 
     def on_search_clicked(self, widget):
         self.status.set_text("Searching Max.")
-        self.search_max_int();
+        self.search_max_int()
         self.status.set_text("Max. approached")
-
 
     def on_save_clicked(self, widget):
         if self.log._new_spectrum:
             self.status.set_label("Saving Data ...")
             self.save_data()
             self.log.reset()
-            self.settings_dialog.enable_number_of_samples()
             self.status.set_label('Data saved')
         else:
             self.status.set_label('No Data found')
@@ -399,37 +409,19 @@ class lockin_gui(object):
         self.settings_dialog.rundialog()
 
     def on_dark_clicked(self, widget):
-        if self.worker_thread is None:
-            self.status.set_label('Taking Dark Spectrum')
-            self.start_thread(self.take_spectrum, 'dark')
-        else:
-            self.status.set_label('Stopped')
-            self.stop_thread()
-            if not self.worker_mode is 'dark':
-                self.status.set_label('Taking Dark Spectrum')
-                self.start_thread(self.take_spectrum, 'dark')
+        self.status.set_label('Taking Dark Spectrum')
+        self.start_thread(self.take_spectrum, 'dark')
+        self.disable_buttons()
 
     def on_lamp_clicked(self, widget):
-        if self.worker_thread is None:
-            self.status.set_label('Taking Lamp Spectrum')
-            self.start_thread(self.take_spectrum, 'lamp')
-        else:
-            self.status.set_label('Stopped')
-            self.stop_thread()
-            if not self.worker_mode is 'lamp':
-                self.status.set_label('Taking Lamp Spectrum')
-                self.start_thread(self.take_spectrum, 'lamp')
+        self.status.set_label('Taking Lamp Spectrum')
+        self.start_thread(self.take_spectrum, 'lamp')
+        self.disable_buttons()
 
     def on_normal_clicked(self, widget):
-        if self.worker_thread is None:
-            self.status.set_label('Taking Normal Spectrum')
-            self.start_thread(self.take_spectrum, 'normal')
-        else:
-            self.status.set_label('Stopped')
-            self.stop_thread()
-            if not self.worker_mode is 'normal':
-                self.status.set_label('Taking Normal Spectrum')
-                self.start_thread(self.take_spectrum, 'normal')
+        self.status.set_label('Taking Normal Spectrum')
+        self.start_thread(self.take_spectrum, 'normal')
+        self.disable_buttons()
 
     def on_loaddark_clicked(self, widget):
         buf = self._load_spectrum_from_file()
