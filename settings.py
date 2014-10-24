@@ -1,12 +1,13 @@
 __author__ = 'sei'
 
-import ConfigParser
+import configparser
+
 
 class Settings(object):
     _filename = "config.ini"
 
     def __init__(self):
-        self.config = ConfigParser.ConfigParser()
+        self.config = configparser.ConfigParser()
         try:
             self.config.read(self._filename)
             self.integration_time = self.config.getfloat('spectrum', 'integration_time')
@@ -26,8 +27,8 @@ class Settings(object):
 
         except:
             RuntimeError("Error loading settings.")
-            #self.integration_time = 0.08
-            #self.number_of_samples = 1000
+            # self.integration_time = 0.08
+            # self.number_of_samples = 1000
             return
 
     def save(self):
@@ -39,11 +40,11 @@ class Settings(object):
             self.config.set('direction', 'z', self.direction_z)
             self.config.set('direction', 'amplitude', int(self.amplitude))
             self.config.set('stage', 'stepsize', self.stepsize)
-            #self.config.set('searchmax', 'sigma', self.sigma)
-            #self.config.set('searchmax', 'rasterdim', self.rasterdim)
+            # self.config.set('searchmax', 'sigma', self.sigma)
+            # self.config.set('searchmax', 'rasterdim', self.rasterdim)
             #self.config.set('searchmax', 'rasterwidth', self.rasterwidth)
-            f = open(self._filename,"wb")
+            f = open(self._filename, "wb")
             self.config.write(f)
             f.close()
         except:
-            print "Error saving settings."
+            print("Error saving settings.")

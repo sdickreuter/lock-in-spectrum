@@ -1,46 +1,46 @@
-import pandas
 import time
-from logger import logger
 from itertools import cycle
-import numpy as np
 from datetime import datetime
 import os
+
+import pandas
+import numpy as np
 import PIStage
 import scipy.optimize as opt
-import objgraph
 import matplotlib.pyplot as plt
-
 from gi.repository import Gtk
 from gi.repository import GObject
 from gi.repository import GLib
 
+from logger import Logger
 import dialogs
 from settings import Settings
 
-class mpl:
+
+class MPL:
     from matplotlib.figure import Figure
-    from matplotlib.backends.backend_gtk3agg import FigureCanvasGTK3Agg as FigureCanvas
+    from matplotlib.backends.backend_gtk3cairo import FigureCanvasGTK3Cairo as FigureCanvas
 
 
-import multiprocessing
+import billiard
 
-
-class lockin_gui(object):
+class LockinGui(object):
     _window_title = "Lock-in Spectrum"
     _heartbeat = 250  # ms delay at which the plot/gui is refreshed
 
     def __init__(self):
         self.savedir = "./Spectra/"
+        self.path = "./"
 
         self.settings = Settings()
 
-        self.stage = PIStage.Dummy();
-        #self.stage = PIStage.E545();
+        self.stage = PIStage.Dummy()
+        # self.stage = PIStage.E545();
 
         GObject.threads_init()
         # only GObject.idle_add() is in the background thread
         self.window = Gtk.Window(title=self._window_title)
-        #self.window.set_resizable(False)
+        # self.window.set_resizable(False)
         self.window.set_border_width(3)
 
         self.grid = Gtk.Grid()
@@ -86,7 +86,7 @@ class lockin_gui(object):
         self.button_zdown = Gtk.Button(label="z-")
         self.button_stepup = Gtk.Button(label="+")
         self.button_stepdown = Gtk.Button(label="-")
-        self.label_stepsize = Gtk.Label(label = str(self.settings.stepsize))
+        self.label_stepsize = Gtk.Label(label=str(self.settings.stepsize))
         self.button_moverel = Gtk.Button(label="Move Stage rel.")
         self.button_moveabs = Gtk.Button(label="Move Stage abs.")
         # Stage position labels
@@ -122,7 +122,7 @@ class lockin_gui(object):
         self.button_moverel.connect("clicked", self.on_moverel_clicked)
         self.button_moveabs.connect("clicked", self.on_moveabs_clicked)
 
-        #Stage Control Button Table
+        # Stage Control Button Table
         self.table_stagecontrol = Gtk.Table(3, 4, True)
         self.table_stagecontrol.attach(self.button_xup, 0, 1, 1, 2)
         self.table_stagecontrol.attach(self.button_xdown, 2, 3, 1, 2)
@@ -130,8 +130,8 @@ class lockin_gui(object):
         self.table_stagecontrol.attach(self.button_ydown, 1, 2, 2, 3)
         self.table_stagecontrol.attach(self.button_zup, 3, 4, 0, 1)
         self.table_stagecontrol.attach(self.button_zdown, 3, 4, 2, 3)
-        #Stage Stepsize Table
-        self.table_stepsize = Gtk.Table(1,3, True)
+        # Stage Stepsize Table
+        self.table_stepsize = Gtk.Table(1, 3, True)
         self.table_stepsize.attach(self.button_stepup, 0, 1, 0, 1)
         self.table_stepsize.attach(self.label_stepsize, 1, 2, 0, 1)
         self.table_stepsize.attach(self.button_stepdown, 2, 3, 0, 1)
@@ -141,7 +141,7 @@ class lockin_gui(object):
         self._progress_fraction = 0
         self.progress.set_fraction(self._progress_fraction)
 
-        #Box for control of taking single spectra
+        # Box for control of taking single spectra
         self.SpectrumBox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
         self.SpectrumBox.add(Gtk.Separator())
         self.SpectrumBox.add(self.button_live)
@@ -165,7 +165,7 @@ class lockin_gui(object):
 
         # box for Stage control
         self.stage_hbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
-        #self.stage_hbox.add(Gtk.Separator())
+        # self.stage_hbox.add(Gtk.Separator())
         self.stage_hbox.add(self.button_search)
         self.stage_hbox.add(Gtk.Label(label="Stage Control"))
         self.stage_hbox.add(self.table_stagecontrol)
@@ -177,7 +177,7 @@ class lockin_gui(object):
         self.stage_hbox.add(self.label_y)
         self.stage_hbox.add(self.label_z)
 
-        #Buttons for scanning stack
+        # Buttons for scanning stack
         self.button_add_position = Gtk.Button('Add Position to List')
         self.button_spangrid = Gtk.Button('Span Grid')
         self.button_scan_start = Gtk.Button('Start Scan')
@@ -212,15 +212,15 @@ class lockin_gui(object):
         self.scan_scroller.set_vexpand(True)
         self.scan_scroller.add(self.scan_view)
 
-        self.scan_store.append([0.0,0.0])
-        self.scan_store.append([1.0,0.0])
-        self.scan_store.append([0.0,1.0])
+        self.scan_store.append([0.0, 0.0])
+        self.scan_store.append([1.0, 0.0])
+        self.scan_store.append([0.0, 1.0])
 
 
         #Connections for scanning stack
-        self.button_add_position.connect("clicked",self.on_add_position_clicked)
-        self.button_spangrid.connect("clicked",self.on_spangrid_clicked)
-        self.button_scan_start.connect("clicked",self.on_start_scan_clicked)
+        self.button_add_position.connect("clicked", self.on_add_position_clicked)
+        self.button_spangrid.connect("clicked", self.on_spangrid_clicked)
+        self.button_scan_start.connect("clicked", self.on_start_scan_clicked)
         self.button_scan_add.connect("clicked", self.on_scan_add)
         self.button_scan_remove.connect("clicked", self.on_scan_remove)
         self.button_scan_clear.connect("clicked", self.on_scan_clear)
@@ -241,10 +241,10 @@ class lockin_gui(object):
 
 
         # MPL stuff
-        self.figure = mpl.Figure()
+        self.figure = MPL.Figure()
         self.ax = self.figure.add_subplot(1, 1, 1)
         self.ax.grid(True)
-        self.canvas = mpl.FigureCanvas(self.figure)
+        self.canvas = MPL.FigureCanvas(self.figure)
         self.canvas.set_hexpand(True)
         self.canvas.set_vexpand(True)
 
@@ -277,20 +277,20 @@ class lockin_gui(object):
 
         self.window.show_all()
 
-        self.log = logger(self.stage, self.settings)  # logger class which coordinates the spectrometer and the stage
+        self.log = Logger(self.stage, self.settings)  # logger class which coordinates the spectrometer and the stage
         self._spec = self.log.get_spec()  # get an initial spectrum for display
         self._wl = self.log.get_wl()  # get the wavelengths
         self.lines = []
-        self.lines.extend( self.ax.plot(self._wl, self._spec,"-") )
-        self.lines.extend( self.ax.plot(self._wl, self.smooth(self._spec),"-",c="black") )  # plot initial spectrum
+        self.lines.extend(self.ax.plot(self._wl, self._spec, "-"))
+        self.lines.extend(self.ax.plot(self._wl, self.smooth(self._spec), "-", c="black"))  # plot initial spectrum
 
         #Dialogs
-        self.settings_dialog = dialogs.Settings_Dialog(self.window, self.settings)
-        self.direction_dialog = dialogs.Direction_Dialog(self.window, self.settings)
-        self.moveabs_dialog = dialogs.MoveAbs_Dialog(self.window, self.stage)
-        self.moverel_dialog = dialogs.MoveRel_Dialog(self.window, self.stage)
-        self.spangrid_dialog = dialogs.SpanGrid_Dialog(self.window)
-        self.prefix_dialog = dialogs.Prefix_Dialog(self.window)
+        self.settings_dialog = dialogs.SettingsDialog(self.window, self.settings)
+        self.direction_dialog = dialogs.DirectionDialog(self.window, self.settings)
+        self.moveabs_dialog = dialogs.MoveAbsDialog(self.window, self.stage)
+        self.moverel_dialog = dialogs.MoveRelDialog(self.window, self.stage)
+        self.spangrid_dialog = dialogs.SpanGridDialog(self.window)
+        self.prefix_dialog = dialogs.PrefixDialog(self.window)
 
         # variables for storing the spectra
         self.lamp = None
@@ -298,24 +298,40 @@ class lockin_gui(object):
         self.normal = None
         self.lockin = None
 
-    def smooth(self, x):
+        self.worker = None
+        self.conn_for_main, self.conn_for_worker = billiard.Pipe()
+        self.running = False
+
+    def start_process(self, target):
+        self.worker = billiard.Process(target=target,args=(self.conn_for_worker,))
+        self.running = True
+        self.worker.daemon = True
+        self.worker.start()
+
+    def stop_process(self):
+        self.running = False
+        self.worker_mode = None
+
+
+    @staticmethod
+    def smooth(x):
         """
         modified from: http://wiki.scipy.org/Cookbook/SignalSmooth
         """
-        window_len=151
+        window_len = 151
 
-        s = np.r_[x[window_len-1:0:-1],x,x[-1:-window_len:-1]]
+        s = np.r_[x[window_len - 1:0:-1], x, x[-1:-window_len:-1]]
 
-        window='hanning'
-        #window='flat'
+        window = 'hanning'
+        # window='flat'
 
-        if window == 'flat': #moving average
-            w=np.ones(window_len,'d')
+        if window == 'flat':  # moving average
+            w = np.ones(window_len, 'd')
         else:
-            w=eval('np.'+window+'(window_len)')
+            w = eval('np.' + window + '(window_len)')
 
-        y = np.convolve(w/w.sum(),s,mode='valid')
-        y = y[(window_len/2):-(window_len/2)]
+        y = np.convolve(w / w.sum(), s, mode='valid')
+        y = y[(window_len / 2):-(window_len / 2)]
         return y
 
     def quit(self, *args):
@@ -326,15 +342,8 @@ class lockin_gui(object):
         self.log = None
         Gtk.main_quit(*args)
 
-    def on_integration_time_change(self, widget):
-        self.log.set_integration_time(float(self.integration_time_spin.get_value_as_int()) / 1000)
-        time.sleep(0.1)
-
-    def on_number_of_samples_change(self, widget):
-        self.log.set_number_of_samples(self.number_of_samples_spin.get_value_as_int())
-
     def disable_buttons(self):
-        self.stack_switcher.set_sensitive(False)
+        #self.stack_switcher.set_sensitive(False)
         self.scan_hbox.set_sensitive(False)
         self.SpectrumBox.set_sensitive(False)
         self.stage_hbox.set_sensitive(False)
@@ -342,13 +351,13 @@ class lockin_gui(object):
 
 
     def enable_buttons(self):
-        self.stack_switcher.set_sensitive(True)
+        #self.stack_switcher.set_sensitive(True)
         self.scan_hbox.set_sensitive(True)
         self.SpectrumBox.set_sensitive(True)
         self.stage_hbox.set_sensitive(True)
         self.button_stop.set_sensitive(False)
 
-###---------------- button connect functions ----------
+    # ##---------------- button connect functions ----------
     def on_start_scan_clicked(self, widget):
         os.chdir(self.savedir)
 
@@ -356,11 +365,11 @@ class lockin_gui(object):
 
         if prefix is not None:
             try:
-#                os.path.exists(prefix)
+                # os.path.exists(prefix)
                 os.mkdir(prefix)
             except:
                 pass
-            self.path = self.savedir+prefix+'/'
+            self.path = self.savedir + prefix + '/'
             self.status.set_label('Scanning')
             self.scan_spectra()
             self.disable_buttons()
@@ -370,7 +379,7 @@ class lockin_gui(object):
 
     def on_add_position_clicked(self, widget):
         pos = self.stage.pos()
-        self.scan_store.append([pos[0],pos[1]])
+        self.scan_store.append([pos[0], pos[1]])
 
     def on_spangrid_clicked(self, widget):
         iter = self.scan_store.get_iter_first()
@@ -382,18 +391,19 @@ class lockin_gui(object):
             iter = self.scan_store.iter_next(iter)
             c = self.scan_store[iter][:]
 
-            grid_vec_1 = [b[0]-a[0],b[1]-b[1]]
-            grid_vec_2 = [c[0]-a[0],c[1]-b[1]]
+            grid_vec_1 = [b[0] - a[0], b[1] - b[1]]
+            grid_vec_2 = [c[0] - a[0], c[1] - b[1]]
 
             self.scan_store.clear()
 
             for x in range(int(grid[0])):
                 for y in range(int(grid[1])):
-                    vec_x = a[0] + grid_vec_1[0]*x + grid_vec_2[0]*y
-                    vec_y = a[1] + grid_vec_1[1]*x + grid_vec_2[1]*y
-                    self.scan_store.append([vec_x,vec_y])
+                    vec_x = a[0] + grid_vec_1[0] * x + grid_vec_2[0] * y
+                    vec_y = a[1] + grid_vec_1[1] * x + grid_vec_2[1] * y
+                    self.scan_store.append([vec_x, vec_y])
 
     def on_stop_clicked(self, widget):
+        self.stop_process()
         self.enable_buttons()
         self.status.set_label('Stopped')
 
@@ -405,22 +415,25 @@ class lockin_gui(object):
         self.normal = None
 
     def on_aquire_clicked(self, widget):
+        self.worker_mode = "aquire"
         self.log.reset()
+        self.lockin = None
         self.status.set_label('Acquiring ...')
-        self.acquire_spectrum()
+        self.start_process(self.acquire_spectrum)
         self.disable_buttons()
 
     def on_direction_clicked(self, widget):
         self.direction_dialog.rundialog()
 
     def on_live_clicked(self, widget):
+        self.worker_mode = "live"
         self.status.set_label('Liveview')
-        self.live_spectrum()
+        self.start_process(self.live_spectrum)
         self.disable_buttons()
 
     def on_search_clicked(self, widget):
         self.status.set_text("Searching Max.")
-        #self.search_max_int()
+        # self.search_max_int()
         self.search_max_int()
         self.disable_buttons()
 
@@ -437,36 +450,42 @@ class lockin_gui(object):
         self.settings_dialog.rundialog()
 
     def on_dark_clicked(self, widget):
+        self.worker_mode = "dark"
         self.status.set_label('Taking Dark Spectrum')
-        self.take_spectrum('dark')
+        self.start_process(self.take_spectrum)
         self.disable_buttons()
 
     def on_lamp_clicked(self, widget):
+        self.worker_mode = "lamp"
         self.status.set_label('Taking Lamp Spectrum')
-        self.take_spectrum('lamp')
+        self.start_process(self.take_spectrum)
         self.disable_buttons()
 
     def on_normal_clicked(self, widget):
+        self.worker_mode = "normal"
         self.status.set_label('Taking Normal Spectrum')
-        self.take_spectrum('normal')
+        self.start_process(self.take_spectrum)
         self.disable_buttons()
 
     def on_loaddark_clicked(self, widget):
         buf = self._load_spectrum_from_file()
-        if not buf is None: self.dark = buf
+        if not buf is None:
+            self.dark = buf
 
     def on_loadlamp_clicked(self, widget):
         buf = self._load_spectrum_from_file()
-        if not buf is None: self.lamp = buf
+        if not buf is None:
+            self.lamp = buf
 
-###---------------- END button connect functions ----------
+    # ##---------------- END button connect functions ----------
 
     def _load_spectrum_from_file(self):
         dialog = Gtk.FileChooserDialog("Please choose a file", self.window,
-            Gtk.FileChooserAction.OPEN,
-            (Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
-             Gtk.STOCK_OPEN, Gtk.ResponseType.OK))
+                                       Gtk.FileChooserAction.OPEN,
+                                       (Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+                                        Gtk.STOCK_OPEN, Gtk.ResponseType.OK))
 
+        data = None
         filter_text = Gtk.FileFilter()
         filter_text.set_name("CSV Spectrum files")
         filter_text.add_pattern("*.csv")
@@ -474,40 +493,40 @@ class lockin_gui(object):
         dialog.set_current_folder(os.path.dirname(os.path.abspath(__file__)))
         response = dialog.run()
         if response == Gtk.ResponseType.OK:
-           data = pandas.DataFrame(pandas.read_csv(dialog.get_filename()))
-           data = data['intensity']
+            data = pandas.DataFrame(pandas.read_csv(dialog.get_filename()))
+            data = data['intensity']
         elif response == Gtk.ResponseType.CANCEL:
-           data = None
+            data = None
         dialog.destroy()
         return data
 
-### ----------- scan Listview connect functions
+    # ## ----------- scan Listview connect functions
 
     def on_scan_xedited(self, widget, path, number):
         self.scan_store[path][0] = float(number.replace(',', '.'))
-        #self.plotpoints()
+        # self.plotpoints()
 
     def on_scan_yedited(self, widget, path, number):
         self.scan_store[path][1] = float(number.replace(',', '.'))
-        #self.plotpoints()
+        # self.plotpoints()
 
     def on_scan_add(self, widget):
         self.scan_store.append()
 
     def on_scan_remove(self, widget):
-        self.select = self.scan_view.get_selection()
-        self.model, self.treeiter = self.select.get_selected()
-        if self.treeiter is not None:
-            self.scan_store.remove(self.treeiter)
+        select = self.scan_view.get_selection()
+        model, treeiter = select.get_selected()
+        if treeiter is not None:
+            self.scan_store.remove(treeiter)
 
     def on_scan_clear(self, widget):
         self.scan_store.clear()
 
 
-### ----------- END scan Listview connect functions
+    # ## ----------- END scan Listview connect functions
 
 
-###---------------- Stage Control Button Connect functions ----------
+    # ##---------------- Stage Control Button Connect functions ----------
 
     def show_pos(self):
         pos = self.stage.pos()
@@ -540,14 +559,16 @@ class lockin_gui(object):
         self.show_pos()
 
     def on_stepup_clicked(self, widget):
-        self.settings.stepsize = 10*self.settings.stepsize
-        if self.settings.stepsize > 10: self.settings.stepsize = 10.0
+        self.settings.stepsize *= 10
+        if self.settings.stepsize > 10:
+            self.settings.stepsize = 10.0
         self.label_stepsize.set_text(str(self.settings.stepsize))
         self.settings.save()
 
     def on_stepdown_clicked(self, widget):
-        self.settings.stepsize = self.settings.stepsize/10
-        if self.settings.stepsize < 0.001: self.settings.stepsize = 0.001
+        self.settings.stepsize /= 10
+        if self.settings.stepsize < 0.001:
+            self.settings.stepsize = 0.001
         self.label_stepsize.set_text(str(self.settings.stepsize))
         self.settings.save()
 
@@ -560,108 +581,121 @@ class lockin_gui(object):
         self.show_pos()
 
 
-###---------------- END Stage Control Button Connect functions ------
+    # ##---------------- END Stage Control Button Connect functions ------
 
-###---------------- functions for taking and showing Spectra ----------
+    # ##---------------- functions for taking and showing Spectra ----------
     def scan_spectra(self):
         for point in self.scan_store:
-            self.stage.moveabs(x=point[0],y=point[1])
+            self.stage.moveabs(x=point[0], y=point[1])
             self.search_max_int()
             self.log.reset()
             self.acquire_spectrum()
             self.disable_buttons()
 
-            filename = self.path + 'lockin_' + 'x_{0:3.2f}um_y_{0:3.2f}um'.format(point[0],point[1])+'.csv'
+            filename = self.path + 'lockin_' + 'x_{0:3.2f}um_y_{0:3.2f}um'.format(point[0], point[1]) + '.csv'
             data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
                              self.lockin.reshape(self.lockin.shape[0], 1), 1)
             data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
-            data.to_csv( filename, header=True, index=False)
-
-        print objgraph.show_most_common_types()
-        self.enable_buttons();
-
-    def take_spectrum(self, worker_mode):
-        data = np.zeros(1024, dtype=np.float64)
-        data = self.log.get_spec()
-        for i in range(self.settings.number_of_samples-1):
-            data = (data + self.log.get_spec()) / 2
-            self._progress_fraction = float(i + 1) / self.settings.number_of_samples
-            self._spec = data
-
-        if worker_mode is 'dark':
-            self.settings_dialog.disable_number_of_samples()
-            self.dark = data
-        if worker_mode is 'lamp':
-            self.settings_dialog.disable_number_of_samples()
-            self.lamp = data
-        if worker_mode is 'normal':
-            self.normal = data
+            data.to_csv(filename, header=True, index=False)
 
         self.enable_buttons()
-        print "\a"
-        self.status.set_label('Spectra taken')
-        return True
 
-    def acquire_spectrum(self):
-        # self._plotting = False
-        self.button_direction.set_sensitive(False)
-        self.settings_dialog.disable_number_of_samples()
-        self.lockin = None
-        while True:
-            self._spec, running = self.log.measure_spectrum()
-
-            self._progress_fraction = float(self.log.get_scan_index()) / self.settings.number_of_samples
-
-            if not self.dark is None:
-                self._spec = self._spec - self.dark
-                if not self.lamp is None:
-                    self._spec = self._spec / self.lamp
-
+    def take_spectrum(self, connection):
+        spec = self.log.get_spec()
+        for i in range(self.settings.number_of_samples - 1):
+            spec = (spec + self.log.get_spec()) / 2
+            progress_fraction = float(i + 1) / self.settings.number_of_samples
+            connection.send([False,progress_fraction,spec])
+            running = connection.recv()
             if not running:
-                self._spec = self.calc_lockin()
-                self.lockin = self._spec
-                self.status.set_label('Spectra acquired')
-                break
-
-        self.enable_buttons()
-        print "\a"
+                connection.send([False,progress_fraction,spec])
+                return True
+        connection.send([True,1.,spec])
         return True
 
-    def live_spectrum(self):
+    def acquire_spectrum(self, connection):
         while True:
-            self._spec = self.log.get_spec()
+            spec, finished = self.log.measure_spectrum()
+
+            progress_fraction = float(self.log.get_scan_index()) / self.settings.number_of_samples
+
             if not self.dark is None:
-                self._spec = self._spec - self.dark
+                spec = spec - self.dark
                 if not self.lamp is None:
-                    self._spec = self._spec / self.lamp
+                    spec = spec / self.lamp
+            connection.send([False,progress_fraction,spec])
+            running = connection.recv()
+            if not running:
+                connection.send([False,progress_fraction,spec])
+                return True
+            if finished:
+                break
+        connection.send([True,1.,spec])
         return True
 
-    def update_plot(self):
+    def live_spectrum(self, connection):
+        while True:
+            spec = self.log.get_spec()
+            if not self.dark is None:
+                spec = spec - self.dark
+                if not self.lamp is None:
+                    spec = spec / self.lamp
+            connection.send([False,0.,spec])
+            running = connection.recv()
+            if not running:
+                connection.send([False,0,spec])
+                return True
+        connection.send([True,0,spec])
+        return True
+
+
+    ###---------------- END functions for taking and showing Spectra ----------
+
+    def run(self):
+        """	run main gtk thread """
+        try:
+            GLib.io_add_watch(self.conn_for_main, GLib.IO_IN | GLib.IO_PRI, self._update, args=(self,))
+            #GLib.timeout_add(self._heartbeat, self._update)
+            Gtk.main()
+        except KeyboardInterrupt:
+            pass
+
+    def _update_plot(self):
         self.lines[0].set_ydata(self._spec)
         self.lines[1].set_ydata(self.smooth(self._spec))
         self.ax.relim()
         self.ax.autoscale_view(False, False, True)
         self.canvas.draw()
-        return True
 
-    def update_progress(self):
-        #self.progress.set_fraction(self._progress_fraction)
-        return True
-
-###---------------- END functions for taking and showing Spectra ----------
-
-    def run(self):
-        """	run main gtk thread """
-        try:
-            GLib.timeout_add(self._heartbeat, self._update)
-            Gtk.main()
-        except KeyboardInterrupt:
-            pass
-
-    def _update(self, _suff=cycle('/|\-')):
-        # self.window.set_title('%s %s' % (self._window_title, next(_suff)))
-        self.update_plot()
+    def _update(self,io, condition):
+        finished, self._progress_fraction, self._spec = self.conn_for_main.recv()
+        self._update_plot()
         self.progress.set_fraction(self._progress_fraction)
+        self.conn_for_main.send(self.running)
+        if not self.running:
+            finished, self._progress_fraction, self._spec = self.conn_for_main.recv()
+            self.status.set_label('Stopped')
+
+        if finished :
+            if self.worker_mode is "live":
+                pass
+            elif self.worker_mode is "acquire":
+                self._spec = self.calc_lockin()
+                self.lockin = self._spec
+                self.status.set_label('Spectra acquired')
+            elif self.worker_mode is "lamp":
+                self.lamp = self._spec
+                self.status.set_label('Lamp Spectrum taken')
+            elif self.worker_mode is "dark":
+                self.dark = self._spec
+                self.status.set_label('Dark Spectrum taken')
+            elif self.worker_mode is "normal":
+                self.normal = self._spec
+                self.status.set_label('Normal Spectrum taken')
+
+            self.enable_buttons()
+            self.worker_mode = None
+
         return True
 
     def calc_lockin(self):
@@ -680,7 +714,8 @@ class lockin_gui(object):
             res[i - 2] = buf
         return res
 
-    def _gen_filename(self):
+    @staticmethod
+    def _gen_filename():
         return str(datetime.now().year) + str(datetime.now().month).zfill(2) \
                + str(datetime.now().day).zfill(2) + '_' + str(datetime.now().hour).zfill(2) + \
                str(datetime.now().minute).zfill(2) + str(datetime.now().second).zfill(2) + '.csv'
@@ -718,11 +753,13 @@ class lockin_gui(object):
             data.to_csv('lockin_' + filename, header=True, index=False)
 
     # modified from: http://stackoverflow.com/questions/21566379/fitting-a-2d-gaussian-function-using-scipy-optimize-curve-fit-valueerror-and-m#comment33999040_21566831
-    def Gauss2D(self,(x, y), amplitude, xo, yo, FWHM, offset):
-        sigma = FWHM/2.3548
+    @staticmethod
+    def gauss2D(pos, amplitude, xo, yo, fwhm, offset):
+        sigma = fwhm / 2.3548
         xo = float(xo)
         yo = float(yo)
-        g = offset + amplitude*np.exp(-( np.power(x - xo, 2.) + np.power(y - yo, 2.) ) / (2 * np.power(sigma, 2.)))
+        g = offset + amplitude * np.exp(
+            -( np.power(pos[0] - xo, 2.) + np.power(pos[1] - yo, 2.) ) / (2 * np.power(sigma, 2.)))
         return g.ravel()
 
     def search_max_int(self):
@@ -737,10 +774,10 @@ class lockin_gui(object):
         x = np.linspace(-self.settings.rasterwidth, self.settings.rasterwidth, self.settings.rasterdim)
         y = np.linspace(-self.settings.rasterwidth, self.settings.rasterwidth, self.settings.rasterdim)
         # add origin to raster to get absolute positions
-        x = x + x_or
-        y = y + y_or
+        x += x_or
+        y += y_or
 
-        int = np.zeros((len(x),len(y))) # matrix for saving the scanned maximum intensities
+        int = np.zeros((len(x), len(y)))  # matrix for saving the scanned maximum intensities
 
         # take spectra and get min and max values for use as values for the inital guess
         spec = self.smooth(self.log.get_spec())
@@ -748,32 +785,34 @@ class lockin_gui(object):
         max = np.max(spec)
 
         # iterate through the raster, take spectrum and save maximum value of smoothed spectrum to int
-        for xi in range(len(x)) :
-            for yi in range(len(y)) :
-                self.stage.moveabs(x[xi],y[yi])
-                int[xi,yi] = np.max(self.smooth(self.log.get_spec()))
+        for xi in range(len(x)):
+            for yi in range(len(y)):
+                self.stage.moveabs(x[xi], y[yi])
+                int[xi, yi] = np.max(self.smooth(self.log.get_spec()))
                 self.progress.pulse()
 
         # find max value of int and use this as the inital value for the position
         maxind = np.argmax(int)
-        maxind = np.unravel_index(maxind,int.shape)
+        maxind = np.unravel_index(maxind, int.shape)
 
         int = int.ravel()
 
-        initial_guess = (max-min,x[maxind[1]],y[maxind[0]],self.settings.sigma,min)
+        initial_guess = (max - min, x[maxind[1]], y[maxind[0]], self.settings.sigma, min)
         x, y = np.meshgrid(x, y)
+        positions = np.vstack((x.ravel(), y.ravel()))
 
         popt = None
-        try :
-            popt, pcov = opt.curve_fit(self.Gauss2D, (x, y), int, p0=initial_guess)
+        try:
+            popt, pcov = opt.curve_fit(self.gauss2D, positions, int, p0=initial_guess)
             #print popt
-            if popt[0] < 20: RuntimeError("Peak is to small")
+            if popt[0] < 20:
+                RuntimeError("Peak is to small")
         except RuntimeError as e:
-            print e
-            print "Could not determine particle position"
-            self.stage.moveabs(origin[0],origin[1],origin[2])
+            print(e)
+            print("Could not determine particle position")
+            self.stage.moveabs(origin[0], origin[1], origin[2])
         else:
-            self.stage.moveabs(float(popt[1]),float(popt[2]))
+            self.stage.moveabs(float(popt[1]), float(popt[2]))
             #print "Position of Particle: {0:+2.2f}, {1:+2.2f}".format(popt[1],popt[2])
 
         #------------ Plot scanned map and fitted 2dgauss to file
@@ -782,15 +821,15 @@ class lockin_gui(object):
         plt.imshow(int.reshape(self.settings.rasterdim, self.settings.rasterdim))
         #plt.colorbar()
         if popt is not None:
-            data_fitted = self.Gauss2D((x, y), *popt)
+            data_fitted = self.gauss2D((x, y), *popt)
         else:
-            data_fitted = self.Gauss2D((x, y), *initial_guess)
-            print initial_guess
+            data_fitted = self.gauss2D((x, y), *initial_guess)
+            print(initial_guess)
 
         fig, ax = plt.subplots(1, 1)
         ax.hold(True)
         ax.imshow(int.reshape(self.settings.rasterdim, self.settings.rasterdim), cmap=plt.cm.jet, origin='bottom',
-            extent=(x.min(), x.max(), y.min(), y.max()),interpolation='nearest')
+                  extent=(x.min(), x.max(), y.min(), y.max()), interpolation='nearest')
         ax.contour(x, y, data_fitted.reshape(self.settings.rasterdim, self.settings.rasterdim), 8, colors='w')
         plt.savefig("map_particle_search.png")
         #------------ END Plot scanned map and fitted 2dgauss to file
@@ -803,7 +842,7 @@ class lockin_gui(object):
             measured[x] = np.max(self.smooth(self.log.get_spec()))
             self.progress.pulse()
         maxind = np.argmax(measured)
-        self.stage.moverel(dx=-maxind*0.1)
+        self.stage.moverel(dx=-maxind * 0.1)
 
         measured = np.zeros(7)
         self.stage.moverel(dy=-0.4)
@@ -812,7 +851,7 @@ class lockin_gui(object):
             measured[y] = np.max(self.smooth(self.log.get_spec()))
             self.progress.pulse()
         maxind = np.argmax(measured)
-        self.stage.moverel(dy=-maxind*0.1)
+        self.stage.moverel(dy=-maxind * 0.1)
 
         measured = np.zeros(7)
         self.stage.moverel(dx=-0.4)
@@ -821,7 +860,7 @@ class lockin_gui(object):
             measured[x] = np.max(self.smooth(self.log.get_spec()))
             self.progress.pulse()
         maxind = np.argmax(measured)
-        self.stage.moverel(dx=-maxind*0.1)
+        self.stage.moverel(dx=-maxind * 0.1)
 
         self._spec = self.log.get_spec()
         self.show_pos()
@@ -830,5 +869,5 @@ class lockin_gui(object):
 
 
 if __name__ == "__main__":
-    gui = lockin_gui()
+    gui = LockinGui()
     gui.run()
