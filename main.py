@@ -1,14 +1,12 @@
 import pandas
 import time
 from logger import logger
-import threading
 from itertools import cycle
 import numpy as np
 from datetime import datetime
 import os
 import PIStage
 import scipy.optimize as opt
-import gc
 import objgraph
 import matplotlib.pyplot as plt
 
@@ -23,7 +21,9 @@ class mpl:
     from matplotlib.figure import Figure
     from matplotlib.backends.backend_gtk3agg import FigureCanvasGTK3Agg as FigureCanvas
 
-from scipy.interpolate import interp1d
+
+import multiprocessing
+
 
 class lockin_gui(object):
     _window_title = "Lock-in Spectrum"
@@ -37,7 +37,7 @@ class lockin_gui(object):
         self.stage = PIStage.Dummy();
         #self.stage = PIStage.E545();
 
-        GObject.threads_init()  # all Gtk is in the main thread;
+        GObject.threads_init()
         # only GObject.idle_add() is in the background thread
         self.window = Gtk.Window(title=self._window_title)
         #self.window.set_resizable(False)
@@ -277,12 +277,6 @@ class lockin_gui(object):
 
         self.window.show_all()
 
-        # Thread used for taking spectra
-        self.worker_running_event = threading.Event()
-        self.worker_thread = None
-        self.worker_mode = None
-        self.worker_lock = threading.Lock()  # to signal the thread to stop
-
         self.log = logger(self.stage, self.settings)  # logger class which coordinates the spectrometer and the stage
         self._spec = self.log.get_spec()  # get an initial spectrum for display
         self._wl = self.log.get_wl()  # get the wavelengths
@@ -329,29 +323,8 @@ class lockin_gui(object):
         Function for quitting the program, will also stop the worker thread
         :param args:
         """
-        if not self.worker_thread is None:
-            self.stop_thread()
         self.log = None
         Gtk.main_quit(*args)
-
-    def start_thread(self, target, mode):
-        """
-        Starts the working thread which takes spectra
-        :param target: function the thread shall execute
-        :param mode: which kind of spectrum the thread is taking (dark, lamp, lock-in ...)
-        """
-        self.log.set_integration_time(self.settings.integration_time)
-        self.worker_mode = mode
-        self.worker_running_event.clear()
-        if not self.worker_thread is None: self.worker_thread.join(0.2)  # wait 200ms for thread to finish
-        self.worker_thread = threading.Thread(target=target, args=(self.worker_running_event,))
-        self.worker_thread.daemon = True
-        self.worker_thread.start()
-
-    def stop_thread(self):
-        self.worker_running_event.set()
-        self.worker_thread.join(1)  # wait 1 s for thread to finish
-        self.worker_thread = None
 
     def on_integration_time_change(self, widget):
         self.log.set_integration_time(float(self.integration_time_spin.get_value_as_int()) / 1000)
@@ -389,7 +362,7 @@ class lockin_gui(object):
                 pass
             self.path = self.savedir+prefix+'/'
             self.status.set_label('Scanning')
-            self.start_thread(self.scan_spectra, 'scan')
+            self.scan_spectra()
             self.disable_buttons()
 
         os.chdir('../')
@@ -421,7 +394,6 @@ class lockin_gui(object):
                     self.scan_store.append([vec_x,vec_y])
 
     def on_stop_clicked(self, widget):
-        self.stop_thread()
         self.enable_buttons()
         self.status.set_label('Stopped')
 
@@ -435,7 +407,7 @@ class lockin_gui(object):
     def on_aquire_clicked(self, widget):
         self.log.reset()
         self.status.set_label('Acquiring ...')
-        self.start_thread(self.acquire_spectrum, 'acquire')
+        self.acquire_spectrum()
         self.disable_buttons()
 
     def on_direction_clicked(self, widget):
@@ -443,13 +415,13 @@ class lockin_gui(object):
 
     def on_live_clicked(self, widget):
         self.status.set_label('Liveview')
-        self.start_thread(self.live_spectrum, 'live')
+        self.live_spectrum()
         self.disable_buttons()
 
     def on_search_clicked(self, widget):
         self.status.set_text("Searching Max.")
         #self.search_max_int()
-        self.start_thread(self.search_max_int, 'live')
+        self.search_max_int()
         self.disable_buttons()
 
     def on_save_clicked(self, widget):
@@ -466,17 +438,17 @@ class lockin_gui(object):
 
     def on_dark_clicked(self, widget):
         self.status.set_label('Taking Dark Spectrum')
-        self.start_thread(self.take_spectrum, 'dark')
+        self.take_spectrum('dark')
         self.disable_buttons()
 
     def on_lamp_clicked(self, widget):
         self.status.set_label('Taking Lamp Spectrum')
-        self.start_thread(self.take_spectrum, 'lamp')
+        self.take_spectrum('lamp')
         self.disable_buttons()
 
     def on_normal_clicked(self, widget):
         self.status.set_label('Taking Normal Spectrum')
-        self.start_thread(self.take_spectrum, 'normal')
+        self.take_spectrum('normal')
         self.disable_buttons()
 
     def on_loaddark_clicked(self, widget):
@@ -591,13 +563,12 @@ class lockin_gui(object):
 ###---------------- END Stage Control Button Connect functions ------
 
 ###---------------- functions for taking and showing Spectra ----------
-
-    def scan_spectra(self, e):
+    def scan_spectra(self):
         for point in self.scan_store:
             self.stage.moveabs(x=point[0],y=point[1])
-            self.search_max_int(e)
+            self.search_max_int()
             self.log.reset()
-            self.acquire_spectrum(e)
+            self.acquire_spectrum()
             self.disable_buttons()
 
             filename = self.path + 'lockin_' + 'x_{0:3.2f}um_y_{0:3.2f}um'.format(point[0],point[1])+'.csv'
@@ -605,15 +576,11 @@ class lockin_gui(object):
                              self.lockin.reshape(self.lockin.shape[0], 1), 1)
             data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
             data.to_csv( filename, header=True, index=False)
-            if e.is_set():
-                self.log.reset()
-                self.enable_buttons()
-                break
 
         print objgraph.show_most_common_types()
         self.enable_buttons();
 
-    def take_spectrum(self, e):
+    def take_spectrum(self, worker_mode):
         data = np.zeros(1024, dtype=np.float64)
         data = self.log.get_spec()
         for i in range(self.settings.number_of_samples-1):
@@ -621,22 +588,13 @@ class lockin_gui(object):
             self._progress_fraction = float(i + 1) / self.settings.number_of_samples
             self._spec = data
 
-            if e.is_set():
-                if self.worker_mode is 'dark':
-                    self.dark = None
-                if self.worker_mode is 'lamp':
-                    self.lamp = None
-                if self.worker_mode is 'normal':
-                    self.normal = None
-                break
-
-        if self.worker_mode is 'dark':
+        if worker_mode is 'dark':
             self.settings_dialog.disable_number_of_samples()
             self.dark = data
-        if self.worker_mode is 'lamp':
+        if worker_mode is 'lamp':
             self.settings_dialog.disable_number_of_samples()
             self.lamp = data
-        if self.worker_mode is 'normal':
+        if worker_mode is 'normal':
             self.normal = data
 
         self.enable_buttons()
@@ -644,7 +602,7 @@ class lockin_gui(object):
         self.status.set_label('Spectra taken')
         return True
 
-    def acquire_spectrum(self, e):
+    def acquire_spectrum(self):
         # self._plotting = False
         self.button_direction.set_sensitive(False)
         self.settings_dialog.disable_number_of_samples()
@@ -665,16 +623,12 @@ class lockin_gui(object):
                 self.status.set_label('Spectra acquired')
                 break
 
-            if e.is_set():
-                self.log.reset()
-                break
-
         self.enable_buttons()
         print "\a"
         return True
 
-    def live_spectrum(self, e):
-        while not e.is_set():
+    def live_spectrum(self):
+        while True:
             self._spec = self.log.get_spec()
             if not self.dark is None:
                 self._spec = self._spec - self.dark
@@ -771,7 +725,7 @@ class lockin_gui(object):
         g = offset + amplitude*np.exp(-( np.power(x - xo, 2.) + np.power(y - yo, 2.) ) / (2 * np.power(sigma, 2.)))
         return g.ravel()
 
-    def search_max_int(self, e):
+    def search_max_int(self):
         self._progress_fraction = 1
         # use position of stage as origin
         origin = self.stage.pos()
@@ -798,9 +752,6 @@ class lockin_gui(object):
             for yi in range(len(y)) :
                 self.stage.moveabs(x[xi],y[yi])
                 int[xi,yi] = np.max(self.smooth(self.log.get_spec()))
-                if e.is_set():
-                    self.stage.moveabs(origin[0],origin[1])
-                    return False
                 self.progress.pulse()
 
         # find max value of int and use this as the inital value for the position
@@ -850,9 +801,6 @@ class lockin_gui(object):
         for x in range(7):
             self.stage.moverel(dx=0.1)
             measured[x] = np.max(self.smooth(self.log.get_spec()))
-            if e.is_set():
-                self.stage.moveabs(origin[0],origin[1])
-                return False
             self.progress.pulse()
         maxind = np.argmax(measured)
         self.stage.moverel(dx=-maxind*0.1)
@@ -862,9 +810,6 @@ class lockin_gui(object):
         for y in range(7):
             self.stage.moverel(dy=0.1)
             measured[y] = np.max(self.smooth(self.log.get_spec()))
-            if e.is_set():
-                self.stage.moveabs(origin[0],origin[1])
-                return False
             self.progress.pulse()
         maxind = np.argmax(measured)
         self.stage.moverel(dy=-maxind*0.1)
@@ -874,9 +819,6 @@ class lockin_gui(object):
         for x in range(7):
             self.stage.moverel(dx=0.1)
             measured[x] = np.max(self.smooth(self.log.get_spec()))
-            if e.is_set():
-                self.stage.moveabs(origin[0],origin[1])
-                return False
             self.progress.pulse()
         maxind = np.argmax(measured)
         self.stage.moverel(dx=-maxind*0.1)
