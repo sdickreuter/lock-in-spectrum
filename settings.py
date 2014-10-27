@@ -1,7 +1,7 @@
 __author__ = 'sei'
 
 import configparser
-
+import os
 
 class Settings(object):
     _filename = "config.ini"
@@ -40,11 +40,12 @@ class Settings(object):
             self.config.set('direction', 'z', self.direction_z)
             self.config.set('direction', 'amplitude', int(self.amplitude))
             self.config.set('stage', 'stepsize', self.stepsize)
-            # self.config.set('searchmax', 'sigma', self.sigma)
-            # self.config.set('searchmax', 'rasterdim', self.rasterdim)
-            #self.config.set('searchmax', 'rasterwidth', self.rasterwidth)
+            self.config.set('searchmax', 'sigma', self.sigma)
+            self.config.set('searchmax', 'rasterdim', int(self.rasterdim))
+            self.config.set('searchmax', 'rasterwidth', self.rasterwidth)
             f = open(self._filename, "wb")
             self.config.write(f)
             f.close()
         except:
             print("Error saving settings.")
+            print(os.getcwd())
