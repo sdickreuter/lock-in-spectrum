@@ -6,13 +6,11 @@ import os
 import pandas
 import numpy as np
 import PIStage
-import scipy.optimize as opt
-import matplotlib.pyplot as plt
 from gi.repository import Gtk
 from gi.repository import GObject
 from gi.repository import GLib
 
-from logger import Logger
+from spectrum import Spectrum
 import dialogs
 from settings import Settings
 
@@ -97,7 +95,7 @@ class LockinGui(object):
 
         # Connect Buttons
         self.window.connect("delete-event", self.quit)
-        self.button_aquire.connect("clicked", self.on_aquire_clicked)
+        self.button_aquire.connect("clicked", self.on_lockin_clicked)
         self.button_direction.connect("clicked", self.on_direction_clicked)
         self.button_live.connect("clicked", self.on_live_clicked)
         self.button_stop.connect("clicked", self.on_stop_clicked)
@@ -173,9 +171,11 @@ class LockinGui(object):
         self.stage_hbox.add(self.table_stepsize)
         self.stage_hbox.add(self.button_moverel)
         self.stage_hbox.add(self.button_moveabs)
-        self.stage_hbox.add(self.label_x)
-        self.stage_hbox.add(self.label_y)
-        self.stage_hbox.add(self.label_z)
+        self.labels_hbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        self.labels_hbox.add(self.label_x)
+        self.labels_hbox.add(self.label_y)
+        self.labels_hbox.add(self.label_z)
+
 
         # Buttons for scanning stack
         self.button_add_position = Gtk.Button('Add Position to List')
@@ -256,9 +256,6 @@ class LockinGui(object):
         self.canvas.set_vexpand(True)
 
         self.canvas.set_size_request(800, 800)
-        #self.SpectrumBox.set_size_request(100, -1)
-        #self.progress.set_size_request(-1, 15)
-        #self.status.set_size_request(100, -1)
 
         self.stack = Gtk.Stack()
         self.stack.set_transition_type(Gtk.StackTransitionType.SLIDE_LEFT_RIGHT)
@@ -276,6 +273,7 @@ class LockinGui(object):
         self.SideBox.add(self.button_stop)
         self.SideBox.add(self.stack)
         self.SideBox.add(self.stage_hbox)
+        self.SideBox.add(self.labels_hbox)
 
         self.grid.add(self.canvas)
         self.grid.attach_next_to(self.SideBox, self.canvas, Gtk.PositionType.RIGHT, 1, 1)
@@ -284,12 +282,14 @@ class LockinGui(object):
 
         self.window.show_all()
 
-        self.log = Logger(self.stage, self.settings)  # logger class which coordinates the spectrometer and the stage
-        self._spec = self.log.get_spec()  # get an initial spectrum for display
-        self._wl = self.log.get_wl()  # get the wavelengths
+        self.spectrum = Spectrum(self.stage, self.settings, self.status, self.progress, self.enable_buttons, self.disable_buttons)  # logger class which coordinates the spectrometer and the stage
+
+
+        self._spec = self.spectrum.get_spec() # get an initial spectrum for display
+        self._wl = self.spectrum.get_wl()  # get the wavelengths
         self.lines = []
         self.lines.extend(self.ax.plot(self._wl, self._spec, "-"))
-        self.lines.extend(self.ax.plot(self._wl, self.smooth(self._spec), "-", c="black"))  # plot initial spectrum
+        self.lines.extend(self.ax.plot(self._wl, self.spectrum.smooth(self._spec), "-", c="black"))  # plot initial spectrum
 
         #Dialogs
         self.settings_dialog = dialogs.SettingsDialog(self.window, self.settings)
@@ -299,54 +299,13 @@ class LockinGui(object):
         self.spangrid_dialog = dialogs.SpanGridDialog(self.window)
         self.prefix_dialog = dialogs.PrefixDialog(self.window)
 
-        # variables for storing the spectra
-        self.lamp = None
-        self.dark = None
-        self.normal = None
-        self.lockin = None
-
-        self.worker = None
-        self.conn_for_main, self.conn_for_worker = billiard.Pipe()
-        self.running = False
-
-    def start_process(self, target):
-        self.worker = billiard.Process(target=target,args=(self.conn_for_worker,))
-        self.running = True
-        self.worker.daemon = True
-        self.worker.start()
-
-    def stop_process(self):
-        self.running = False
-        #self.worker_mode = None
-
-
-    @staticmethod
-    def smooth(x):
-        """
-        modified from: http://wiki.scipy.org/Cookbook/SignalSmooth
-        """
-        window_len = 151
-
-        s = np.r_[x[window_len - 1:0:-1], x, x[-1:-window_len:-1]]
-
-        window = 'hanning'
-        # window='flat'
-
-        if window == 'flat':  # moving average
-            w = np.ones(window_len, 'd')
-        else:
-            w = eval('np.' + window + '(window_len)')
-
-        y = np.convolve(w / w.sum(), s, mode='valid')
-        y = y[(window_len / 2):-(window_len / 2)]
-        return y
 
     def quit(self, *args):
         """
         Function for quitting the program, will also stop the worker thread
         :param args:
         """
-        self.log = None
+        self.spectrum = None
         Gtk.main_quit(*args)
 
     def disable_buttons(self):
@@ -387,7 +346,7 @@ class LockinGui(object):
 
 
     def on_add_position_clicked(self, widget):
-        pos = self.stage.pos()
+        pos = self.stage.query_pos()
         self.scan_store.append([pos[0], pos[1]])
 
     def on_spangrid_clicked(self, widget):
@@ -412,80 +371,68 @@ class LockinGui(object):
                     self.scan_store.append([vec_x, vec_y])
 
     def on_stop_clicked(self, widget):
-        self.stop_process()
+        self.spectrum.stop_process()
         self.enable_buttons()
         self.status.set_label('Stopped')
 
     def on_reset_clicked(self, widget):
-        self.log.reset()
-        self.dark = None
-        self.lamp = None
-        self.lockin = None
-        self.normal = None
+        self.spectrum.reset()
+        self.spectrum.dark = None
+        self.spectrum.lamp = None
+        self.spectrum.lockin = None
+        self.spectrum.normal = None
 
-    def on_aquire_clicked(self, widget):
-        self.worker_mode = "acquire"
-        self.log.reset()
-        self.lockin = None
+    def on_lockin_clicked(self, widget):
         self.status.set_label('Acquiring ...')
-        self.start_process(self.acquire_spectrum)
+        self.spectrum.take_lockin()
         self.disable_buttons()
 
     def on_direction_clicked(self, widget):
         self.direction_dialog.rundialog()
 
     def on_live_clicked(self, widget):
-        self.worker_mode = "live"
         self.status.set_label('Liveview')
-        self.start_process(self.live_spectrum)
+        self.spectrum.take_live()
         self.disable_buttons()
 
     def on_search_clicked(self, widget):
-        self.worker_mode = "search"
         self.status.set_text("Searching Max.")
-        self.start_process(self.search_max_int)
+        self.spectrum.search_max()
         self.disable_buttons()
 
     def on_save_clicked(self, widget):
-        #if self.log._new_spectrum:
         self.status.set_label("Saving Data ...")
-        self.save_data()
-        #self.log.reset()
+        self.spectrum.save_data(self.prefix_dialog.rundialog())
         self.status.set_label('Data saved')
-        #else:
-        #    self.status.set_label('No Data found')
 
     def on_settings_clicked(self, widget):
         self.settings_dialog.rundialog()
-        self.log.reset()
+        self.spectrum.reset()
 
     def on_dark_clicked(self, widget):
-        self.worker_mode = "dark"
         self.status.set_label('Taking Dark Spectrum')
-        self.start_process(self.take_spectrum)
+        self.spectrum.take_dark()
         self.disable_buttons()
 
     def on_lamp_clicked(self, widget):
-        self.worker_mode = "lamp"
         self.status.set_label('Taking Lamp Spectrum')
-        self.start_process(self.take_spectrum)
+        self.spectrum.take_lamp()
         self.disable_buttons()
 
     def on_normal_clicked(self, widget):
-        self.worker_mode = "normal"
         self.status.set_label('Taking Normal Spectrum')
-        self.start_process(self.take_spectrum)
+        self.spectrum.take_normal()
         self.disable_buttons()
 
     def on_loaddark_clicked(self, widget):
         buf = self._load_spectrum_from_file()
         if not buf is None:
-            self.dark = buf
+            self.spectrum.dark = buf
 
     def on_loadlamp_clicked(self, widget):
         buf = self._load_spectrum_from_file()
         if not buf is None:
-            self.lamp = buf
+            self.spectrum.lamp = buf
 
     # ##---------------- END button connect functions ----------
 
@@ -539,7 +486,7 @@ class LockinGui(object):
     # ##---------------- Stage Control Button Connect functions ----------
 
     def show_pos(self):
-        pos = self.stage.pos()
+        pos = self.stage.last_pos()
         self.label_x.set_text("x: {0:+8.4f}".format(pos[0]))
         self.label_y.set_text("y: {0:+8.4f}".format(pos[1]))
         self.label_z.set_text("z: {0:+8.4f}".format(pos[2]))
@@ -611,285 +558,33 @@ class LockinGui(object):
 
         self.enable_buttons()
 
-    def take_spectrum(self, connection):
-        spec = self.log.get_spec()
-        for i in range(self.settings.number_of_samples - 1):
-            spec = (spec + self.log.get_spec())# / 2
-            progress_fraction = float(i + 1) / self.settings.number_of_samples
-            connection.send([False,progress_fraction,spec/i])
-            running = connection.recv()
-            if not running:
-                return True
-        connection.send([True,1.,spec/i])
-        return True
-
-    def acquire_spectrum(self, connection):
-        while True:
-            spec, finished = self.log.measure_spectrum()
-
-            progress_fraction = float(self.log.get_scan_index()) / self.settings.number_of_samples
-
-            if not self.dark is None:
-                spec = spec - self.dark
-                if not self.lamp is None:
-                    spec = spec / self.lamp
-            connection.send([False,progress_fraction,spec])
-            running = connection.recv()
-            if not running:
-                return True
-            if finished:
-                break
-        connection.send([True,1.,spec])
-        return True
-
-    def live_spectrum(self, connection):
-        running = True
-        while running:
-            spec = self.log.get_spec()
-            if not self.dark is None:
-                spec = spec - self.dark
-                if not self.lamp is None:
-                    spec = spec / self.lamp
-            connection.send([False,0.,spec])
-            running = connection.recv()
-        return True
-
 
     ###---------------- END functions for taking and showing Spectra ----------
 
     def run(self):
         """	run main gtk thread """
         try:
-            GLib.timeout_add(self._heartbeat, self._update_plot)
-            GLib.io_add_watch(self.conn_for_main, GLib.IO_IN | GLib.IO_PRI, self._update, args=(self,))
+            #GLib.timeout_add(self._heartbeat, self._update_plot)
+            GLib.idle_add(self._update_plot)
+            #GLib.io_add_watch(self.spectrum.conn_for_main, GLib.IO_IN | GLib.IO_PRI, self._update, args=(self,))
+            #GLib.io_add_watch(self.spectrum.conn_for_main, GLib.IO_IN | GLib.IO_PRI, self.spectrum.callback, args=(self.spectrum,self.progress,))
+            GLib.io_add_watch(self.spectrum.conn_for_main, GLib.IO_IN | GLib.IO_PRI, self.spectrum.callback, args=(self.spectrum,))
             Gtk.main()
         except KeyboardInterrupt:
             pass
 
     def _update_plot(self):
-        self.lines[0].set_ydata(self._spec)
-        self.lines[1].set_ydata(self.smooth(self._spec))
+        self.lines[0].set_ydata(self.spectrum.get_spec())
+        self.lines[1].set_ydata(self.spectrum.smooth(self.spectrum.get_spec()))
         self.ax.relim()
         self.ax.autoscale_view(False, False, True)
         self.canvas.draw()
+        self.show_pos()
         return True
-
-    def _update(self,io, condition):
-        finished, self._progress_fraction, spec = self.conn_for_main.recv()
-        if spec is not None:
-            self._spec = spec
-        self.progress.set_fraction(self._progress_fraction)
-        if not finished:
-            self.conn_for_main.send(self.running)
-        if not self.running:
-            self.status.set_label('Stopped')
-            self.worker.join(0.5)
-            self.enable_buttons()
-            self.worker_mode = None
-
-        if finished :
-            if self.worker_mode is "acquire":
-                self.lockin = self.calc_lockin()
-                self._spec = self.lockin
-                self.status.set_label('Spectra acquired')
-            elif self.worker_mode is "lamp":
-                self.lamp = self._spec
-                self.status.set_label('Lamp Spectrum taken')
-            elif self.worker_mode is "dark":
-                self.dark = self._spec
-                self.status.set_label('Dark Spectrum taken')
-            elif self.worker_mode is "normal":
-                self.normal = self._spec
-                self.status.set_label('Normal Spectrum taken')
-            elif self.worker_mode is "search":
-                self.show_pos()
-                self.status.set_text("Max. approached")
-
-            self.worker.join(0.5)
-            self.enable_buttons()
-            self.worker_mode = None
-
-        #self._update_plot()
-        return True
-
-    def calc_lockin(self):
-        data = self.log.get_data()
-        res = np.empty(1024)
-        print(data[:,1])
-        for i in range(1024):
-            buf = data[:, i+2]
-            if not self.dark is None:
-                buf = buf - self.dark[i]
-                if not self.lamp is None:
-                    buf = buf / (self.lamp[i])
-            buf = buf * data[:, 1]
-            buf = np.sum(buf)
-            res[i] = buf
-        return res
-
-    @staticmethod
-    def _gen_filename():
-        return str(datetime.now().year) + str(datetime.now().month).zfill(2) \
-               + str(datetime.now().day).zfill(2) + '_' + str(datetime.now().hour).zfill(2) + \
-               str(datetime.now().minute).zfill(2) + str(datetime.now().second).zfill(2) + '.csv'
 
     def save_data(self):
         prefix = self.prefix_dialog.rundialog()
-        filename = self._gen_filename()
-        cols = ('t', 'ref') + tuple(map(str, np.round(self._wl, 1)))
-        data = pandas.DataFrame(self.log._data, columns=cols)
-        data.to_csv('spectrum_' + filename, header=True, index=False)
-        if not self.dark is None:
-            data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
-                             self.dark.reshape(self.dark.shape[0], 1), 1)
-            data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
-            data.to_csv('dark_' + filename, header=True, index=False)
-        if not self.lamp is None:
-            data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
-                             self.lamp.reshape(self.lamp.shape[0], 1), 1)
-            data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
-            data.to_csv('lamp_' + filename, header=True, index=False)
-        if not self.normal is None:
-            data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
-                             self.normal.reshape(self.normal.shape[0], 1), 1)
-            data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
-            data.to_csv('normal_' + filename, header=True, index=False)
-        if not self.normal is None:
-            data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
-                             self.normal.reshape(self.normal.shape[0], 1), 1)
-            data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
-            data.to_csv('normal_' + filename, header=True, index=False)
-        if not self.lockin is None:
-            data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
-                             self.lockin.reshape(self.lockin.shape[0], 1), 1)
-            data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
-            data.to_csv('lockin_' + filename, header=True, index=False)
-
-    # modified from: http://stackoverflow.com/questions/21566379/fitting-a-2d-gaussian-function-using-scipy-optimize-curve-fit-valueerror-and-m#comment33999040_21566831
-    @staticmethod
-    def gauss2D(pos, amplitude, xo, yo, fwhm, offset):
-        sigma = fwhm / 2.3548
-        xo = float(xo)
-        yo = float(yo)
-        g = offset + amplitude * np.exp(
-            -( np.power(pos[0] - xo, 2.) + np.power(pos[1] - yo, 2.) ) / (2 * np.power(sigma, 2.)))
-        return g.ravel()
-
-
-    def search_max_int(self, connection):
-
-        def update_connection(progress):
-            connection.send([False,progress,None])
-            running = connection.recv()
-            if not running:
-                return True
-
-        # use position of stage as origin
-        origin = self.stage.pos()
-        # round origin position to 1um, so that grid will be regular for all possible origins
-        x_or = round(origin[0])
-        y_or = round(origin[1])
-        update_connection(0.1)
-        # make scanning raster
-        x = np.linspace(-self.settings.rasterwidth, self.settings.rasterwidth, self.settings.rasterdim)
-        y = np.linspace(-self.settings.rasterwidth, self.settings.rasterwidth, self.settings.rasterdim)
-        # add origin to raster to get absolute positions
-        x += x_or
-        y += y_or
-
-        int = np.zeros((len(x), len(y)))  # matrix for saving the scanned maximum intensities
-
-        # take spectra and get min and max values for use as values for the inital guess
-        spec = self.smooth(self.log.get_spec())
-        min = np.min(spec)
-        max = np.max(spec)
-
-        # iterate through the raster, take spectrum and save maximum value of smoothed spectrum to int
-        for xi in range(len(x)):
-            for yi in range(len(y)):
-                self.stage.moveabs(x[xi], y[yi])
-                int[xi, yi] = np.max(self.smooth(self.log.get_spec()))
-
-        update_connection(0.3)
-
-        # find max value of int and use this as the inital value for the position
-        maxind = np.argmax(int)
-        maxind = np.unravel_index(maxind, int.shape)
-
-        int = int.ravel()
-
-        initial_guess = (max - min, x[maxind[1]], y[maxind[0]], self.settings.sigma, min)
-        x, y = np.meshgrid(x, y)
-        positions = np.vstack((x.ravel(), y.ravel()))
-
-        popt = None
-        try:
-            popt, pcov = opt.curve_fit(self.gauss2D, positions, int, p0=initial_guess)
-            #print popt
-            if popt[0] < 20:
-                RuntimeError("Peak is to small")
-        except RuntimeError as e:
-            print(e)
-            print("Could not determine particle position")
-            self.stage.moveabs(origin[0], origin[1], origin[2])
-            return True
-        else:
-            self.stage.moveabs(float(popt[1]), float(popt[2]))
-            #print "Position of Particle: {0:+2.2f}, {1:+2.2f}".format(popt[1],popt[2])
-
-        #------------ Plot scanned map and fitted 2dgauss to file
-        # modified from: http://stackoverflow.com/questions/21566379/fitting-a-2d-gaussian-function-using-scipy-optimize-curve-fit-valueerror-and-m#comment33999040_21566831
-        plt.figure()
-        plt.imshow(int.reshape(self.settings.rasterdim, self.settings.rasterdim))
-        #plt.colorbar()
-        if popt is not None:
-            data_fitted = self.gauss2D((x, y), *popt)
-        else:
-            data_fitted = self.gauss2D((x, y), *initial_guess)
-            print(initial_guess)
-
-        fig, ax = plt.subplots(1, 1)
-        ax.hold(True)
-        ax.imshow(int.reshape(self.settings.rasterdim, self.settings.rasterdim), cmap=plt.cm.jet, origin='bottom',
-                  extent=(x.min(), x.max(), y.min(), y.max()), interpolation='nearest')
-        ax.contour(x, y, data_fitted.reshape(self.settings.rasterdim, self.settings.rasterdim), 8, colors='w')
-        plt.savefig("map_particle_search.png")
-        #------------ END Plot scanned map and fitted 2dgauss to file
-        plt.close()
-
-        measured = np.zeros(7)
-        self.stage.moverel(dx=-0.4)
-        for x in range(7):
-            self.stage.moverel(dx=0.1)
-            spec = self.smooth(self.log.get_spec())
-            measured[x] = np.max(spec)
-        maxind = np.argmax(measured)
-        self.stage.moverel(dx=-maxind * 0.1)
-
-        update_connection(0.4)
-
-        measured = np.zeros(7)
-        self.stage.moverel(dy=-0.4)
-        for y in range(7):
-            self.stage.moverel(dy=0.1)
-            measured[y] = np.max(self.smooth(self.log.get_spec()))
-        maxind = np.argmax(measured)
-        self.stage.moverel(dy=-maxind * 0.1)
-
-        update_connection(0.7)
-
-        measured = np.zeros(7)
-        self.stage.moverel(dx=-0.4)
-        for x in range(7):
-            self.stage.moverel(dx=0.1)
-            measured[x] = np.max(self.smooth(self.log.get_spec()))
-        maxind = np.argmax(measured)
-        self.stage.moverel(dx=-maxind * 0.1)
-
-        update_connection(1.0)
-
-        connection.send([True,0.0,None])
-        return True
+        self.spectrum.save_data()
 
 if __name__ == "__main__":
     gui = LockinGui()

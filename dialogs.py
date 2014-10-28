@@ -146,7 +146,7 @@ class MoveAbsDialog(Gtk.Dialog):
         # buttons
 
         self.stage = stage
-        pos = self.stage.pos()
+        pos = self.stage.query_pos()
         self.x = float(pos[0])
         self.y = float(pos[1])
         self.z = float(pos[2])
@@ -221,7 +221,7 @@ class MoveAbsDialog(Gtk.Dialog):
         self.entry_z.set_text(str(self.z))
 
     def rundialog(self):
-        pos = self.stage.pos()
+        pos = self.stage.query_pos()
         self.x = pos[0]
         self.y = pos[1]
         self.z = pos[2]
