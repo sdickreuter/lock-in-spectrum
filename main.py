@@ -26,7 +26,7 @@ import billiard
 
 class LockinGui(object):
     _window_title = "Lock-in Spectrum"
-    _heartbeat = 250  # ms delay at which the plot/gui is refreshed
+    _heartbeat = 100  # ms delay at which the plot/gui is refreshed
 
     def __init__(self):
         self.savedir = "./Spectra/"
@@ -424,7 +424,7 @@ class LockinGui(object):
         self.normal = None
 
     def on_aquire_clicked(self, widget):
-        self.worker_mode = "aquire"
+        self.worker_mode = "acquire"
         self.log.reset()
         self.lockin = None
         self.status.set_label('Acquiring ...')
@@ -447,16 +447,17 @@ class LockinGui(object):
         self.disable_buttons()
 
     def on_save_clicked(self, widget):
-        if self.log._new_spectrum:
-            self.status.set_label("Saving Data ...")
-            self.save_data()
-            self.log.reset()
-            self.status.set_label('Data saved')
-        else:
-            self.status.set_label('No Data found')
+        #if self.log._new_spectrum:
+        self.status.set_label("Saving Data ...")
+        self.save_data()
+        #self.log.reset()
+        self.status.set_label('Data saved')
+        #else:
+        #    self.status.set_label('No Data found')
 
     def on_settings_clicked(self, widget):
         self.settings_dialog.rundialog()
+        self.log.reset()
 
     def on_dark_clicked(self, widget):
         self.worker_mode = "dark"
@@ -613,13 +614,13 @@ class LockinGui(object):
     def take_spectrum(self, connection):
         spec = self.log.get_spec()
         for i in range(self.settings.number_of_samples - 1):
-            spec = (spec + self.log.get_spec()) / 2
+            spec = (spec + self.log.get_spec())# / 2
             progress_fraction = float(i + 1) / self.settings.number_of_samples
-            connection.send([False,progress_fraction,spec])
+            connection.send([False,progress_fraction,spec/i])
             running = connection.recv()
             if not running:
                 return True
-        connection.send([True,1.,spec])
+        connection.send([True,1.,spec/i])
         return True
 
     def acquire_spectrum(self, connection):
@@ -659,8 +660,8 @@ class LockinGui(object):
     def run(self):
         """	run main gtk thread """
         try:
+            GLib.timeout_add(self._heartbeat, self._update_plot)
             GLib.io_add_watch(self.conn_for_main, GLib.IO_IN | GLib.IO_PRI, self._update, args=(self,))
-            #GLib.timeout_add(self._heartbeat, self._update)
             Gtk.main()
         except KeyboardInterrupt:
             pass
@@ -671,6 +672,7 @@ class LockinGui(object):
         self.ax.relim()
         self.ax.autoscale_view(False, False, True)
         self.canvas.draw()
+        return True
 
     def _update(self,io, condition):
         finished, self._progress_fraction, spec = self.conn_for_main.recv()
@@ -687,8 +689,8 @@ class LockinGui(object):
 
         if finished :
             if self.worker_mode is "acquire":
-                self._spec = self.calc_lockin()
-                self.lockin = self._spec
+                self.lockin = self.calc_lockin()
+                self._spec = self.lockin
                 self.status.set_label('Spectra acquired')
             elif self.worker_mode is "lamp":
                 self.lamp = self._spec
@@ -707,23 +709,22 @@ class LockinGui(object):
             self.enable_buttons()
             self.worker_mode = None
 
-        self._update_plot()
+        #self._update_plot()
         return True
 
     def calc_lockin(self):
-        shape = self.log.data.shape
+        data = self.log.get_data()
         res = np.empty(1024)
-        diff = np.diff(np.append(0, self.log.data[:, 0]))
-        ref = self.log.data[:, 1]
-        for i in range(2, 1026):
-            buf = self.log.data[:, i]
+        print(data[:,1])
+        for i in range(1024):
+            buf = data[:, i+2]
             if not self.dark is None:
-                buf = buf - self.dark[i - 2]
+                buf = buf - self.dark[i]
                 if not self.lamp is None:
-                    buf = buf / (self.lamp[i - 2])
-            buf = buf * diff * ref
+                    buf = buf / (self.lamp[i])
+            buf = buf * data[:, 1]
             buf = np.sum(buf)
-            res[i - 2] = buf
+            res[i] = buf
         return res
 
     @staticmethod
@@ -736,7 +737,7 @@ class LockinGui(object):
         prefix = self.prefix_dialog.rundialog()
         filename = self._gen_filename()
         cols = ('t', 'ref') + tuple(map(str, np.round(self._wl, 1)))
-        data = pandas.DataFrame(self.log.data, columns=cols)
+        data = pandas.DataFrame(self.log._data, columns=cols)
         data.to_csv('spectrum_' + filename, header=True, index=False)
         if not self.dark is None:
             data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
