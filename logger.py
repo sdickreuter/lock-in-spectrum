@@ -2,7 +2,6 @@ __author__ = 'sei'
 
 from datetime import datetime
 import math
-
 # from PIStage._base import Controller
 import oceanoptics
 import numpy as np

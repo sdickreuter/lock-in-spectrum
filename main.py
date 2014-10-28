@@ -180,6 +180,12 @@ class LockinGui(object):
         # Buttons for scanning stack
         self.button_add_position = Gtk.Button('Add Position to List')
         self.button_spangrid = Gtk.Button('Span Grid')
+        self.button_searchonoff = Gtk.Switch()
+        self.label_searchonoff = Gtk.Label('Search Max.')
+        self.searchonoff_box =Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        self.searchonoff_box.set_homogeneous(True)
+        self.searchonoff_box.add(self.label_searchonoff)
+        self.searchonoff_box.add(self.button_searchonoff)
         self.button_scan_start = Gtk.Button('Start Scan')
         self.scan_hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         self.button_scan_add = Gtk.ToolButton(Gtk.STOCK_ADD)
@@ -232,6 +238,7 @@ class LockinGui(object):
         self.ScanningBox.add(Gtk.Separator())
         self.ScanningBox.add(self.button_add_position)
         self.ScanningBox.add(self.button_spangrid)
+        self.ScanningBox.add(self.searchonoff_box)
         self.ScanningBox.add(Gtk.Separator())
         self.ScanningBox.add(Gtk.Label("Scanning Positions"))
         self.ScanningBox.add(self.scan_hbox)
@@ -310,7 +317,7 @@ class LockinGui(object):
 
     def stop_process(self):
         self.running = False
-        self.worker_mode = None
+        #self.worker_mode = None
 
 
     @staticmethod
@@ -347,6 +354,7 @@ class LockinGui(object):
         self.scan_hbox.set_sensitive(False)
         self.SpectrumBox.set_sensitive(False)
         self.stage_hbox.set_sensitive(False)
+        self.ScanningBox.set_sensitive(False)
         self.button_stop.set_sensitive(True)
 
 
@@ -355,6 +363,7 @@ class LockinGui(object):
         self.scan_hbox.set_sensitive(True)
         self.SpectrumBox.set_sensitive(True)
         self.stage_hbox.set_sensitive(True)
+        self.ScanningBox.set_sensitive(True)
         self.button_stop.set_sensitive(False)
 
     # ##---------------- button connect functions ----------
@@ -368,10 +377,10 @@ class LockinGui(object):
                 # os.path.exists(prefix)
                 os.mkdir(prefix)
             except:
-                pass
+                print("Error creating directory")
             self.path = self.savedir + prefix + '/'
             self.status.set_label('Scanning')
-            self.scan_spectra()
+            self.start_process(self.scan_spectra)
             self.disable_buttons()
 
         os.chdir('../')
@@ -432,9 +441,9 @@ class LockinGui(object):
         self.disable_buttons()
 
     def on_search_clicked(self, widget):
+        self.worker_mode = "search"
         self.status.set_text("Searching Max.")
-        # self.search_max_int()
-        self.search_max_int()
+        self.start_process(self.search_max_int)
         self.disable_buttons()
 
     def on_save_clicked(self, widget):
@@ -587,8 +596,9 @@ class LockinGui(object):
     def scan_spectra(self):
         for point in self.scan_store:
             self.stage.moveabs(x=point[0], y=point[1])
-            self.search_max_int()
             self.log.reset()
+            if self.button_searchonoff.get_active():
+                self.search_max_int()
             self.acquire_spectrum()
             self.disable_buttons()
 
@@ -608,7 +618,6 @@ class LockinGui(object):
             connection.send([False,progress_fraction,spec])
             running = connection.recv()
             if not running:
-                connection.send([False,progress_fraction,spec])
                 return True
         connection.send([True,1.,spec])
         return True
@@ -626,7 +635,6 @@ class LockinGui(object):
             connection.send([False,progress_fraction,spec])
             running = connection.recv()
             if not running:
-                connection.send([False,progress_fraction,spec])
                 return True
             if finished:
                 break
@@ -634,7 +642,8 @@ class LockinGui(object):
         return True
 
     def live_spectrum(self, connection):
-        while True:
+        running = True
+        while running:
             spec = self.log.get_spec()
             if not self.dark is None:
                 spec = spec - self.dark
@@ -642,10 +651,6 @@ class LockinGui(object):
                     spec = spec / self.lamp
             connection.send([False,0.,spec])
             running = connection.recv()
-            if not running:
-                connection.send([False,0,spec])
-                return True
-        connection.send([True,0,spec])
         return True
 
 
@@ -668,18 +673,20 @@ class LockinGui(object):
         self.canvas.draw()
 
     def _update(self,io, condition):
-        finished, self._progress_fraction, self._spec = self.conn_for_main.recv()
-        self._update_plot()
+        finished, self._progress_fraction, spec = self.conn_for_main.recv()
+        if spec is not None:
+            self._spec = spec
         self.progress.set_fraction(self._progress_fraction)
-        self.conn_for_main.send(self.running)
+        if not finished:
+            self.conn_for_main.send(self.running)
         if not self.running:
-            finished, self._progress_fraction, self._spec = self.conn_for_main.recv()
             self.status.set_label('Stopped')
+            self.worker.join(0.5)
+            self.enable_buttons()
+            self.worker_mode = None
 
         if finished :
-            if self.worker_mode is "live":
-                pass
-            elif self.worker_mode is "acquire":
+            if self.worker_mode is "acquire":
                 self._spec = self.calc_lockin()
                 self.lockin = self._spec
                 self.status.set_label('Spectra acquired')
@@ -692,10 +699,15 @@ class LockinGui(object):
             elif self.worker_mode is "normal":
                 self.normal = self._spec
                 self.status.set_label('Normal Spectrum taken')
+            elif self.worker_mode is "search":
+                self.show_pos()
+                self.status.set_text("Max. approached")
 
+            self.worker.join(0.5)
             self.enable_buttons()
             self.worker_mode = None
 
+        self._update_plot()
         return True
 
     def calc_lockin(self):
@@ -762,14 +774,21 @@ class LockinGui(object):
             -( np.power(pos[0] - xo, 2.) + np.power(pos[1] - yo, 2.) ) / (2 * np.power(sigma, 2.)))
         return g.ravel()
 
-    def search_max_int(self):
-        self._progress_fraction = 1
+
+    def search_max_int(self, connection):
+
+        def update_connection(progress):
+            connection.send([False,progress,None])
+            running = connection.recv()
+            if not running:
+                return True
+
         # use position of stage as origin
         origin = self.stage.pos()
         # round origin position to 1um, so that grid will be regular for all possible origins
         x_or = round(origin[0])
         y_or = round(origin[1])
-
+        update_connection(0.1)
         # make scanning raster
         x = np.linspace(-self.settings.rasterwidth, self.settings.rasterwidth, self.settings.rasterdim)
         y = np.linspace(-self.settings.rasterwidth, self.settings.rasterwidth, self.settings.rasterdim)
@@ -789,7 +808,8 @@ class LockinGui(object):
             for yi in range(len(y)):
                 self.stage.moveabs(x[xi], y[yi])
                 int[xi, yi] = np.max(self.smooth(self.log.get_spec()))
-                self.progress.pulse()
+
+        update_connection(0.3)
 
         # find max value of int and use this as the inital value for the position
         maxind = np.argmax(int)
@@ -811,6 +831,7 @@ class LockinGui(object):
             print(e)
             print("Could not determine particle position")
             self.stage.moveabs(origin[0], origin[1], origin[2])
+            return True
         else:
             self.stage.moveabs(float(popt[1]), float(popt[2]))
             #print "Position of Particle: {0:+2.2f}, {1:+2.2f}".format(popt[1],popt[2])
@@ -839,34 +860,35 @@ class LockinGui(object):
         self.stage.moverel(dx=-0.4)
         for x in range(7):
             self.stage.moverel(dx=0.1)
-            measured[x] = np.max(self.smooth(self.log.get_spec()))
-            self.progress.pulse()
+            spec = self.smooth(self.log.get_spec())
+            measured[x] = np.max(spec)
         maxind = np.argmax(measured)
         self.stage.moverel(dx=-maxind * 0.1)
+
+        update_connection(0.4)
 
         measured = np.zeros(7)
         self.stage.moverel(dy=-0.4)
         for y in range(7):
             self.stage.moverel(dy=0.1)
             measured[y] = np.max(self.smooth(self.log.get_spec()))
-            self.progress.pulse()
         maxind = np.argmax(measured)
         self.stage.moverel(dy=-maxind * 0.1)
+
+        update_connection(0.7)
 
         measured = np.zeros(7)
         self.stage.moverel(dx=-0.4)
         for x in range(7):
             self.stage.moverel(dx=0.1)
             measured[x] = np.max(self.smooth(self.log.get_spec()))
-            self.progress.pulse()
         maxind = np.argmax(measured)
         self.stage.moverel(dx=-maxind * 0.1)
 
-        self._spec = self.log.get_spec()
-        self.show_pos()
-        self.status.set_text("Max. approached")
-        self.enable_buttons()
+        update_connection(1.0)
 
+        connection.send([True,0.0,None])
+        return True
 
 if __name__ == "__main__":
     gui = LockinGui()
