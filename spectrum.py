@@ -26,7 +26,7 @@ class Spectrum(object):
         self._starttime = None
         self._juststarted = True
         self._spectrum_ready = False
-        self._data = np.ones((self.settings.number_of_samples, 1026), dtype=np.float)
+        self._data = np.zeros((self.settings.number_of_samples, 1026), dtype=np.float)
 
         # variables for storing the spectra
         self.lamp = None
