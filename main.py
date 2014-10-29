@@ -19,9 +19,6 @@ class MPL:
     from matplotlib.figure import Figure
     from matplotlib.backends.backend_gtk3cairo import FigureCanvasGTK3Cairo as FigureCanvas
 
-
-import billiard
-
 class LockinGui(object):
     _window_title = "Lock-in Spectrum"
     _heartbeat = 100  # ms delay at which the plot/gui is refreshed
@@ -336,10 +333,10 @@ class LockinGui(object):
                 # os.path.exists(prefix)
                 os.mkdir(prefix)
             except:
-                print("Error creating directory")
-            self.path = self.savedir + prefix + '/'
+                print("Error creating directory ./"+prefix)
+            path = prefix + '/'
             self.status.set_label('Scanning')
-            self.start_process(self.scan_spectra)
+            self.spectrum.make_scan(self.scan_store, self.button_searchonoff.get_active(), False, path)
             self.disable_buttons()
 
         os.chdir('../')
@@ -487,6 +484,7 @@ class LockinGui(object):
 
     def show_pos(self):
         pos = self.stage.last_pos()
+        #print(pos)
         self.label_x.set_text("x: {0:+8.4f}".format(pos[0]))
         self.label_y.set_text("y: {0:+8.4f}".format(pos[1]))
         self.label_z.set_text("z: {0:+8.4f}".format(pos[2]))
@@ -540,27 +538,6 @@ class LockinGui(object):
 
     # ##---------------- END Stage Control Button Connect functions ------
 
-    # ##---------------- functions for taking and showing Spectra ----------
-    def scan_spectra(self):
-        for point in self.scan_store:
-            self.stage.moveabs(x=point[0], y=point[1])
-            self.log.reset()
-            if self.button_searchonoff.get_active():
-                self.search_max_int()
-            self.acquire_spectrum()
-            self.disable_buttons()
-
-            filename = self.path + 'lockin_' + 'x_{0:3.2f}um_y_{0:3.2f}um'.format(point[0], point[1]) + '.csv'
-            data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
-                             self.lockin.reshape(self.lockin.shape[0], 1), 1)
-            data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
-            data.to_csv(filename, header=True, index=False)
-
-        self.enable_buttons()
-
-
-    ###---------------- END functions for taking and showing Spectra ----------
-
     def run(self):
         """	run main gtk thread """
         try:
@@ -584,7 +561,7 @@ class LockinGui(object):
 
     def save_data(self):
         prefix = self.prefix_dialog.rundialog()
-        self.spectrum.save_data()
+        self.spectrum.save_data(prefix)
 
 if __name__ == "__main__":
     gui = LockinGui()

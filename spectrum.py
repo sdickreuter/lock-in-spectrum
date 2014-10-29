@@ -2,16 +2,15 @@ __author__ = 'sei'
 
 from datetime import datetime
 import math
-import PIStage
+
 import oceanoptics
 import numpy as np
 import scipy.optimize as opt
-import matplotlib.pyplot as plt
 import billiard
 import pandas
 
-class Spectrum(object):
 
+class Spectrum(object):
     def __init__(self, stage, settings, status, progress, enable_buttons, disable_buttons):
         self.settings = settings
         self.stage = stage
@@ -20,7 +19,7 @@ class Spectrum(object):
         self.enable_buttons = enable_buttons
         self.disable_buttons = disable_buttons
         self._init_spectrometer()
-        self._cycle_time_start = 250
+        self._cycle_time_start = 200
         self._startx = 10
         self._starty = 10
         self._startz = 10
@@ -29,7 +28,7 @@ class Spectrum(object):
         self._spectrum_ready = False
         self._data = np.ones((self.settings.number_of_samples, 1026), dtype=np.float)
 
-         # variables for storing the spectra
+        # variables for storing the spectra
         self.lamp = None
         self.dark = None
         self.normal = None
@@ -41,19 +40,27 @@ class Spectrum(object):
         self.running = False
         self._spec = self._spectrometer.intensities()
 
+        self.scan_mode = None
 
     def _init_spectrometer(self):
         try:
             # self._spectrometer = oceanoptics.QE65000()
             self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage)
-            self._spectrometer.integration_time(self.settings.integration_time*1000)
+            self._spectrometer.integration_time(self.settings.integration_time * 1000)
             sp = self._spectrometer.spectrum()
             self._wl = np.array(sp[0], dtype=np.float)
         except:
             raise RuntimeError("Error opening spectrometer. Exiting...")
 
     def start_process(self, target):
-        self.worker = billiard.Process(target=target,args=(self._conn_for_worker,))
+        self.worker = billiard.Process(target=target, args=(self._conn_for_worker,))
+        self.running = True
+        self.worker.daemon = True
+        self.worker.start()
+
+    def start_scanning_process(self, points, searchmax, lockin, path):
+        self.worker = billiard.Process(target=self._scan_spectra,
+                                       args=(self._conn_for_worker, points, searchmax, lockin, path))
         self.running = True
         self.worker.daemon = True
         self.worker.start()
@@ -73,7 +80,7 @@ class Spectrum(object):
         return self._spec
 
     def reset(self):
-        self._spectrometer.integration_time(self.settings.integration_time*1000)
+        self._spectrometer.integration_time(self.settings.integration_time * 1000)
         self._spectrum_ready = False
         self._juststarted = True
 
@@ -90,7 +97,7 @@ class Spectrum(object):
     def calc_lockin(self):
         res = np.empty(1024)
         for i in range(1024):
-            buf = self._data[:, i+2]
+            buf = self._data[:, i + 2]
             if not self.dark is None:
                 buf = buf - self.dark[i]
                 if not self.lamp is None:
@@ -99,6 +106,10 @@ class Spectrum(object):
             buf = np.sum(buf)
             res[i] = buf
         return res
+
+    def make_scan(self, positions, searchmax, lockin, path):
+        self.worker = "scan"
+        self.start_scanning_process(positions, searchmax, lockin, path)
 
     def take_live(self):
         self.worker = "live"
@@ -133,6 +144,16 @@ class Spectrum(object):
             self._data[i, 0] = i
             self._data[i, 1] = ref
             self._data[i, 2:] = spec
+        elif self.worker_mode is "scan":
+            if self.scan_mode is "scan_lockin":
+                finished, self._progress_fraction, spec, ref, i = self.conn_for_main.recv()
+                self._data[i, 0] = i
+                self._data[i, 1] = ref
+                self._data[i, 2:] = spec
+            elif self.scan_mode is "scan_mean":
+                finished, self._progress_fraction, spec = self.conn_for_main.recv()
+            elif self.scan_mode is "scan_search":
+                finished, self._progress_fraction, spec = self.conn_for_main.recv()
         else:
             finished, self._progress_fraction, spec = self.conn_for_main.recv()
 
@@ -150,7 +171,7 @@ class Spectrum(object):
             self.enable_buttons()
             self.worker_mode = None
 
-        if finished :
+        if finished:
             if self.worker_mode is "lockin":
                 self.lockin = self.calc_lockin()
                 self._spec = self.lockin
@@ -165,18 +186,55 @@ class Spectrum(object):
                 self.normal = self._spec
                 self.status.set_label('Normal Spectrum taken')
             elif self.worker_mode is "search":
-                #self.show_pos()
                 self.status.set_text("Max. approached")
+            elif self.worker_mode is "scan":
+                self.scan_mode = None
+                self.status.set_text("Scan Complete")
 
             self.worker.join(0.5)
             self.enable_buttons()
             self.worker_mode = None
-
+        print( (finished,self.worker.is_alive()) )
         return True
 
-    def _lockin_spectrum(self, connection):
+    def _scan_spectra(self,connection, points, searchmax, lockin, path ):
+        for point in points:
+            self.stage.moveabs(x=point[0], y=point[1])
+            self.reset()
+            if searchmax:
+                self.scan_mode = "scan_search"
+                self._search_max_int(connection, True)
+                if not self.running:
+                    return True
+
+            if lockin:
+                self.scan_mode = "scan_lockin"
+                self._lockin_spectrum(connection, True)
+                if not self.running:
+                    return True
+                self.lockin = self.calc_lockin()
+                filename = path + 'lockin_' + 'x_{0:3.2f}um_y_{0:3.2f}um'.format(point[0], point[1]) + '.csv'
+                data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
+                             self.lockin.reshape(self.lockin.shape[0], 1), 1)
+            else:
+                self.scan_mode = "scan_mean"
+                self._mean_spectrum(connection, True)
+                if not self.running:
+                    return True
+                self.normal = self._spec
+                filename = path + 'mean_' + 'x_{0:3.2f}um_y_{0:3.2f}um'.format(point[0], point[1]) + '.csv'
+                data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
+                             self.normal.reshape(self.normal.shape[0], 1), 1)
+
+            data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
+            data.to_csv(filename, header=True, index=False)
+
+        connection.send([True, 1., None])
+        return True
+
+    def _init_lockin(self):
         self._cycle_factor = -1.0 / (
-            7.0 * self.settings.number_of_samples / 1000)  # cycle time is calculated using this factor
+        7.0 * self.settings.number_of_samples / 1000)  # cycle time is calculated using this factor
         self._spectrum_ready = False
         pos = self.stage.query_pos()
         self._startx = pos[0]
@@ -184,34 +242,47 @@ class Spectrum(object):
         self._startz = pos[2]
         self._starttime = datetime.now()
 
+    def _lockin_step(self,i):
+        self._cycle_time = self._cycle_factor * i + self._cycle_time_start
+        ref = math.cos(2 * math.pi * i / self._cycle_time)
+        self.move_stage((-ref + 1) / 2)
+        spec = self._spectrometer.intensities()
+        progress_fraction = float(i + 1) / self.settings.number_of_samples
+        return progress_fraction, spec, ref
+
+    def _lockin_spectrum(self, connection, child = False):
+        self._init_lockin()
+
         for i in range(self.settings.number_of_samples):
-            self._cycle_time = self._cycle_factor * i + self._cycle_time_start
-            ref = math.cos(2 * math.pi * i / self._cycle_time)
-            self.move_stage((-ref + 1) / 2)
-            spec = self._spectrometer.intensities()
-            progress_fraction = float(i + 1) / self.settings.number_of_samples
-            connection.send([False,progress_fraction,spec,ref,i])
+            progress_fraction, spec, ref = self._lockin_step(i)
+            connection.send([False, progress_fraction, spec, ref, i])
             running = connection.recv()
             if not running:
+                self.stage.moveabs(self._startx, self._starty, self._startz)
                 return True
 
-        print("%s spectra aquired" % (i+1))
+        print("%s spectra aquired" % (i + 1))
         print("time taken: %s s" % (self._millis() / 1000))
         self.stage.moveabs(self._startx, self._starty, self._startz)
         self._spectrum_ready = True
-        connection.send([True,1.,spec,ref,self.settings.number_of_samples-1])
+        if not child:
+            connection.send([True, 1., spec, ref, self.settings.number_of_samples - 1])
         return True
 
-    def _mean_spectrum(self, connection):
+    def _mean_spectrum(self, connection, child = False):
+        self._starttime = datetime.now()
         spec = self._spectrometer.intensities()
-        for i in range(self.settings.number_of_samples - 1):
-            spec = (spec + self._spectrometer.intensities())# / 2
+        for i in range(self.settings.number_of_samples):
+            spec = (spec + self._spectrometer.intensities())  # / 2
             progress_fraction = float(i + 1) / self.settings.number_of_samples
-            connection.send([False,progress_fraction,spec/i])
+            connection.send([False, progress_fraction, spec / (i+1)])
             running = connection.recv()
             if not running:
                 return True
-        connection.send([True,1.,spec/i])
+        print("%s spectra aquired" % (i + 1))
+        print("time taken: %s s" % (self._millis() / 1000))
+        if not child:
+            connection.send([True, 1., spec / i])
         return True
 
     def _live_spectrum(self, connection):
@@ -222,15 +293,15 @@ class Spectrum(object):
                 spec = spec - self.dark
                 if not self.lamp is None:
                     spec = spec / self.lamp
-            connection.send([False,0.,spec])
+            connection.send([False, 0., spec])
             running = connection.recv()
         return True
 
 
-    def _search_max_int(self, connection):
+    def _search_max_int(self, connection, child = False):
 
         def update_connection(progress):
-            connection.send([False,progress,None])
+            connection.send([False, progress, None])
             running = connection.recv()
             if not running:
                 return True
@@ -249,6 +320,8 @@ class Spectrum(object):
         y += y_or
 
         int = np.zeros((len(x), len(y)))  # matrix for saving the scanned maximum intensities
+
+        update_connection(0.1)
 
         # take spectra and get min and max values for use as values for the inital guess
         spec = self.smooth(self._spectrometer.intensities())
@@ -276,7 +349,7 @@ class Spectrum(object):
         popt = None
         try:
             popt, pcov = opt.curve_fit(self.gauss2D, positions, int, p0=initial_guess)
-            #print popt
+            # print popt
             if popt[0] < 20:
                 RuntimeError("Peak is to small")
         except RuntimeError as e:
@@ -286,27 +359,29 @@ class Spectrum(object):
             return True
         else:
             self.stage.moveabs(float(popt[1]), float(popt[2]))
-            #print "Position of Particle: {0:+2.2f}, {1:+2.2f}".format(popt[1],popt[2])
+            # print "Position of Particle: {0:+2.2f}, {1:+2.2f}".format(popt[1],popt[2])
 
-        #------------ Plot scanned map and fitted 2dgauss to file
+        # ------------ Plot scanned map and fitted 2dgauss to file
         # modified from: http://stackoverflow.com/questions/21566379/fitting-a-2d-gaussian-function-using-scipy-optimize-curve-fit-valueerror-and-m#comment33999040_21566831
-        plt.figure()
-        plt.imshow(int.reshape(self.settings.rasterdim, self.settings.rasterdim))
+        #plt.figure()
+        #plt.imshow(int.reshape(self.settings.rasterdim, self.settings.rasterdim))
         #plt.colorbar()
-        if popt is not None:
-            data_fitted = self.gauss2D((x, y), *popt)
-        else:
-            data_fitted = self.gauss2D((x, y), *initial_guess)
-            print(initial_guess)
-
-        fig, ax = plt.subplots(1, 1)
-        ax.hold(True)
-        ax.imshow(int.reshape(self.settings.rasterdim, self.settings.rasterdim), cmap=plt.cm.jet, origin='bottom',
-                  extent=(x.min(), x.max(), y.min(), y.max()), interpolation='nearest')
-        ax.contour(x, y, data_fitted.reshape(self.settings.rasterdim, self.settings.rasterdim), 8, colors='w')
-        plt.savefig("map_particle_search.png")
+        #if popt is not None:
+        #    data_fitted = self.gauss2D((x, y), *popt)
+        #else:
+        #    data_fitted = self.gauss2D((x, y), *initial_guess)
+        #    print(initial_guess)
+        #
+        #fig, ax = plt.subplots(1, 1)
+        #ax.hold(True)
+        #ax.imshow(int.reshape(self.settings.rasterdim, self.settings.rasterdim), cmap=plt.cm.jet, origin='bottom',
+        #          extent=(x.min(), x.max(), y.min(), y.max()), interpolation='nearest')
+        #ax.contour(x, y, data_fitted.reshape(self.settings.rasterdim, self.settings.rasterdim), 8, colors='w')
+        #plt.savefig("map_particle_search.png")
         #------------ END Plot scanned map and fitted 2dgauss to file
-        plt.close()
+        #plt.close()
+
+        update_connection(0.4)
 
         measured = np.zeros(7)
         self.stage.moverel(dx=-0.4)
@@ -317,7 +392,7 @@ class Spectrum(object):
         maxind = np.argmax(measured)
         self.stage.moverel(dx=-maxind * 0.1)
 
-        update_connection(0.4)
+        update_connection(0.7)
 
         measured = np.zeros(7)
         self.stage.moverel(dy=-0.4)
@@ -327,22 +402,22 @@ class Spectrum(object):
         maxind = np.argmax(measured)
         self.stage.moverel(dy=-maxind * 0.1)
 
-        update_connection(0.7)
-
-        measured = np.zeros(7)
-        self.stage.moverel(dx=-0.4)
-        for x in range(7):
-            self.stage.moverel(dx=0.1)
-            measured[x] = np.max(self.smooth(self._spectrometer.intensities()))
-        maxind = np.argmax(measured)
-        self.stage.moverel(dx=-maxind * 0.1)
-
         update_connection(1.0)
 
-        connection.send([True,0.0,None])
+        #measured = np.zeros(7)
+        #self.stage.moverel(dx=-0.25)
+        #for x in range(7):
+        #    self.stage.moverel(dx=0.05)
+        #    measured[x] = np.max(self.smooth(self._spectrometer.intensities()))
+        #maxind = np.argmax(measured)
+        #self.stage.moverel(dx=-maxind * 0.05)
+        #update_connection(1.0)
+
+        if not child:
+            connection.send([True, 0.0, None])
         return True
 
-    def save_data(self,prefix):
+    def save_data(self, prefix):
         filename = self._gen_filename()
         cols = ('t', 'ref') + tuple(map(str, np.round(self._wl, 1)))
         data = pandas.DataFrame(self._data, columns=cols)
