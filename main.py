@@ -399,7 +399,7 @@ class LockinGui(object):
 
     def on_save_clicked(self, widget):
         self.status.set_label("Saving Data ...")
-        self.spectrum.save_data(self.prefix_dialog.rundialog())
+        self.save_data()
         self.status.set_label('Data saved')
 
     def on_settings_clicked(self, widget):
@@ -560,8 +560,17 @@ class LockinGui(object):
         return True
 
     def save_data(self):
+        os.chdir(self.savedir)
         prefix = self.prefix_dialog.rundialog()
-        self.spectrum.save_data(prefix)
+        if prefix is not None:
+            try:
+                # os.path.exists(prefix)
+                os.mkdir(prefix)
+            except:
+                print("Error creating directory ./"+prefix)
+            path = prefix + '/'
+            self.spectrum.save_data(path)
+        os.chdir('../')
 
 if __name__ == "__main__":
     gui = LockinGui()

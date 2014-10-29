@@ -194,10 +194,10 @@ class Spectrum(object):
             self.worker.join(0.5)
             self.enable_buttons()
             self.worker_mode = None
-        print( (finished,self.worker.is_alive()) )
         return True
 
     def _scan_spectra(self,connection, points, searchmax, lockin, path ):
+        self.save_data(path)
         for point in points:
             self.stage.moveabs(x=point[0], y=point[1])
             self.reset()
@@ -417,36 +417,32 @@ class Spectrum(object):
             connection.send([True, 0.0, None])
         return True
 
-    def save_data(self, prefix):
+    def save_data(self, path):
         filename = self._gen_filename()
         cols = ('t', 'ref') + tuple(map(str, np.round(self._wl, 1)))
-        data = pandas.DataFrame(self._data, columns=cols)
-        data.to_csv('spectrum_' + filename, header=True, index=False)
+        if np.max(self._data) > 0:
+            data = pandas.DataFrame(self._data, columns=cols)
+            data.to_csv(path +'spectrum_' + filename, header=True, index=False)
         if not self.dark is None:
             data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
                              self.dark.reshape(self.dark.shape[0], 1), 1)
             data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
-            data.to_csv('dark_' + filename, header=True, index=False)
+            data.to_csv(path +'dark_' + filename, header=True, index=False)
         if not self.lamp is None:
             data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
                              self.lamp.reshape(self.lamp.shape[0], 1), 1)
             data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
-            data.to_csv('lamp_' + filename, header=True, index=False)
+            data.to_csv(path +'lamp_' + filename, header=True, index=False)
         if not self.normal is None:
             data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
                              self.normal.reshape(self.normal.shape[0], 1), 1)
             data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
-            data.to_csv('normal_' + filename, header=True, index=False)
-        if not self.normal is None:
-            data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
-                             self.normal.reshape(self.normal.shape[0], 1), 1)
-            data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
-            data.to_csv('normal_' + filename, header=True, index=False)
+            data.to_csv(path +'normal_' + filename, header=True, index=False)
         if not self.lockin is None:
             data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
                              self.lockin.reshape(self.lockin.shape[0], 1), 1)
             data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
-            data.to_csv('lockin_' + filename, header=True, index=False)
+            data.to_csv(path +'lockin_' + filename, header=True, index=False)
 
     @staticmethod
     def _gen_filename():
