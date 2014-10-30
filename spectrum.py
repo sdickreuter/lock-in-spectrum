@@ -206,14 +206,14 @@ class Spectrum(object):
                 self._search_max_int(connection, True)
                 if not self.running:
                     return True
-
+            filename = path
             if lockin:
                 self.scan_mode = "scan_lockin"
                 self._lockin_spectrum(connection, True)
                 if not self.running:
                     return True
                 self.lockin = self.calc_lockin()
-                filename = path + 'lockin_' + 'x_{0:3.2f}um_y_{0:3.2f}um'.format(point[0], point[1]) + '.csv'
+                filename += 'lockin_'
                 data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
                              self.lockin.reshape(self.lockin.shape[0], 1), 1)
             else:
@@ -222,10 +222,11 @@ class Spectrum(object):
                 if not self.running:
                     return True
                 self.normal = self._spec
-                filename = path + 'mean_' + 'x_{0:3.2f}um_y_{0:3.2f}um'.format(point[0], point[1]) + '.csv'
+                filename += 'mean_'
                 data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
                              self.normal.reshape(self.normal.shape[0], 1), 1)
 
+            filename += 'x_{0:3.2f}um_y_{1:3.2f}um'.format( point[0], point[1]) + '.csv'
             data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
             data.to_csv(filename, header=True, index=False)
 
