@@ -183,6 +183,12 @@ class LockinGui(object):
         self.searchonoff_box.set_homogeneous(True)
         self.searchonoff_box.add(self.label_searchonoff)
         self.searchonoff_box.add(self.button_searchonoff)
+        self.button_lockinonoff = Gtk.Switch()
+        self.label_lockinonoff = Gtk.Label('Use Lock-In')
+        self.lockinonoff_box =Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        self.lockinonoff_box.set_homogeneous(True)
+        self.lockinonoff_box.add(self.label_lockinonoff)
+        self.lockinonoff_box.add(self.button_lockinonoff)
         self.button_scan_start = Gtk.Button('Start Scan')
         self.scan_hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         self.button_scan_add = Gtk.ToolButton(Gtk.STOCK_ADD)
@@ -223,7 +229,7 @@ class LockinGui(object):
         #Connections for scanning stack
         self.button_add_position.connect("clicked", self.on_add_position_clicked)
         self.button_spangrid.connect("clicked", self.on_spangrid_clicked)
-        self.button_scan_start.connect("clicked", self.on_start_scan_clicked)
+        self.button_scan_start.connect("clicked", self.on_scan_start_clicked)
         self.button_scan_add.connect("clicked", self.on_scan_add)
         self.button_scan_remove.connect("clicked", self.on_scan_remove)
         self.button_scan_clear.connect("clicked", self.on_scan_clear)
@@ -236,6 +242,7 @@ class LockinGui(object):
         self.ScanningBox.add(self.button_add_position)
         self.ScanningBox.add(self.button_spangrid)
         self.ScanningBox.add(self.searchonoff_box)
+        self.ScanningBox.add(self.lockinonoff_box)
         self.ScanningBox.add(Gtk.Separator())
         self.ScanningBox.add(Gtk.Label("Scanning Positions"))
         self.ScanningBox.add(self.scan_hbox)
@@ -323,7 +330,7 @@ class LockinGui(object):
         self.button_stop.set_sensitive(False)
 
     # ##---------------- button connect functions ----------
-    def on_start_scan_clicked(self, widget):
+    def on_scan_start_clicked(self, widget):
         os.chdir(self.savedir)
 
         prefix = self.prefix_dialog.rundialog()
@@ -336,7 +343,7 @@ class LockinGui(object):
                 print("Error creating directory ./"+prefix)
             path = prefix + '/'
             self.status.set_label('Scanning')
-            self.spectrum.make_scan(self.scan_store, self.button_searchonoff.get_active(), False, path)
+            self.spectrum.make_scan(self.scan_store, self.button_searchonoff.get_active(), self.button_lockinonoff.get_active(), path)
             self.disable_buttons()
 
         os.chdir('../')
