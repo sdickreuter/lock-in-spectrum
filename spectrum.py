@@ -8,7 +8,8 @@ import numpy as np
 import scipy.optimize as opt
 import billiard
 import pandas
-
+import pylab as plt
+from scipy.interpolate import griddata
 
 class Spectrum(object):
     def __init__(self, stage, settings, status, progress, enable_buttons, disable_buttons):
@@ -198,7 +199,12 @@ class Spectrum(object):
 
     def _scan_spectra(self,connection, points, searchmax, lockin, path ):
         self.save_data(path)
+        map = list()
+        x = list()
+        y = list()
         for point in points:
+            x.append(point[0])
+            y.append(point[1])
             self.stage.moveabs(x=point[0], y=point[1])
             self.reset()
             if searchmax:
@@ -213,6 +219,7 @@ class Spectrum(object):
                 if not self.running:
                     return True
                 self.lockin = self.calc_lockin()
+                map.append(np.max(self.smooth(self.lockin)))
                 filename += 'lockin_'
                 data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
                              self.lockin.reshape(self.lockin.shape[0], 1), 1)
@@ -222,6 +229,8 @@ class Spectrum(object):
                 if not self.running:
                     return True
                 self.normal = self._spec
+                print(np.max(self.normal))
+                map.append(np.max(self.smooth(self.normal)))
                 filename += 'mean_'
                 data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
                              self.normal.reshape(self.normal.shape[0], 1), 1)
@@ -229,6 +238,18 @@ class Spectrum(object):
             filename += 'x_{0:3.2f}um_y_{1:3.2f}um'.format( point[0], point[1]) + '.csv'
             data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
             data.to_csv(filename, header=True, index=False)
+
+        # ------------ Plot scanned map and fitted 2dgauss to file
+        plt.figure()
+        xg, yg = np.meshgrid(x, y)
+        zg = griddata( (x, y), map, (xg,yg),method='nearest')
+        plt.imshow(zg,cmap=plt.cm.jet)
+        plt.ylabel('Y [um]')
+        plt.ylabel('X [um]')
+        bar = plt.colorbar()
+        bar.set_label('Max. Counts', rotation=270)
+        plt.savefig(path+"scanning_map.png")
+        plt.close()
 
         connection.send([True, 1., None])
         return True
@@ -272,7 +293,7 @@ class Spectrum(object):
 
     def _mean_spectrum(self, connection, child = False):
         self._starttime = datetime.now()
-        spec = self._spectrometer.intensities()
+        spec = np.zeros(self._spec.shape)
         for i in range(self.settings.number_of_samples):
             spec = (spec + self._spectrometer.intensities())  # / 2
             progress_fraction = float(i + 1) / self.settings.number_of_samples

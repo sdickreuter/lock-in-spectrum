@@ -14,7 +14,6 @@ from spectrum import Spectrum
 import dialogs
 from settings import Settings
 
-
 class MPL:
     from matplotlib.figure import Figure
     from matplotlib.backends.backend_gtk3cairo import FigureCanvasGTK3Cairo as FigureCanvas
@@ -221,9 +220,9 @@ class LockinGui(object):
         self.scan_scroller.set_vexpand(True)
         self.scan_scroller.add(self.scan_view)
 
-        self.scan_store.append([0.0, 0.0])
-        self.scan_store.append([1.0, 0.0])
-        self.scan_store.append([0.0, 1.0])
+        self.scan_store.append([10.0, 10.0])
+        self.scan_store.append([11.0, 10.0])
+        self.scan_store.append([10.0, 11.0])
 
 
         #Connections for scanning stack
