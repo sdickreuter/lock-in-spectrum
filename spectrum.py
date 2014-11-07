@@ -6,7 +6,7 @@ import math
 import oceanoptics
 import numpy as np
 import scipy.optimize as opt
-import billiard
+import multiprocessing
 import pandas
 import pylab as plt
 from scipy.interpolate import griddata
@@ -32,16 +32,23 @@ class Spectrum(object):
         # variables for storing the spectra
         self.lamp = None
         self.dark = None
-        self.normal = None
+        self.mean = None
         self.lockin = None
 
         self.worker = None
         self.worker_mode = None
-        self.conn_for_main, self._conn_for_worker = billiard.Pipe()
+        self.worker_master_conn, self.worker_slave_conn = multiprocessing.Pipe()
         self.running = False
         self._spec = self._spectrometer.intensities()
 
-        self.scan_mode = None
+        self.scanner = None
+        self.scanner_mode = None
+        self.scanner_master_conn, self.scanner_slave_conn = multiprocessing.Pipe()
+        self.scanner_path = None
+        self.scanner_searchmax = False
+        self.scanner_lockin = False
+
+        self.callback_wrap = self.scanning_callback
 
     def _init_spectrometer(self):
         try:
@@ -54,17 +61,17 @@ class Spectrum(object):
             raise RuntimeError("Error opening spectrometer. Exiting...")
 
     def start_process(self, target):
-        self.worker = billiard.Process(target=target, args=(self._conn_for_worker,))
+        self.worker = multiprocessing.Process(target=target, args=(self.worker_slave_conn,))
         self.running = True
         self.worker.daemon = True
         self.worker.start()
 
-    def start_scanning_process(self, points, searchmax, lockin, path):
-        self.worker = billiard.Process(target=self._scan_spectra,
-                                       args=(self._conn_for_worker, points, searchmax, lockin, path))
+    def start_scanning_process(self, points):
+        self.scanner = multiprocessing.Process(target=self._scan_spectra,
+                                       args=(self.scanner_slave_conn, points, self.scanner_searchmax, self.scanner_lockin))
         self.running = True
-        self.worker.daemon = True
-        self.worker.start()
+        self.scanner.daemon = True
+        self.scanner.start()
 
     def stop_process(self):
         self.running = False
@@ -109,54 +116,61 @@ class Spectrum(object):
         return res
 
     def make_scan(self, positions, searchmax, lockin, path):
-        self.worker = "scan"
-        self.start_scanning_process(positions, searchmax, lockin, path)
+        self.scanner_path=path
+        self.scanner_searchmax=searchmax
+        self.scanner_lockin=lockin
+        self.map = list()
+        self.x = list()
+        self.y = list()
+        self.callback_wrap = self.scanning_callback
+        self.save_data(self.scanner_path)
+        self.start_scanning_process(positions)
 
     def take_live(self):
-        self.worker = "live"
+        self.callback_wrap = self.normal_callback
+        self.worker_mode = "live"
         self.start_process(self._live_spectrum)
 
     def take_dark(self):
+        self.callback_wrap = self.normal_callback
         self.worker_mode = "dark"
         self.start_process(self._mean_spectrum)
 
     def take_lamp(self):
+        self.callback_wrap = self.normal_callback
         self.worker_mode = "lamp"
         self.start_process(self._mean_spectrum)
 
     def take_normal(self):
+        self.callback_wrap = self.normal_callback
         self.worker_mode = "normal"
         self.start_process(self._mean_spectrum)
 
     def take_lockin(self):
+        self.callback_wrap = self.normal_callback
         self.worker_mode = "lockin"
         self.reset()
         self.lockin = None
         self.start_process(self._lockin_spectrum)
 
     def search_max(self):
+        self.callback_wrap = self.normal_callback
         self.worker_mode = "search"
         self.start_process(self._search_max_int)
 
-    def callback(self, io, condition):
+    def callback(self):
+        self.callback_wrap()
+        return True
+
+    def normal_callback(self, io, condition):
 
         if self.worker_mode is "lockin":
-            finished, self._progress_fraction, spec, ref, i = self.conn_for_main.recv()
+            finished, self._progress_fraction, spec, ref, i = self.worker_master_conn.recv()
             self._data[i, 0] = i
             self._data[i, 1] = ref
             self._data[i, 2:] = spec
-        elif self.worker_mode is "scan":
-            if self.scan_mode is "scan_lockin":
-                finished, self._progress_fraction, spec, ref, i = self.conn_for_main.recv()
-                self._data[i, 0] = i
-                self._data[i, 1] = ref
-                self._data[i, 2:] = spec
-            elif self.scan_mode is "scan_mean":
-                finished, self._progress_fraction, spec = self.conn_for_main.recv()
-            elif self.scan_mode is "scan_search":
-                finished, self._progress_fraction, spec = self.conn_for_main.recv()
         else:
-            finished, self._progress_fraction, spec = self.conn_for_main.recv()
+            finished, self._progress_fraction, spec = self.worker_master_conn.recv()
 
         self.progress.set_fraction(self._progress_fraction)
 
@@ -164,7 +178,7 @@ class Spectrum(object):
             self._spec = spec
 
         if not finished:
-            self.conn_for_main.send(self.running)
+            self.worker_master_conn.send(self.running)
 
         if not self.running:
             self.status.set_label('Stopped')
@@ -184,21 +198,99 @@ class Spectrum(object):
                 self.dark = self._spec
                 self.status.set_label('Dark Spectrum taken')
             elif self.worker_mode is "normal":
-                self.normal = self._spec
+                self.mean = self._spec
                 self.status.set_label('Normal Spectrum taken')
             elif self.worker_mode is "search":
                 self.status.set_text("Max. approached")
-            elif self.worker_mode is "scan":
-                self.scan_mode = None
-                self.status.set_text("Scan Complete")
 
             self.worker.join(0.5)
             self.enable_buttons()
             self.worker_mode = None
         return True
 
-    def _scan_spectra(self,connection, points, searchmax, lockin, path ):
-        self.save_data(path)
+    def scanning_callback(self, io, condition):
+        def stop_process():
+            self.status.set_label('Stopped')
+            self.worker.join(0.5)
+            self.enable_buttons()
+            self.worker_mode = None
+            self.scanner.join(0.5)
+            self.scanner_mode = None
+
+        filename = self.scanner_path
+        self._progress_fraction = 0.
+        finished = False
+
+        if self.scanner_mode is None:
+            self.scanner_mode, x, y = self.scanner_master_conn.recv()
+
+        if self.scanner_mode is "search":
+            finished, self._progress_fraction, spec = self.scanner_master_conn.recv()
+            if not finished:
+                self.worker_master_conn.send(self.running)
+                self._spec = spec
+            else:
+                self.scanner_mode = None
+
+        if self.scanner_mode is "lockin":
+            finished, self._progress_fraction, spec, ref, i = self.worker_master_conn.recv()
+            if not finished:
+                self.worker_master_conn.send(self.running)
+                self._spec = spec
+                self._data[i, 0] = i
+                self._data[i, 1] = ref
+                self._data[i, 2:] = spec
+            else:
+                self.scanner_mode = None
+                self.lockin = self.calc_lockin()
+                self._spec = self.lockin
+                map.append(np.max(self.smooth(self.lockin)))
+                filename += 'lockin_'
+                data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1), self.lockin.reshape(self.lockin.shape[0], 1), 1)
+
+        if self.scanner_mode is "mean":
+            finished, self._progress_fraction, spec, ref, i = self.worker_master_conn.recv()
+            if not finished:
+                self.worker_master_conn.send(self.running)
+                self._spec = spec
+            else:
+                self.scanner_mode = None
+                self.mean = self._spec
+                print(np.max(self.mean))
+                filename += 'mean_'
+                data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1), self.mean.reshape(self.mean.shape[0], 1), 1)
+
+        self.progress.set_fraction(self._progress_fraction)
+
+        if not self.running:
+            stop_process()
+
+        if finished and self.scanner_mode is not "search":
+            self.map.append(np.max(self.smooth(self._spec)))
+            self.x.append(x)
+            self.y.append(y)
+            filename += 'x_{0:3.2f}um_y_{1:3.2f}um'.format( x, y) + '.csv'
+            data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
+            data.to_csv(filename, header=True, index=False)
+
+
+        if self.scanner_mode is "finished":
+            # ------------ Plot scanned map and fitted 2dgauss to file
+            plt.figure()
+            xg, yg = np.meshgrid(self.x, self.y)
+            zg = griddata( (self.x, self.y), self.map, (xg,yg),method='nearest')
+            plt.imshow(zg,cmap=plt.cm.jet)
+            plt.ylabel('Y [um]')
+            plt.ylabel('X [um]')
+            bar = plt.colorbar()
+            bar.set_label('Max. Counts', rotation=270)
+            plt.savefig(self.scanner_path+"scanning_map.png")
+            plt.close()
+            self.status.set_text("Scan complete")
+        return True
+
+
+    def _scan_spectra(self, connection, points, searchmax, lockin):
         map = list()
         x = list()
         y = list()
@@ -208,51 +300,43 @@ class Spectrum(object):
             self.stage.moveabs(x=point[0], y=point[1])
             self.reset()
             if searchmax:
-                self.scan_mode = "scan_search"
-                self._search_max_int(connection, True)
-                if not self.running:
-                    return True
-            filename = path
+                self.start_process(self._search_max_int)
+                connection.send(["search",None,None,None])
+                finished = False
+                while not finished:
+                    finished, progress_fraction, spec = self.worker_master_conn.recv()
+                    self.worker_master_conn.send(self.running)
+                    connection.send([False, progress_fraction, spec])
+                    running = connection.recv()
+                    if not running:
+                        return True
+                connection.send([True, progress_fraction, spec])
             if lockin:
-                self.scan_mode = "scan_lockin"
-                self._lockin_spectrum(connection, True)
-                if not self.running:
-                    return True
-                self.lockin = self.calc_lockin()
-                map.append(np.max(self.smooth(self.lockin)))
-                filename += 'lockin_'
-                data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
-                             self.lockin.reshape(self.lockin.shape[0], 1), 1)
+                self.start_process(self._lockin_spectrum)
+                connection.send(["lockin",point[0],point[1]])
+                finished = False
+                while not finished:
+                    finished, progress_fraction, spec, ref, i = self.worker_master_conn.recv()
+                    self.worker_master_conn.send(self.running)
+                    connection.send([False, progress_fraction, spec, ref, i])
+                    running = connection.recv()
+                    if not running:
+                        return True
+                    connection.send([True, progress_fraction, spec])
             else:
-                self.scan_mode = "scan_mean"
-                self._mean_spectrum(connection, True)
-                if not self.running:
-                    return True
-                self.normal = self._spec
-                print(np.max(self.normal))
-                map.append(np.max(self.smooth(self.normal)))
-                filename += 'mean_'
-                data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
-                             self.normal.reshape(self.normal.shape[0], 1), 1)
+                self.start_process(self._mean_spectrum)
+                connection.send(["mean",point[0],point[1]])
+                finished = False
+                while not finished:
+                    finished, progress_fraction, spec = self.worker_master_conn.recv()
+                    self.worker_master_conn.send(self.running)
+                    connection.send([False, progress_fraction, spec])
+                    running = connection.recv()
+                    if not running:
+                        return True
+                connection.send([True, progress_fraction, spec])
+        connection.send(["finished",None,None])
 
-            filename += 'x_{0:3.2f}um_y_{1:3.2f}um'.format( point[0], point[1]) + '.csv'
-            data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
-            data.to_csv(filename, header=True, index=False)
-
-        # ------------ Plot scanned map and fitted 2dgauss to file
-        plt.figure()
-        xg, yg = np.meshgrid(x, y)
-        zg = griddata( (x, y), map, (xg,yg),method='nearest')
-        plt.imshow(zg,cmap=plt.cm.jet)
-        plt.ylabel('Y [um]')
-        plt.ylabel('X [um]')
-        bar = plt.colorbar()
-        bar.set_label('Max. Counts', rotation=270)
-        plt.savefig(path+"scanning_map.png")
-        plt.close()
-
-        connection.send([True, 1., None])
-        return True
 
     def _init_lockin(self):
         self._cycle_factor = -1.0 / (
@@ -455,9 +539,9 @@ class Spectrum(object):
                              self.lamp.reshape(self.lamp.shape[0], 1), 1)
             data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
             data.to_csv(path +'lamp_' + filename, header=True, index=False)
-        if not self.normal is None:
+        if not self.mean is None:
             data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
-                             self.normal.reshape(self.normal.shape[0], 1), 1)
+                             self.mean.reshape(self.mean.shape[0], 1), 1)
             data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
             data.to_csv(path +'normal_' + filename, header=True, index=False)
         if not self.lockin is None:

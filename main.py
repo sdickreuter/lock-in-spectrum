@@ -11,6 +11,7 @@ from gi.repository import GObject
 from gi.repository import GLib
 
 from spectrum import Spectrum
+from pygamepad import Gamepad
 import dialogs
 from settings import Settings
 
@@ -27,6 +28,12 @@ class LockinGui(object):
         self.path = "./"
 
         self.settings = Settings()
+
+        self.pad = None
+        try:
+            self.pad = Gamepad(callback=self.on_pad_change)
+        except:
+            print("Could not initialize Gamepad")
 
         self.stage = PIStage.Dummy()
         # self.stage = PIStage.E545();
@@ -329,6 +336,10 @@ class LockinGui(object):
         self.button_stop.set_sensitive(False)
 
     # ##---------------- button connect functions ----------
+    def on_pad_change(self):
+        if self.pad is not None:
+            print(self.pad.get_state())
+
     def on_scan_start_clicked(self, widget):
         os.chdir(self.savedir)
 
@@ -383,7 +394,7 @@ class LockinGui(object):
         self.spectrum.dark = None
         self.spectrum.lamp = None
         self.spectrum.lockin = None
-        self.spectrum.normal = None
+        self.spectrum.mean = None
 
     def on_lockin_clicked(self, widget):
         self.status.set_label('Acquiring ...')
@@ -551,7 +562,7 @@ class LockinGui(object):
             GLib.idle_add(self._update_plot)
             #GLib.io_add_watch(self.spectrum.conn_for_main, GLib.IO_IN | GLib.IO_PRI, self._update, args=(self,))
             #GLib.io_add_watch(self.spectrum.conn_for_main, GLib.IO_IN | GLib.IO_PRI, self.spectrum.callback, args=(self.spectrum,self.progress,))
-            GLib.io_add_watch(self.spectrum.conn_for_main, GLib.IO_IN | GLib.IO_PRI, self.spectrum.callback, args=(self.spectrum,))
+            GLib.io_add_watch(self.spectrum.worker_master_conn, GLib.IO_IN | GLib.IO_PRI, self.spectrum.callback_wrap, args=(self.spectrum,))
             Gtk.main()
         except KeyboardInterrupt:
             pass
