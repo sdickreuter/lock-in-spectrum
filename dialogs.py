@@ -211,7 +211,7 @@ class MoveAbsDialog(Gtk.Dialog):
         if self.y < 0:
             self.y = 0.0
 
-        if (self.z > 200):
+        if self.z > 200:
             self.z = 200.0
         if self.z < 0:
             self.z = 0.0

@@ -353,7 +353,7 @@ class LockinGui(object):
                 print("Error creating directory ./"+prefix)
             path = prefix + '/'
             self.status.set_label('Scanning')
-            self.spectrum.make_scan(self.scan_store, self.button_searchonoff.get_active(), self.button_lockinonoff.get_active(), path)
+            self.spectrum.make_scan(self.scan_store, path,self.button_searchonoff.get_active(), self.button_lockinonoff.get_active())
             self.disable_buttons()
 
         os.chdir('../')
@@ -449,6 +449,13 @@ class LockinGui(object):
             self.spectrum.lamp = buf
 
     # ##---------------- END button connect functions ----------
+
+    def make_scan(self):
+        if self.button_searchonoff.get_active():
+            pass
+
+
+
 
     def _load_spectrum_from_file(self):
         dialog = Gtk.FileChooserDialog("Please choose a file", self.window,
@@ -558,11 +565,12 @@ class LockinGui(object):
     def run(self):
         """	run main gtk thread """
         try:
-            #GLib.timeout_add(self._heartbeat, self._update_plot)
-            GLib.idle_add(self._update_plot)
+            GLib.timeout_add(self._heartbeat, self._update_plot)
+            #GLib.idle_add(self._update_plot)
             #GLib.io_add_watch(self.spectrum.conn_for_main, GLib.IO_IN | GLib.IO_PRI, self._update, args=(self,))
             #GLib.io_add_watch(self.spectrum.conn_for_main, GLib.IO_IN | GLib.IO_PRI, self.spectrum.callback, args=(self.spectrum,self.progress,))
-            GLib.io_add_watch(self.spectrum.worker_master_conn, GLib.IO_IN | GLib.IO_PRI, self.spectrum.callback_wrap, args=(self.spectrum,))
+            #GLib.io_add_watch(self.spectrum.worker_master_conn, GLib.IO_IN | GLib.IO_PRI, self.spectrum.callback, args=(self.spectrum,))
+            GLib.io_add_watch(self.spectrum.conn_for_main, GLib.IO_IN | GLib.IO_PRI, self.spectrum.callback, args=(self.spectrum,))
             Gtk.main()
         except KeyboardInterrupt:
             pass

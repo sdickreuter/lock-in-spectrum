@@ -2,14 +2,14 @@ __author__ = 'sei'
 
 from datetime import datetime
 import math
-
+import PIStage
 import oceanoptics
 import numpy as np
 import scipy.optimize as opt
+import matplotlib.pyplot as plt
 import multiprocessing
 import pandas
-import pylab as plt
-from scipy.interpolate import griddata
+
 
 class Spectrum(object):
     def __init__(self, stage, settings, status, progress, enable_buttons, disable_buttons):
@@ -20,35 +20,30 @@ class Spectrum(object):
         self.enable_buttons = enable_buttons
         self.disable_buttons = disable_buttons
         self._init_spectrometer()
-        self._cycle_time_start = 200
+        self._cycle_time_start = 250
         self._startx = 10
         self._starty = 10
         self._startz = 10
         self._starttime = None
         self._juststarted = True
         self._spectrum_ready = False
-        self._data = np.zeros((self.settings.number_of_samples, 1026), dtype=np.float)
+        self._data = np.ones((self.settings.number_of_samples, 1026), dtype=np.float)
 
         # variables for storing the spectra
         self.lamp = None
         self.dark = None
-        self.mean = None
+        self.normal = None
         self.lockin = None
+
+        self._progress_fraction = 0.0
 
         self.worker = None
         self.worker_mode = None
-        self.worker_master_conn, self.worker_slave_conn = multiprocessing.Pipe()
-        self.running = False
+        self.conn_for_main, self._conn_for_worker = multiprocessing.Pipe()
+        self.running = multiprocessing.Event()
+        self.running.clear()
         self._spec = self._spectrometer.intensities()
 
-        self.scanner = None
-        self.scanner_mode = None
-        self.scanner_master_conn, self.scanner_slave_conn = multiprocessing.Pipe()
-        self.scanner_path = None
-        self.scanner_searchmax = False
-        self.scanner_lockin = False
-
-        self.callback_wrap = self.scanning_callback
 
     def _init_spectrometer(self):
         try:
@@ -61,20 +56,13 @@ class Spectrum(object):
             raise RuntimeError("Error opening spectrometer. Exiting...")
 
     def start_process(self, target):
-        self.worker = multiprocessing.Process(target=target, args=(self.worker_slave_conn,))
-        self.running = True
+        self.worker = multiprocessing.Process(target=target, args=(self._conn_for_worker,))
         self.worker.daemon = True
+        self.running.set()
         self.worker.start()
 
-    def start_scanning_process(self, points):
-        self.scanner = multiprocessing.Process(target=self._scan_spectra,
-                                       args=(self.scanner_slave_conn, points, self.scanner_searchmax, self.scanner_lockin))
-        self.running = True
-        self.scanner.daemon = True
-        self.scanner.start()
-
     def stop_process(self):
-        self.running = False
+        self.running.clear()
 
     def _millis(self):
         dt = datetime.now() - self._starttime
@@ -99,9 +87,6 @@ class Spectrum(object):
         # print "X: {0:+8.4f} | Y: {1:8.4f} | Z: {2:8.4f} || X: {3:+8.4f} | Y: {4:8.4f} | Z: {5:8.4f}".format(x,y,z,self._startx,self._starty,self._startz)
         self.stage.moveabs(x=x, y=y, z=z)
 
-    def get_spec(self):
-        return self._spec
-
     def calc_lockin(self):
         res = np.empty(1024)
         for i in range(1024):
@@ -115,78 +100,67 @@ class Spectrum(object):
             res[i] = buf
         return res
 
-    def make_scan(self, positions, searchmax, lockin, path):
-        self.scanner_path=path
-        self.scanner_searchmax=searchmax
-        self.scanner_lockin=lockin
-        self.map = list()
-        self.x = list()
-        self.y = list()
-        self.callback_wrap = self.scanning_callback
-        self.save_data(self.scanner_path)
-        self.start_scanning_process(positions)
-
     def take_live(self):
-        self.callback_wrap = self.normal_callback
-        self.worker_mode = "live"
+        self.worker = "live"
         self.start_process(self._live_spectrum)
 
     def take_dark(self):
-        self.callback_wrap = self.normal_callback
         self.worker_mode = "dark"
         self.start_process(self._mean_spectrum)
 
     def take_lamp(self):
-        self.callback_wrap = self.normal_callback
         self.worker_mode = "lamp"
         self.start_process(self._mean_spectrum)
 
     def take_normal(self):
-        self.callback_wrap = self.normal_callback
         self.worker_mode = "normal"
         self.start_process(self._mean_spectrum)
 
     def take_lockin(self):
-        self.callback_wrap = self.normal_callback
         self.worker_mode = "lockin"
         self.reset()
         self.lockin = None
         self.start_process(self._lockin_spectrum)
 
     def search_max(self):
-        self.callback_wrap = self.normal_callback
         self.worker_mode = "search"
         self.start_process(self._search_max_int)
 
-    def callback(self):
-        self.callback_wrap()
+    def make_scan(self, points, path, search = False, lockin = False):
+        self.scanner_lockin = lockin
+        self.scanner_search = search
+        self.scanner_points = points
+        self.scanner_path = path
+        self.scanner_index = 0
+        self.worker_mode = "scan"
+        self.scanner_mode = "start"
+        self._callback_scan()
+
+    def callback(self, io, condition):
+        if self.worker_mode is "scan":
+            self._callback_scan()
+        else:
+            self._callback_normal()
         return True
 
-    def normal_callback(self, io, condition):
+    def _callback_normal(self):
 
         if self.worker_mode is "lockin":
-            finished, self._progress_fraction, spec, ref, i = self.worker_master_conn.recv()
+            finished, self._progress_fraction, spec, ref, i = self.conn_for_main.recv()
             self._data[i, 0] = i
             self._data[i, 1] = ref
             self._data[i, 2:] = spec
         else:
-            finished, self._progress_fraction, spec = self.worker_master_conn.recv()
+            finished, self._progress_fraction, spec = self.conn_for_main.recv()
 
         self.progress.set_fraction(self._progress_fraction)
 
         if spec is not None:
             self._spec = spec
 
-        if not finished:
-            self.worker_master_conn.send(self.running)
-
-        if not self.running:
-            self.status.set_label('Stopped')
-            self.worker.join(0.5)
-            self.enable_buttons()
-            self.worker_mode = None
-
         if finished:
+            self.running.clear()
+
             if self.worker_mode is "lockin":
                 self.lockin = self.calc_lockin()
                 self._spec = self.lockin
@@ -198,149 +172,97 @@ class Spectrum(object):
                 self.dark = self._spec
                 self.status.set_label('Dark Spectrum taken')
             elif self.worker_mode is "normal":
-                self.mean = self._spec
+                self.normal = self._spec
                 self.status.set_label('Normal Spectrum taken')
             elif self.worker_mode is "search":
+                # self.show_pos()
                 self.status.set_text("Max. approached")
 
+        if not self.running.is_set():
             self.worker.join(0.5)
             self.enable_buttons()
             self.worker_mode = None
+
         return True
 
-    def scanning_callback(self, io, condition):
-        def stop_process():
-            self.status.set_label('Stopped')
-            self.worker.join(0.5)
-            self.enable_buttons()
-            self.worker_mode = None
-            self.scanner.join(0.5)
-            self.scanner_mode = None
 
-        filename = self.scanner_path
-        self._progress_fraction = 0.
-        finished = False
-
-        if self.scanner_mode is None:
-            self.scanner_mode, x, y = self.scanner_master_conn.recv()
+    def _callback_scan(self):
+        if self.scanner_mode is "start":
+            self.scanner_point = self.scanner_points[self.scanner_index]
+            self.stage.moveabs(x=self.scanner_point[0], y=self.scanner_point[1])
+            self.reset()
+            if self.scanner_search:
+                self.scanner_mode = "search"
+                self.start_process(self._search_max_int)
+            elif self.scanner_lockin:
+                self.scanner_mode = "lockin"
+                self.start_process(self._lockin_spectrum)
+            else:
+                self.scanner_mode = "mean"
+                self.start_process(self._mean_spectrum)
 
         if self.scanner_mode is "search":
-            finished, self._progress_fraction, spec = self.scanner_master_conn.recv()
-            if not finished:
-                self.worker_master_conn.send(self.running)
+            finished, self._progress_fraction, spec = self.conn_for_main.recv()
+            if spec is not None:
                 self._spec = spec
-            else:
-                self.scanner_mode = None
+            if finished:
+                self.worker.join(0.5)
+                if self.scanner_lockin:
+                    self.scanner_mode = "lockin"
+                    self.start_process(self._lockin_spectrum)
+                else:
+                    self.scanner_mode = "mean"
+                    self.start_process(self._mean_spectrum)
 
         if self.scanner_mode is "lockin":
-            finished, self._progress_fraction, spec, ref, i = self.worker_master_conn.recv()
-            if not finished:
-                self.worker_master_conn.send(self.running)
-                self._spec = spec
-                self._data[i, 0] = i
-                self._data[i, 1] = ref
-                self._data[i, 2:] = spec
-            else:
-                self.scanner_mode = None
+            finished, self._progress_fraction, spec, ref, i = self.conn_for_main.recv()
+            self._data[i, 0] = i
+            self._data[i, 1] = ref
+            self._data[i, 2:] = spec
+            self._spec = spec
+            if finished:
+                self.worker.join(0.5)
                 self.lockin = self.calc_lockin()
                 self._spec = self.lockin
-                map.append(np.max(self.smooth(self.lockin)))
-                filename += 'lockin_'
+                filename = self.scanner_path + 'lockin_' + 'x_{0:3.2f}um_y_{1:3.2f}um'.format( self.scanner_point[0], self.scanner_point[1]) + '.csv'
                 data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1), self.lockin.reshape(self.lockin.shape[0], 1), 1)
+                data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
+                data.to_csv(filename, header=True, index=False)
+                self.scanner_index += 1
+                self.scanner_mode = "start"
 
         if self.scanner_mode is "mean":
-            finished, self._progress_fraction, spec, ref, i = self.worker_master_conn.recv()
-            if not finished:
-                self.worker_master_conn.send(self.running)
-                self._spec = spec
-            else:
-                self.scanner_mode = None
-                self.mean = self._spec
-                print(np.max(self.mean))
-                filename += 'mean_'
-                data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1), self.mean.reshape(self.mean.shape[0], 1), 1)
+            finished, self._progress_fraction, spec = self.conn_for_main.recv()
+            self._spec = spec
+            if finished:
+                self.worker.join(0.5)
+                self.normal = spec
+                self._spec = self.normal
+                filename = self.scanner_path + 'mean_' + 'x_{0:3.2f}um_y_{1:3.2f}um'.format( self.scanner_point[0], self.scanner_point[1]) + '.csv'
+                data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1), self.normal.reshape(self.normal.shape[0], 1), 1)
+                data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
+                data.to_csv(filename, header=True, index=False)
+                self.scanner_index += 1
+                self.scanner_mode = "start"
 
-        self.progress.set_fraction(self._progress_fraction)
+        print(self.scanner_index)
 
-        if not self.running:
-            stop_process()
+        if self.scanner_index is len(self.scanner_points) :
+            self.running.clear()
+            self.status.set_label('Scanning done')
 
-        if finished and self.scanner_mode is not "search":
-            self.map.append(np.max(self.smooth(self._spec)))
-            self.x.append(x)
-            self.y.append(y)
-            filename += 'x_{0:3.2f}um_y_{1:3.2f}um'.format( x, y) + '.csv'
-            data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
-            data.to_csv(filename, header=True, index=False)
+        if not self.running.is_set():
+            self.worker.join(0.5)
+            self.enable_buttons()
+            self.worker_mode = None
+            self.scanner_mode = None
 
-
-        if self.scanner_mode is "finished":
-            # ------------ Plot scanned map and fitted 2dgauss to file
-            plt.figure()
-            xg, yg = np.meshgrid(self.x, self.y)
-            zg = griddata( (self.x, self.y), self.map, (xg,yg),method='nearest')
-            plt.imshow(zg,cmap=plt.cm.jet)
-            plt.ylabel('Y [um]')
-            plt.ylabel('X [um]')
-            bar = plt.colorbar()
-            bar.set_label('Max. Counts', rotation=270)
-            plt.savefig(self.scanner_path+"scanning_map.png")
-            plt.close()
-            self.status.set_text("Scan complete")
         return True
 
 
-    def _scan_spectra(self, connection, points, searchmax, lockin):
-        map = list()
-        x = list()
-        y = list()
-        for point in points:
-            x.append(point[0])
-            y.append(point[1])
-            self.stage.moveabs(x=point[0], y=point[1])
-            self.reset()
-            if searchmax:
-                self.start_process(self._search_max_int)
-                connection.send(["search",None,None,None])
-                finished = False
-                while not finished:
-                    finished, progress_fraction, spec = self.worker_master_conn.recv()
-                    self.worker_master_conn.send(self.running)
-                    connection.send([False, progress_fraction, spec])
-                    running = connection.recv()
-                    if not running:
-                        return True
-                connection.send([True, progress_fraction, spec])
-            if lockin:
-                self.start_process(self._lockin_spectrum)
-                connection.send(["lockin",point[0],point[1]])
-                finished = False
-                while not finished:
-                    finished, progress_fraction, spec, ref, i = self.worker_master_conn.recv()
-                    self.worker_master_conn.send(self.running)
-                    connection.send([False, progress_fraction, spec, ref, i])
-                    running = connection.recv()
-                    if not running:
-                        return True
-                    connection.send([True, progress_fraction, spec])
-            else:
-                self.start_process(self._mean_spectrum)
-                connection.send(["mean",point[0],point[1]])
-                finished = False
-                while not finished:
-                    finished, progress_fraction, spec = self.worker_master_conn.recv()
-                    self.worker_master_conn.send(self.running)
-                    connection.send([False, progress_fraction, spec])
-                    running = connection.recv()
-                    if not running:
-                        return True
-                connection.send([True, progress_fraction, spec])
-        connection.send(["finished",None,None])
-
-
-    def _init_lockin(self):
+    def _lockin_spectrum(self, connection):
         self._cycle_factor = -1.0 / (
-        7.0 * self.settings.number_of_samples / 1000)  # cycle time is calculated using this factor
+            7.0 * self.settings.number_of_samples / 1000)  # cycle time is calculated using this factor
         self._spectrum_ready = False
         pos = self.stage.query_pos()
         self._startx = pos[0]
@@ -348,68 +270,49 @@ class Spectrum(object):
         self._startz = pos[2]
         self._starttime = datetime.now()
 
-    def _lockin_step(self,i):
-        self._cycle_time = self._cycle_factor * i + self._cycle_time_start
-        ref = math.cos(2 * math.pi * i / self._cycle_time)
-        self.move_stage((-ref + 1) / 2)
-        spec = self._spectrometer.intensities()
-        progress_fraction = float(i + 1) / self.settings.number_of_samples
-        return progress_fraction, spec, ref
-
-    def _lockin_spectrum(self, connection, child = False):
-        self._init_lockin()
-
         for i in range(self.settings.number_of_samples):
-            progress_fraction, spec, ref = self._lockin_step(i)
+            self._cycle_time = self._cycle_factor * i + self._cycle_time_start
+            ref = math.cos(2 * math.pi * i / self._cycle_time)
+            self.move_stage((-ref + 1) / 2)
+            spec = self._spectrometer.intensities()
+            progress_fraction = float(i + 1) / self.settings.number_of_samples
             connection.send([False, progress_fraction, spec, ref, i])
-            running = connection.recv()
-            if not running:
-                self.stage.moveabs(self._startx, self._starty, self._startz)
+            if not self.running.is_set():
                 return True
 
         print("%s spectra aquired" % (i + 1))
         print("time taken: %s s" % (self._millis() / 1000))
         self.stage.moveabs(self._startx, self._starty, self._startz)
         self._spectrum_ready = True
-        if not child:
-            connection.send([True, 1., spec, ref, self.settings.number_of_samples - 1])
+        connection.send([True, 1., spec, ref, self.settings.number_of_samples - 1])
         return True
 
-    def _mean_spectrum(self, connection, child = False):
-        self._starttime = datetime.now()
-        spec = np.zeros(self._spec.shape)
-        for i in range(self.settings.number_of_samples):
+    def _mean_spectrum(self, connection):
+        spec = self._spectrometer.intensities()
+        for i in range(self.settings.number_of_samples - 1):
             spec = (spec + self._spectrometer.intensities())  # / 2
             progress_fraction = float(i + 1) / self.settings.number_of_samples
-            connection.send([False, progress_fraction, spec / (i+1)])
-            running = connection.recv()
-            if not running:
+            connection.send([False, progress_fraction, spec / i])
+            if not self.running.is_set():
                 return True
-        print("%s spectra aquired" % (i + 1))
-        print("time taken: %s s" % (self._millis() / 1000))
-        if not child:
-            connection.send([True, 1., spec / i])
+        connection.send([True, 1., spec / i])
         return True
 
     def _live_spectrum(self, connection):
-        running = True
-        while running:
+        while self.running.is_set():
             spec = self._spectrometer.intensities()
             if not self.dark is None:
                 spec = spec - self.dark
                 if not self.lamp is None:
                     spec = spec / self.lamp
             connection.send([False, 0., spec])
-            running = connection.recv()
         return True
 
-
-    def _search_max_int(self, connection, child = False):
+    def _search_max_int(self, connection, child=False):
 
         def update_connection(progress):
             connection.send([False, progress, None])
-            running = connection.recv()
-            if not running:
+            if not self.running.is_set():
                 return True
 
         # use position of stage as origin
@@ -469,23 +372,23 @@ class Spectrum(object):
 
         # ------------ Plot scanned map and fitted 2dgauss to file
         # modified from: http://stackoverflow.com/questions/21566379/fitting-a-2d-gaussian-function-using-scipy-optimize-curve-fit-valueerror-and-m#comment33999040_21566831
-        #plt.figure()
-        #plt.imshow(int.reshape(self.settings.rasterdim, self.settings.rasterdim))
-        #plt.colorbar()
-        #if popt is not None:
-        #    data_fitted = self.gauss2D((x, y), *popt)
-        #else:
-        #    data_fitted = self.gauss2D((x, y), *initial_guess)
-        #    print(initial_guess)
+        # plt.figure()
+        # plt.imshow(int.reshape(self.settings.rasterdim, self.settings.rasterdim))
+        # plt.colorbar()
+        # if popt is not None:
+        # data_fitted = self.gauss2D((x, y), *popt)
+        # else:
+        # data_fitted = self.gauss2D((x, y), *initial_guess)
+        # print(initial_guess)
         #
-        #fig, ax = plt.subplots(1, 1)
-        #ax.hold(True)
-        #ax.imshow(int.reshape(self.settings.rasterdim, self.settings.rasterdim), cmap=plt.cm.jet, origin='bottom',
-        #          extent=(x.min(), x.max(), y.min(), y.max()), interpolation='nearest')
-        #ax.contour(x, y, data_fitted.reshape(self.settings.rasterdim, self.settings.rasterdim), 8, colors='w')
-        #plt.savefig("map_particle_search.png")
-        #------------ END Plot scanned map and fitted 2dgauss to file
-        #plt.close()
+        # fig, ax = plt.subplots(1, 1)
+        # ax.hold(True)
+        # ax.imshow(int.reshape(self.settings.rasterdim, self.settings.rasterdim), cmap=plt.cm.jet, origin='bottom',
+        # extent=(x.min(), x.max(), y.min(), y.max()), interpolation='nearest')
+        # ax.contour(x, y, data_fitted.reshape(self.settings.rasterdim, self.settings.rasterdim), 8, colors='w')
+        # plt.savefig("map_particle_search.png")
+        # ------------ END Plot scanned map and fitted 2dgauss to file
+        # plt.close()
 
         update_connection(0.4)
 
@@ -510,45 +413,49 @@ class Spectrum(object):
 
         update_connection(1.0)
 
-        #measured = np.zeros(7)
-        #self.stage.moverel(dx=-0.25)
-        #for x in range(7):
-        #    self.stage.moverel(dx=0.05)
-        #    measured[x] = np.max(self.smooth(self._spectrometer.intensities()))
-        #maxind = np.argmax(measured)
-        #self.stage.moverel(dx=-maxind * 0.05)
-        #update_connection(1.0)
+        # measured = np.zeros(7)
+        # self.stage.moverel(dx=-0.25)
+        # for x in range(7):
+        # self.stage.moverel(dx=0.05)
+        # measured[x] = np.max(self.smooth(self._spectrometer.intensities()))
+        # maxind = np.argmax(measured)
+        # self.stage.moverel(dx=-maxind * 0.05)
+        # update_connection(1.0)
 
         if not child:
             connection.send([True, 0.0, None])
         return True
 
-    def save_data(self, path):
+    def save_data(self, prefix):
         filename = self._gen_filename()
         cols = ('t', 'ref') + tuple(map(str, np.round(self._wl, 1)))
-        if np.max(self._data) > 0:
-            data = pandas.DataFrame(self._data, columns=cols)
-            data.to_csv(path +'spectrum_' + filename, header=True, index=False)
+        data = pandas.DataFrame(self._data, columns=cols)
+        data.to_csv('spectrum_' + filename, header=True, index=False)
         if not self.dark is None:
             data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
                              self.dark.reshape(self.dark.shape[0], 1), 1)
             data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
-            data.to_csv(path +'dark_' + filename, header=True, index=False)
+            data.to_csv('dark_' + filename, header=True, index=False)
         if not self.lamp is None:
             data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
                              self.lamp.reshape(self.lamp.shape[0], 1), 1)
             data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
-            data.to_csv(path +'lamp_' + filename, header=True, index=False)
-        if not self.mean is None:
+            data.to_csv('lamp_' + filename, header=True, index=False)
+        if not self.normal is None:
             data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
-                             self.mean.reshape(self.mean.shape[0], 1), 1)
+                             self.normal.reshape(self.normal.shape[0], 1), 1)
             data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
-            data.to_csv(path +'normal_' + filename, header=True, index=False)
+            data.to_csv('normal_' + filename, header=True, index=False)
+        if not self.normal is None:
+            data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
+                             self.normal.reshape(self.normal.shape[0], 1), 1)
+            data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
+            data.to_csv('normal_' + filename, header=True, index=False)
         if not self.lockin is None:
             data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
                              self.lockin.reshape(self.lockin.shape[0], 1), 1)
             data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
-            data.to_csv(path +'lockin_' + filename, header=True, index=False)
+            data.to_csv('lockin_' + filename, header=True, index=False)
 
     @staticmethod
     def _gen_filename():
