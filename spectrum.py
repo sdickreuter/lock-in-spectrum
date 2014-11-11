@@ -208,11 +208,13 @@ class Spectrum(object):
             self.running.clear()
             self.status.set_label('Scanning done')
             plt.figure()
-            xg, yg = np.meshgrid(self.x, self.y)
-            zg = griddata( (self.x, self.y), self.map, (xg,yg),method='nearest')
+            x = np.linspace(min(self.x),max(self.x),len(self.x))
+            y = np.linspace(min(self.y),max(self.y),len(self.y))
+            xg, yg = np.meshgrid( x, y)
+            zg = griddata( (self.x, self.y), self.map, (xg, yg),method='linear')
             plt.imshow(zg,cmap=plt.cm.jet)
             plt.ylabel('Y [um]')
-            plt.ylabel('X [um]')
+            plt.xlabel('X [um]')
             bar = plt.colorbar()
             bar.set_label('Max. Counts', rotation=270)
             plt.savefig(self.scanner_path+"scanning_map.png")
@@ -253,7 +255,7 @@ class Spectrum(object):
                 data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
                 data.to_csv(filename, header=True, index=False)
                 self.scanner_index += 1
-                if self.scanner_index is len(self.scanner_points) :
+                if self.scanner_index is len(self.scanner_points):
                     finish()
                 else:
                     start()
@@ -273,7 +275,7 @@ class Spectrum(object):
                 data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
                 data.to_csv(filename, header=True, index=False)
                 self.scanner_index += 1
-                if self.scanner_index is len(self.scanner_points) :
+                if self.scanner_index is len(self.scanner_points):
                     finish()
                 else:
                     start()
@@ -283,6 +285,8 @@ class Spectrum(object):
             self.enable_buttons()
             self.worker_mode = None
             self.scanner_mode = None
+
+        self.progress.set_fraction((self.scanner_index+1)/len(self.scanner_points))
 
         return True
 
