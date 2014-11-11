@@ -9,7 +9,7 @@ import scipy.optimize as opt
 import matplotlib.pyplot as plt
 import multiprocessing
 import pandas
-
+from scipy.interpolate import griddata
 
 class Spectrum(object):
     def __init__(self, stage, settings, status, progress, enable_buttons, disable_buttons):
@@ -134,6 +134,9 @@ class Spectrum(object):
         self.scanner_index = 0
         self.worker_mode = "scan"
         self.scanner_mode = "start"
+        self.map = list()
+        self.x = list()
+        self.y = list()
         self._callback_scan()
 
     def callback(self, io, condition):
@@ -185,7 +188,6 @@ class Spectrum(object):
 
         return True
 
-
     def _callback_scan(self):
 
         def start():
@@ -201,6 +203,21 @@ class Spectrum(object):
             else:
                 self.scanner_mode = "mean"
                 self.start_process(self._mean_spectrum)
+
+        def finish():
+            self.running.clear()
+            self.status.set_label('Scanning done')
+            plt.figure()
+            xg, yg = np.meshgrid(self.x, self.y)
+            zg = griddata( (self.x, self.y), self.map, (xg,yg),method='nearest')
+            plt.imshow(zg,cmap=plt.cm.jet)
+            plt.ylabel('Y [um]')
+            plt.ylabel('X [um]')
+            bar = plt.colorbar()
+            bar.set_label('Max. Counts', rotation=270)
+            plt.savefig(self.scanner_path+"scanning_map.png")
+            plt.close()
+            self.status.set_text("Scan complete")
 
         if self.scanner_mode is "start":
             start()
@@ -228,14 +245,16 @@ class Spectrum(object):
                 self.worker.join(0.5)
                 self.lockin = self.calc_lockin()
                 self._spec = self.lockin
+                self.map.append(np.max(self.smooth(self._spec)))
+                self.x.append(self.scanner_point[0])
+                self.y.append(self.scanner_point[1])
                 filename = self.scanner_path + 'lockin_' + 'x_{0:3.2f}um_y_{1:3.2f}um'.format( self.scanner_point[0], self.scanner_point[1]) + '.csv'
                 data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1), self.lockin.reshape(self.lockin.shape[0], 1), 1)
                 data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
                 data.to_csv(filename, header=True, index=False)
                 self.scanner_index += 1
                 if self.scanner_index is len(self.scanner_points) :
-                    self.running.clear()
-                    self.status.set_label('Scanning done')
+                    finish()
                 else:
                     start()
 
@@ -246,14 +265,16 @@ class Spectrum(object):
                 self.worker.join(0.5)
                 self.normal = spec
                 self._spec = self.normal
+                self.map.append(np.max(self.smooth(self._spec)))
+                self.x.append(self.scanner_point[0])
+                self.y.append(self.scanner_point[1])
                 filename = self.scanner_path + 'mean_' + 'x_{0:3.2f}um_y_{1:3.2f}um'.format( self.scanner_point[0], self.scanner_point[1]) + '.csv'
                 data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1), self.normal.reshape(self.normal.shape[0], 1), 1)
                 data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
                 data.to_csv(filename, header=True, index=False)
                 self.scanner_index += 1
                 if self.scanner_index is len(self.scanner_points) :
-                    self.running.clear()
-                    self.status.set_label('Scanning done')
+                    finish()
                 else:
                     start()
 
