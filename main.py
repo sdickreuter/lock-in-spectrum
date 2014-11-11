@@ -351,7 +351,7 @@ class LockinGui(object):
                 os.mkdir(prefix)
             except:
                 print("Error creating directory ./"+prefix)
-            path = prefix + '/'
+            path = self.savedir + prefix + '/'
             self.status.set_label('Scanning')
             self.spectrum.make_scan(self.scan_store, path,self.button_searchonoff.get_active(), self.button_lockinonoff.get_active())
             self.disable_buttons()

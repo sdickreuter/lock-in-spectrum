@@ -187,7 +187,8 @@ class Spectrum(object):
 
 
     def _callback_scan(self):
-        if self.scanner_mode is "start":
+
+        def start():
             self.scanner_point = self.scanner_points[self.scanner_index]
             self.stage.moveabs(x=self.scanner_point[0], y=self.scanner_point[1])
             self.reset()
@@ -200,6 +201,9 @@ class Spectrum(object):
             else:
                 self.scanner_mode = "mean"
                 self.start_process(self._mean_spectrum)
+
+        if self.scanner_mode is "start":
+            start()
 
         if self.scanner_mode is "search":
             finished, self._progress_fraction, spec = self.conn_for_main.recv()
@@ -229,7 +233,11 @@ class Spectrum(object):
                 data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
                 data.to_csv(filename, header=True, index=False)
                 self.scanner_index += 1
-                self.scanner_mode = "start"
+                if self.scanner_index is len(self.scanner_points) :
+                    self.running.clear()
+                    self.status.set_label('Scanning done')
+                else:
+                    start()
 
         if self.scanner_mode is "mean":
             finished, self._progress_fraction, spec = self.conn_for_main.recv()
@@ -243,13 +251,11 @@ class Spectrum(object):
                 data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
                 data.to_csv(filename, header=True, index=False)
                 self.scanner_index += 1
-                self.scanner_mode = "start"
-
-        print(self.scanner_index)
-
-        if self.scanner_index is len(self.scanner_points) :
-            self.running.clear()
-            self.status.set_label('Scanning done')
+                if self.scanner_index is len(self.scanner_points) :
+                    self.running.clear()
+                    self.status.set_label('Scanning done')
+                else:
+                    start()
 
         if not self.running.is_set():
             self.worker.join(0.5)
