@@ -212,10 +212,11 @@ class Spectrum(object):
             plt.figure()
             area = self.map - np.min(self.map)
             area = area/np.max(self.map)
-            area = np.pi * (500 * area)**2+10
-            plt.scatter(self.x, self.y, c=self.peakpos, s=area, cmap=plt.cm.jet, edgecolors='None', alpha=1)
+            area = (3000 * area) + 10
+            plt.scatter(self.x, self.y, c=self.peakpos, s=area, cmap=plt.cm.jet, edgecolors='None', alpha=0.75)
             plt.ylabel('Y [um]')
             plt.xlabel('X [um]')
+            plt.axis('equal')
             bar = plt.colorbar()
             bar.set_label('Peak Wavelength [nm]', rotation=270)
             plt.savefig(self.scanner_path+"scanning_map.png")
