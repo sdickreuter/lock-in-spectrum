@@ -21,7 +21,7 @@ class MPL:
 
 class LockinGui(object):
     _window_title = "Lock-in Spectrum"
-    _heartbeat = 100  # ms delay at which the plot/gui is refreshed
+    _heartbeat = 100  # ms delay at which the plot/gui is refreshed, and the gamepad moves the stage
 
     def __init__(self):
         self.savedir = "./Spectra/"
@@ -34,12 +34,9 @@ class LockinGui(object):
         self.step_distance = 1 #in um
         self.pad = None
         try:
-            self.pad = Gamepad()
+            self.pad = Gamepad(True)
         except:
             print("Could not initialize Gamepad")
-
-#        if self.pad is not None:
-#            self.pad.add_callback(self.on_pad_change())
 
         self.stage = PIStage.Dummy()
         # self.stage = PIStage.E545();
@@ -342,31 +339,39 @@ class LockinGui(object):
         self.ScanningBox.set_sensitive(True)
         self.button_stop.set_sensitive(False)
 
-    # ##---------------- button connect functions ----------
+    def _on_pad_change(self, io, condition):
+        a, y, ax, ay = self.pad.receiver.recv()
+        if a:
+            self.on_stepdown_clicked(None)
+        if y:
+            self.on_stepup_clicked(None)
+          #print(self.pad.get_analogL_x()-128)
+        self.x_step = float((self.pad.get_analogL_x()-128))
+        if abs(self.x_step) > 8:
+            self.x_step = self.x_step/128*self.settings.stepsize
+        else:
+            self.x_step = 0.0
+        self.y_step = float((self.pad.get_analogL_y()-128))
+        if abs(self.y_step) > 8:
+            self.y_step = self.y_step/128*self.settings.stepsize
+        else:
+            self.y_step = 0.0
+        #print('x_step: {0:3.2f} um   y_step: {1:3.2f} um'.format( self.x_step, self.y_step))
+        return True
 
     def _pad_make_step(self):
         if self.pad is not None:
-            #print(self.pad.get_analogL_x()-128)
-            self.x_step = float((self.pad.get_analogL_x()-128))
-            if abs(self.x_step) > 10:
-                self.x_step = self.x_step/128*self.settings.stepsize
-            else:
-                self.x_step = 0.0
-            self.y_step = float((self.pad.get_analogL_y()-128))
-            if abs(self.y_step) > 10:
-                self.y_step = self.y_step/128*self.settings.stepsize
-            else:
-                self.y_step = 0.0
-            #print('x_step: {0:3.2f} um   y_step: {1:3.2f} um'.format( self.x_step, self.y_step))
-
-            if abs(self.x_step) > 0.001:
-                if abs(self.y_step) > 0.001:
+            if abs(self.x_step) > 0.0001:
+                if abs(self.y_step) > 0.0001:
                     self.stage.moverel(dx=self.x_step,dy=self.y_step)
                 else:
                     self.stage.moverel(dx=self.x_step)
             elif abs(self.y_step) > 0.001:
                     self.stage.moverel(dy=self.y_step)
         return True
+
+    # ##---------------- button connect functions ----------
+
 
     def on_scan_start_clicked(self, widget):
         os.chdir(self.savedir)
@@ -595,6 +600,8 @@ class LockinGui(object):
             #GLib.io_add_watch(self.spectrum.conn_for_main, GLib.IO_IN | GLib.IO_PRI, self.spectrum.callback, args=(self.spectrum,self.progress,))
             #GLib.io_add_watch(self.spectrum.worker_master_conn, GLib.IO_IN | GLib.IO_PRI, self.spectrum.callback, args=(self.spectrum,))
             GLib.io_add_watch(self.spectrum.conn_for_main, GLib.IO_IN | GLib.IO_PRI, self.spectrum.callback, args=(self.spectrum,))
+            if self.pad is not None:
+                GLib.io_add_watch(self.pad.receiver, GLib.IO_IN | GLib.IO_PRI, self._on_pad_change, args=(self,))
             Gtk.main()
         except KeyboardInterrupt:
             pass
