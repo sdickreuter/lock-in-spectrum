@@ -228,8 +228,8 @@ class LockinGui(object):
         self.scan_scroller.add(self.scan_view)
 
         self.scan_store.append([10.0, 10.0])
-        self.scan_store.append([11.0, 10.0])
-        self.scan_store.append([10.0, 11.0])
+        self.scan_store.append([10.1, 10.0])
+        self.scan_store.append([10.0, 10.1])
 
 
         #Connections for scanning stack
@@ -366,7 +366,7 @@ class LockinGui(object):
     def on_spangrid_clicked(self, widget):
         iter = self.scan_store.get_iter_first()
         grid = self.spangrid_dialog.rundialog()
-        if (len(self.scan_store) >= 3) & (grid[0] is not 0):
+        if (len(self.scan_store) >= 3) & ((grid[0] is not 0) | (grid[1] is not 0))  :
             a = self.scan_store[iter][:]
             iter = self.scan_store.iter_next(iter)
             b = self.scan_store[iter][:]
@@ -376,6 +376,7 @@ class LockinGui(object):
             grid_vec_1 = [b[0] - a[0], b[1] - b[1]]
             grid_vec_2 = [c[0] - a[0], c[1] - b[1]]
 
+
             self.scan_store.clear()
 
             for x in range(int(grid[0])):
@@ -383,6 +384,7 @@ class LockinGui(object):
                     vec_x = a[0] + grid_vec_1[0] * x + grid_vec_2[0] * y
                     vec_y = a[1] + grid_vec_1[1] * x + grid_vec_2[1] * y
                     self.scan_store.append([vec_x, vec_y])
+
 
     def on_stop_clicked(self, widget):
         self.spectrum.stop_process()
@@ -449,13 +451,6 @@ class LockinGui(object):
             self.spectrum.lamp = buf
 
     # ##---------------- END button connect functions ----------
-
-    def make_scan(self):
-        if self.button_searchonoff.get_active():
-            pass
-
-
-
 
     def _load_spectrum_from_file(self):
         dialog = Gtk.FileChooserDialog("Please choose a file", self.window,

@@ -366,7 +366,7 @@ class SpanGridDialog(Gtk.Dialog):
         result = self.run()
         self.hide()
         if result == Gtk.ResponseType.OK:
-            return self.x_spin.get_value(), self.x_spin.get_value()
+            return self.x_spin.get_value(), self.y_spin.get_value()
         else:
             return 0, 0
 
