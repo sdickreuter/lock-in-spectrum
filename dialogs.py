@@ -17,7 +17,7 @@ class SettingsDialog(Gtk.Dialog):
         self.box.set_spacing(6)
 
         # Spinbuttons
-        self.integration_time_adj = Gtk.Adjustment(value=10, lower=80, upper=1000, step_incr=10, page_incr=10,
+        self.integration_time_adj = Gtk.Adjustment(value=10, lower=10, upper=1000, step_incr=10, page_incr=10,
                                                    page_size=0)
         self.integration_time_spin = Gtk.SpinButton(adjustment=self.integration_time_adj, climb_rate=0.1, digits=0)
         self.integration_time_spin.set_tooltip_text("Set Integration time of the spectrometer")
@@ -146,7 +146,8 @@ class MoveAbsDialog(Gtk.Dialog):
         # buttons
 
         self.stage = stage
-        pos = self.stage.query_pos()
+        self.stage.query_pos()
+        pos = self.stage.last_pos()
         self.x = float(pos[0])
         self.y = float(pos[1])
         self.z = float(pos[2])

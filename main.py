@@ -38,8 +38,8 @@ class LockinGui(object):
         except:
             print("Could not initialize Gamepad")
 
-        self.stage = PIStage.Dummy()
-        # self.stage = PIStage.E545();
+        #self.stage = PIStage.Dummy()
+        self.stage = PIStage.E545();
 
         GObject.threads_init()
         # only GObject.idle_add() is in the background thread
@@ -393,7 +393,8 @@ class LockinGui(object):
 
 
     def on_add_position_clicked(self, widget):
-        pos = self.stage.query_pos()
+        self.stage.query_pos()
+        pos = self.stage.last_pos()
         self.scan_store.append([pos[0], pos[1]])
 
     def on_spangrid_clicked(self, widget):

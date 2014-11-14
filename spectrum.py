@@ -47,12 +47,14 @@ class Spectrum(object):
 
     def _init_spectrometer(self):
         try:
-            # self._spectrometer = oceanoptics.QE65000()
-            self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage)
+            self._spectrometer = oceanoptics.QE65000()
+            #self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage)
             #self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage,particles = [[10, 10], [11, 10],[12, 10],[14, 10],[11, 14],[11, 12],[14, 13],[15, 15]])
-            self._spectrometer.integration_time(self.settings.integration_time * 1000)
+            self._spectrometer.integration_time(self.settings.integration_time/1000)
+            #print(self._spectrometer._query_status())
             sp = self._spectrometer.spectrum()
             self._wl = np.array(sp[0], dtype=np.float)
+            print("Spectrometer initialized and working")
         except:
             raise RuntimeError("Error opening spectrometer. Exiting...")
 
@@ -77,7 +79,7 @@ class Spectrum(object):
         return self._spec
 
     def reset(self):
-        self._spectrometer.integration_time(self.settings.integration_time * 1000)
+        self._spectrometer.integration_time(self.settings.integration_time/1000)
         self._spectrum_ready = False
         self._juststarted = True
 
@@ -321,7 +323,7 @@ class Spectrum(object):
 
         print("%s spectra aquired" % (i + 1))
         print("time taken: %s s" % (self._millis() / 1000))
-        self.stage.moveabs(self._startx, self._starty, self._startz)
+        self.stage.moveabs(x=self._startx, y=self._starty, z=self._startz)
         self._spectrum_ready = True
         connection.send([True, 1., spec, ref, self.settings.number_of_samples - 1])
         return True
@@ -355,17 +357,19 @@ class Spectrum(object):
                 return True
 
         # use position of stage as origin
-        origin = self.stage.query_pos()
+        #origin = self.stage.query_pos()
+        self.stage.query_pos()
+        origin = self.stage.last_pos()
         # round origin position to 1um, so that grid will be regular for all possible origins
-        x_or = round(origin[0])
-        y_or = round(origin[1])
+        #x_or = round(origin[0])
+        #y_or = round(origin[1])
         update_connection(0.1)
         # make scanning raster
         x = np.linspace(-self.settings.rasterwidth, self.settings.rasterwidth, self.settings.rasterdim)
         y = np.linspace(-self.settings.rasterwidth, self.settings.rasterwidth, self.settings.rasterdim)
         # add origin to raster to get absolute positions
-        x += x_or
-        y += y_or
+        x += origin[0]#x_or
+        y += origin[1]#y_or
 
         int = np.zeros((len(x), len(y)))  # matrix for saving the scanned maximum intensities
 
@@ -379,7 +383,7 @@ class Spectrum(object):
         # iterate through the raster, take spectrum and save maximum value of smoothed spectrum to int
         for xi in range(len(x)):
             for yi in range(len(y)):
-                self.stage.moveabs(x[xi], y[yi])
+                self.stage.moveabs(x = x[xi],y = y[yi])
                 int[xi, yi] = np.max(self.smooth(self._spectrometer.intensities()))
 
         update_connection(0.3)
@@ -397,69 +401,73 @@ class Spectrum(object):
         popt = None
         try:
             popt, pcov = opt.curve_fit(self.gauss2D, positions, int, p0=initial_guess)
-            # print popt
             if popt[0] < 20:
                 RuntimeError("Peak is to small")
         except RuntimeError as e:
             print(e)
             print("Could not determine particle position")
-            self.stage.moveabs(origin[0], origin[1], origin[2])
+            self.stage.moveabs(x=origin[0],y=origin[1])
             return True
         else:
-            self.stage.moveabs(float(popt[1]), float(popt[2]))
-            # print "Position of Particle: {0:+2.2f}, {1:+2.2f}".format(popt[1],popt[2])
-
+            self.stage.moveabs(x=float(popt[1]),y=float(popt[2]))
+            #print "Position of Particle: {0:+2.2f}, {1:+2.2f}".format(popt[1],popt[2])
+            #print((float(popt[1]), float(popt[2])))
         # ------------ Plot scanned map and fitted 2dgauss to file
         # modified from: http://stackoverflow.com/questions/21566379/fitting-a-2d-gaussian-function-using-scipy-optimize-curve-fit-valueerror-and-m#comment33999040_21566831
-        # plt.figure()
-        # plt.imshow(int.reshape(self.settings.rasterdim, self.settings.rasterdim))
-        # plt.colorbar()
-        # if popt is not None:
-        # data_fitted = self.gauss2D((x, y), *popt)
-        # else:
-        # data_fitted = self.gauss2D((x, y), *initial_guess)
-        # print(initial_guess)
-        #
-        # fig, ax = plt.subplots(1, 1)
-        # ax.hold(True)
-        # ax.imshow(int.reshape(self.settings.rasterdim, self.settings.rasterdim), cmap=plt.cm.jet, origin='bottom',
-        # extent=(x.min(), x.max(), y.min(), y.max()), interpolation='nearest')
-        # ax.contour(x, y, data_fitted.reshape(self.settings.rasterdim, self.settings.rasterdim), 8, colors='w')
-        # plt.savefig("map_particle_search.png")
-        # ------------ END Plot scanned map and fitted 2dgauss to file
-        # plt.close()
+        plt.figure()
+        plt.imshow(int.reshape(self.settings.rasterdim, self.settings.rasterdim))
+        plt.colorbar()
+        if popt is not None:
+            data_fitted = self.gauss2D((x, y), *popt)
+        else:
+            data_fitted = self.gauss2D((x, y), *initial_guess)
+        #print(initial_guess)
+
+        fig, ax = plt.subplots(1, 1)
+        ax.hold(True)
+        ax.imshow(int.reshape(self.settings.rasterdim, self.settings.rasterdim), cmap=plt.cm.jet, origin='bottom',
+        extent=(x.min(), x.max(), y.min(), y.max()), interpolation='nearest')
+        ax.contour(x, y, data_fitted.reshape(self.settings.rasterdim, self.settings.rasterdim), 8, colors='w')
+        plt.savefig("map_particle_search.png")
+         #------------ END Plot scanned map and fitted 2dgauss to file
+        plt.close()
 
         update_connection(0.4)
 
-        measured = np.zeros(7)
-        self.stage.moverel(dx=-0.4)
-        for x in range(7):
-            self.stage.moverel(dx=0.1)
+        scan_raster = 11
+        d = np.linspace(-1, 1, scan_raster)
+        self.stage.query_pos()
+        origin = self.stage.last_pos()
+
+        measured = np.zeros(scan_raster)
+        for x in range(scan_raster):
+            self.stage.moveabs(x=origin[0]+d[x])
             spec = self.smooth(self._spectrometer.intensities())
             measured[x] = np.max(spec)
         maxind = np.argmax(measured)
-        self.stage.moverel(dx=-maxind * 0.1)
+        self.stage.moveabs(x=origin[0]+d[maxind])
 
         update_connection(0.7)
 
-        measured = np.zeros(7)
-        self.stage.moverel(dy=-0.4)
-        for y in range(7):
-            self.stage.moverel(dy=0.1)
-            measured[y] = np.max(self.smooth(self._spectrometer.intensities()))
+        measured = np.zeros(scan_raster)
+        for y in range(scan_raster):
+            self.stage.moveabs(y=origin[1]+d[y])
+            spec = self.smooth(self._spectrometer.intensities())
+            measured[y] = np.max(spec)
         maxind = np.argmax(measured)
-        self.stage.moverel(dy=-maxind * 0.1)
+        self.stage.moveabs(y=origin[1]+d[maxind])
+
+        update_connection(0.9)
+
+        measured = np.zeros(scan_raster)
+        for x in range(scan_raster):
+            self.stage.moveabs(x=origin[0]+d[x])
+            spec = self.smooth(self._spectrometer.intensities())
+            measured[x] = np.max(spec)
+        maxind = np.argmax(measured)
+        self.stage.moveabs(x=origin[0]+d[maxind])
 
         update_connection(1.0)
-
-        # measured = np.zeros(7)
-        # self.stage.moverel(dx=-0.25)
-        # for x in range(7):
-        # self.stage.moverel(dx=0.05)
-        # measured[x] = np.max(self.smooth(self._spectrometer.intensities()))
-        # maxind = np.argmax(measured)
-        # self.stage.moverel(dx=-maxind * 0.05)
-        # update_connection(1.0)
 
         if not child:
             connection.send([True, 0.0, None])
