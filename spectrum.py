@@ -47,8 +47,8 @@ class Spectrum(object):
 
     def _init_spectrometer(self):
         try:
-            self._spectrometer = oceanoptics.QE65000()
-            #self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage)
+            #self._spectrometer = oceanoptics.QE65000()
+            self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage)
             #self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage,particles = [[10, 10], [11, 10],[12, 10],[14, 10],[11, 14],[11, 12],[14, 13],[15, 15]])
             self._spectrometer.integration_time(self.settings.integration_time/1000)
             #print(self._spectrometer._query_status())
@@ -349,7 +349,7 @@ class Spectrum(object):
             connection.send([False, 0., spec])
         return True
 
-    def _search_max_int(self, connection, child=False):
+    def _search_max_int(self, connection):
 
         def update_connection(progress):
             connection.send([False, progress, None])
@@ -360,117 +360,53 @@ class Spectrum(object):
         #origin = self.stage.query_pos()
         self.stage.query_pos()
         origin = self.stage.last_pos()
-        # round origin position to 1um, so that grid will be regular for all possible origins
-        #x_or = round(origin[0])
-        #y_or = round(origin[1])
-        update_connection(0.1)
-        # make scanning raster
-        x = np.linspace(-self.settings.rasterwidth, self.settings.rasterwidth, self.settings.rasterdim)
-        y = np.linspace(-self.settings.rasterwidth, self.settings.rasterwidth, self.settings.rasterdim)
-        # add origin to raster to get absolute positions
-        x += origin[0]#x_or
-        y += origin[1]#y_or
 
-        int = np.zeros((len(x), len(y)))  # matrix for saving the scanned maximum intensities
-
-        update_connection(0.1)
-
-        # take spectra and get min and max values for use as values for the inital guess
         spec = self.smooth(self._spectrometer.intensities())
         min = np.min(spec)
         max = np.max(spec)
 
-        # iterate through the raster, take spectrum and save maximum value of smoothed spectrum to int
-        for xi in range(len(x)):
-            for yi in range(len(y)):
-                self.stage.moveabs(x = x[xi],y = y[yi])
-                int[xi, yi] = np.max(self.smooth(self._spectrometer.intensities()))
+        d = np.linspace(-self.settings.rasterwidth, self.settings.rasterwidth, self.settings.rasterdim)
 
-        update_connection(0.3)
-
-        # find max value of int and use this as the inital value for the position
-        maxind = np.argmax(int)
-        maxind = np.unravel_index(maxind, int.shape)
-
-        int = int.ravel()
-
-        initial_guess = (max - min, x[maxind[1]], y[maxind[0]], self.settings.sigma, min)
-        x, y = np.meshgrid(x, y)
-        positions = np.vstack((x.ravel(), y.ravel()))
-
-        popt = None
-        try:
-            popt, pcov = opt.curve_fit(self.gauss2D, positions, int, p0=initial_guess)
-            if popt[0] < 20:
-                RuntimeError("Peak is to small")
-        except RuntimeError as e:
-            print(e)
-            print("Could not determine particle position")
-            self.stage.moveabs(x=origin[0],y=origin[1])
-            return True
-        else:
-            self.stage.moveabs(x=float(popt[1]),y=float(popt[2]))
-            #print "Position of Particle: {0:+2.2f}, {1:+2.2f}".format(popt[1],popt[2])
-            #print((float(popt[1]), float(popt[2])))
-        # ------------ Plot scanned map and fitted 2dgauss to file
-        # modified from: http://stackoverflow.com/questions/21566379/fitting-a-2d-gaussian-function-using-scipy-optimize-curve-fit-valueerror-and-m#comment33999040_21566831
-        plt.figure()
-        plt.imshow(int.reshape(self.settings.rasterdim, self.settings.rasterdim))
-        plt.colorbar()
-        if popt is not None:
-            data_fitted = self.gauss2D((x, y), *popt)
-        else:
-            data_fitted = self.gauss2D((x, y), *initial_guess)
-        #print(initial_guess)
-
-        fig, ax = plt.subplots(1, 1)
-        ax.hold(True)
-        ax.imshow(int.reshape(self.settings.rasterdim, self.settings.rasterdim), cmap=plt.cm.jet, origin='bottom',
-        extent=(x.min(), x.max(), y.min(), y.max()), interpolation='nearest')
-        ax.contour(x, y, data_fitted.reshape(self.settings.rasterdim, self.settings.rasterdim), 8, colors='w')
-        plt.savefig("map_particle_search.png")
-         #------------ END Plot scanned map and fitted 2dgauss to file
-        plt.close()
-
-        update_connection(0.4)
-
-        scan_raster = 11
-        d = np.linspace(-1, 1, scan_raster)
         self.stage.query_pos()
         origin = self.stage.last_pos()
 
-        measured = np.zeros(scan_raster)
-        for x in range(scan_raster):
-            self.stage.moveabs(x=origin[0]+d[x])
-            spec = self.smooth(self._spectrometer.intensities())
-            measured[x] = np.max(spec)
-        maxind = np.argmax(measured)
-        self.stage.moveabs(x=origin[0]+d[maxind])
+        pos = d+origin[0]
 
-        update_connection(0.7)
+        repetitions = 6
 
-        measured = np.zeros(scan_raster)
-        for y in range(scan_raster):
-            self.stage.moveabs(y=origin[1]+d[y])
-            spec = self.smooth(self._spectrometer.intensities())
-            measured[y] = np.max(spec)
-        maxind = np.argmax(measured)
-        self.stage.moveabs(y=origin[1]+d[maxind])
+        for j in range(repetitions):
+            measured = np.zeros(self.settings.rasterdim)
+            for i in range(len(pos)):
+                if j%2:
+                    self.stage.moveabs(x=origin[0]+d[i])
+                else:
+                    self.stage.moveabs(y=origin[0]+d[i])
+                spec = self.smooth(self._spectrometer.intensities())
+                measured[i] = np.max(spec)
+            maxind = np.argmax(measured)
 
-        update_connection(0.9)
+            initial_guess = (max - min, pos[maxind], self.settings.sigma, min)
 
-        measured = np.zeros(scan_raster)
-        for x in range(scan_raster):
-            self.stage.moveabs(x=origin[0]+d[x])
-            spec = self.smooth(self._spectrometer.intensities())
-            measured[x] = np.max(spec)
-        maxind = np.argmax(measured)
-        self.stage.moveabs(x=origin[0]+d[maxind])
+            update_connection(repetitions/i)
 
-        update_connection(1.0)
+            popt = None
+            try:
+                popt, pcov = opt.curve_fit(self.gauss, pos, measured, p0=initial_guess)
+                if popt[0] < 20:
+                    RuntimeError("Peak is to small")
+            except RuntimeError as e:
+                print(e)
+                print("Could not determine particle position")
+                self.stage.moveabs(x=origin[0],y=origin[1])
+                return True
+            else:
+                if j%2:
+                    self.stage.moveabs(x=float(popt[1]))
+                else:
+                    self.stage.moveabs(y=float(popt[1]))
+            print(popt)
 
-        if not child:
-            connection.send([True, 0.0, None])
+        connection.send([True, 1.0, None])
         return True
 
     def save_data(self, prefix):
@@ -518,6 +454,13 @@ class Spectrum(object):
         yo = float(yo)
         g = offset + amplitude * np.exp(
             -( np.power(pos[0] - xo, 2.) + np.power(pos[1] - yo, 2.) ) / (2 * np.power(sigma, 2.)))
+        return g.ravel()
+
+    @staticmethod
+    def gauss(x, amplitude, xo, fwhm, offset):
+        sigma = fwhm / 2.3548
+        xo = float(xo)
+        g = offset + amplitude * np.exp( -np.power(x - xo, 2.) / (2 * np.power(sigma, 2.)))
         return g.ravel()
 
 

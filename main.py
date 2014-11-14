@@ -38,8 +38,8 @@ class LockinGui(object):
         except:
             print("Could not initialize Gamepad")
 
-        #self.stage = PIStage.Dummy()
-        self.stage = PIStage.E545();
+        self.stage = PIStage.Dummy()
+        #self.stage = PIStage.E545();
 
         GObject.threads_init()
         # only GObject.idle_add() is in the background thread
