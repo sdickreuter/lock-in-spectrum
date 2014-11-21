@@ -7,6 +7,7 @@ import oceanoptics
 import numpy as np
 import scipy.optimize as opt
 import matplotlib.pyplot as plt
+import matplotlib.mlab as mlab
 import multiprocessing
 import pandas
 from scipy.interpolate import griddata
@@ -21,12 +22,7 @@ class Spectrum(object):
         self.disable_buttons = disable_buttons
         self._init_spectrometer()
         self._cycle_time_start = 250
-        self._startx = 10
-        self._starty = 10
-        self._startz = 10
-        self._starttime = None
         self._juststarted = True
-        self._spectrum_ready = False
         self._data = np.ones((self.settings.number_of_samples, 1026), dtype=np.float)
 
         # variables for storing the spectra
@@ -42,16 +38,16 @@ class Spectrum(object):
         self.conn_for_main, self._conn_for_worker = multiprocessing.Pipe()
         self.running = multiprocessing.Event()
         self.running.clear()
+        self._spec = np.zeros(1024, dtype=np.float)
         self._spec = self._spectrometer.intensities()
 
 
     def _init_spectrometer(self):
         try:
-            self._spectrometer = oceanoptics.QE65000()
-            #self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage)
+            #self._spectrometer = oceanoptics.QE65000()
+            self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage)
             #self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage,particles = [[10, 10], [11, 10],[12, 10],[14, 10],[11, 14],[11, 12],[14, 13],[15, 15]])
             self._spectrometer.integration_time(self.settings.integration_time/1000)
-            #print(self._spectrometer._query_status())
             sp = self._spectrometer.spectrum()
             self._wl = np.array(sp[0], dtype=np.float)
             print("Spectrometer initialized and working")
@@ -67,8 +63,8 @@ class Spectrum(object):
     def stop_process(self):
         self.running.clear()
 
-    def _millis(self):
-        dt = datetime.now() - self._starttime
+    def _millis(self, starttime):
+        dt = datetime.now() - starttime
         ms = (dt.days * 24 * 60 * 60 + dt.seconds) * 1000 + dt.microseconds / 1000.0
         return ms
 
@@ -210,32 +206,20 @@ class Spectrum(object):
 
         def finish():
             self.running.clear()
-
-            if self.scanner_search:
-                plt.figure()
-                area = self.map - np.min(self.map)
-                area = area/np.max(self.map)
-                area = (3000 * area) + 10
-                plt.scatter(self.x, self.y, c=self.peakpos, s=area, cmap=plt.cm.jet, edgecolors='None', alpha=0.75)
-                plt.ylabel('Y [um]')
-                plt.xlabel('X [um]')
-                plt.axis('equal')
-                bar = plt.colorbar()
-                bar.set_label('Peak Wavelength [nm]', rotation=270)
-                plt.savefig(self.scanner_path+"scanning_map.png")
-                plt.close()
-            else:
-                plt.figure()
-                x = np.linspace(min(self.x),max(self.x),len(self.x))
-                y = np.linspace(min(self.y),max(self.y),len(self.y))
-                xg, yg = np.meshgrid( x, y)
-                zg = griddata( (self.x, self.y), self.map, (xg, yg),method='linear')
-                plt.imshow(zg,cmap=plt.cm.jet)
-                plt.ylabel('Y [um]')
-                plt.xlabel('X [um]')
-                bar = plt.colorbar()
-                bar.set_label('Max. Counts', rotation=270)
-                plt.savefig(self.scanner_path+"scanning_map.png")
+            plt.figure()
+            x = np.linspace(min(self.x),max(self.x),10000)
+            y = np.linspace(min(self.y),max(self.y),10000)
+            xg, yg = np.meshgrid( x, y)
+            #zg = griddata( (self.x, self.y), self.map, (xg, yg), method='nearest')
+            zg = mlab.griddata( self.x, self.y, self.map, xg, yg, interp="linear")
+            plt.pcolormesh(xg,yg,zg)
+            plt.scatter(self.x,self.y,c=self.map)
+            #plt.imshow(zg,cmap=plt.cm.jet)
+            plt.ylabel('Y [um]')
+            plt.xlabel('X [um]')
+            bar = plt.colorbar()
+            bar.set_label('Max. Counts', rotation=270)
+            plt.savefig(self.scanner_path+"scanning_map.png")
             self.status.set_text("Scan complete")
 
         if self.scanner_mode is "start":
@@ -323,18 +307,17 @@ class Spectrum(object):
 
 
     def _lockin_spectrum(self, connection):
-        self._cycle_factor = -1.0 / (
+        cycle_factor = -1.0 / (
             7.0 * self.settings.number_of_samples / 1000)  # cycle time is calculated using this factor
-        self._spectrum_ready = False
         pos = self.stage.query_pos()
         self._startx = pos[0]
         self._starty = pos[1]
         self._startz = pos[2]
-        self._starttime = datetime.now()
+        starttime = datetime.now()
 
         for i in range(self.settings.number_of_samples):
-            self._cycle_time = self._cycle_factor * i + self._cycle_time_start
-            ref = math.cos(2 * math.pi * i / self._cycle_time)
+            cycle_time = cycle_factor * i + self._cycle_time_start
+            ref = math.cos(2 * math.pi * i / cycle_time)
             self.move_stage((-ref + 1) / 2)
             spec = self._spectrometer.intensities()
             progress_fraction = float(i + 1) / self.settings.number_of_samples
@@ -343,9 +326,8 @@ class Spectrum(object):
                 return True
 
         print("%s spectra aquired" % (i + 1))
-        print("time taken: %s s" % (self._millis() / 1000))
+        print("time taken: %s s" % (self._millis(starttime) / 1000))
         self.stage.moveabs(x=self._startx, y=self._starty, z=self._startz)
-        self._spectrum_ready = True
         connection.send([True, 1., spec, ref, self.settings.number_of_samples - 1])
         return True
 
@@ -378,7 +360,6 @@ class Spectrum(object):
                 return True
 
         # use position of stage as origin
-        #origin = self.stage.query_pos()
         self.stage.query_pos()
         origin = self.stage.last_pos()
 
@@ -388,12 +369,9 @@ class Spectrum(object):
 
         d = np.linspace(-self.settings.rasterwidth, self.settings.rasterwidth, self.settings.rasterdim)
 
-        self.stage.query_pos()
-        origin = self.stage.last_pos()
-
         pos = d+origin[0]
 
-        repetitions = 6
+        repetitions = 4
 
         for j in range(repetitions):
             measured = np.zeros(self.settings.rasterdim)
@@ -425,7 +403,7 @@ class Spectrum(object):
                     self.stage.moveabs(x=float(popt[1]))
                 else:
                     self.stage.moveabs(y=float(popt[1]))
-            print(popt)
+            #print(popt)
 
         connection.send([True, 1.0, None])
         return True

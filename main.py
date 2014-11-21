@@ -15,9 +15,10 @@ from pygamepad import Gamepad
 import dialogs
 from settings import Settings
 
-class MPL:
-    from matplotlib.figure import Figure
-    from matplotlib.backends.backend_gtk3cairo import FigureCanvasGTK3Cairo as FigureCanvas
+#import objgraph
+
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_gtk3cairo import FigureCanvasGTK3Cairo as FigureCanvas
 
 class LockinGui(object):
     _window_title = "Lock-in Spectrum"
@@ -33,13 +34,13 @@ class LockinGui(object):
         self.y_step = .0
         self.step_distance = 1 #in um
         self.pad = None
-        try:
-            self.pad = Gamepad(True)
-        except:
-            print("Could not initialize Gamepad")
+        #try:
+        #    self.pad = Gamepad(True)
+        #except:
+        #    print("Could not initialize Gamepad")
 
-        #self.stage = PIStage.Dummy()
-        self.stage = PIStage.E545();
+        self.stage = PIStage.Dummy()
+        #self.stage = PIStage.E545();
 
         GObject.threads_init()
         # only GObject.idle_add() is in the background thread
@@ -261,10 +262,12 @@ class LockinGui(object):
 
 
         # MPL stuff
-        self.figure = MPL.Figure()
+        self.figure = Figure()
         self.ax = self.figure.add_subplot(1, 1, 1)
         self.ax.grid(True)
-        self.canvas = MPL.FigureCanvas(self.figure)
+        self.ax.set_xlabel("Wavelength [nm]")
+        self.ax.set_ylabel("Intensity")
+        self.canvas = FigureCanvas(self.figure)
         self.canvas.set_hexpand(True)
         self.canvas.set_vexpand(True)
 
@@ -297,12 +300,11 @@ class LockinGui(object):
 
         self.spectrum = Spectrum(self.stage, self.settings, self.status, self.progress, self.enable_buttons, self.disable_buttons)  # logger class which coordinates the spectrometer and the stage
 
-
-        self._spec = self.spectrum.get_spec() # get an initial spectrum for display
+        spec = self.spectrum.get_spec() # get an initial spectrum for display
         self._wl = self.spectrum.get_wl()  # get the wavelengths
         self.lines = []
-        self.lines.extend(self.ax.plot(self._wl, self._spec, "-"))
-        self.lines.extend(self.ax.plot(self._wl, self.spectrum.smooth(self._spec), "-", c="black"))  # plot initial spectrum
+        self.lines.extend(self.ax.plot(self._wl, spec, "-"))
+        self.lines.extend(self.ax.plot(self._wl, self.spectrum.smooth(spec), "-", c="black"))  # plot initial spectrum
 
         #Dialogs
         self.settings_dialog = dialogs.SettingsDialog(self.window, self.settings)
@@ -311,7 +313,6 @@ class LockinGui(object):
         self.moverel_dialog = dialogs.MoveRelDialog(self.window, self.stage)
         self.spangrid_dialog = dialogs.SpanGridDialog(self.window)
         self.prefix_dialog = dialogs.PrefixDialog(self.window)
-
 
     def quit(self, *args):
         """
@@ -596,10 +597,6 @@ class LockinGui(object):
         try:
             GLib.timeout_add(self._heartbeat, self._update_plot)
             GLib.timeout_add(self._heartbeat, self._pad_make_step)
-            #GLib.idle_add(self._update_plot)
-            #GLib.io_add_watch(self.spectrum.conn_for_main, GLib.IO_IN | GLib.IO_PRI, self._update, args=(self,))
-            #GLib.io_add_watch(self.spectrum.conn_for_main, GLib.IO_IN | GLib.IO_PRI, self.spectrum.callback, args=(self.spectrum,self.progress,))
-            #GLib.io_add_watch(self.spectrum.worker_master_conn, GLib.IO_IN | GLib.IO_PRI, self.spectrum.callback, args=(self.spectrum,))
             GLib.io_add_watch(self.spectrum.conn_for_main, GLib.IO_IN | GLib.IO_PRI, self.spectrum.callback, args=(self.spectrum,))
             if self.pad is not None:
                 GLib.io_add_watch(self.pad.receiver, GLib.IO_IN | GLib.IO_PRI, self._on_pad_change, args=(self,))
@@ -608,8 +605,9 @@ class LockinGui(object):
             pass
 
     def _update_plot(self):
-        self.lines[0].set_ydata(self.spectrum.get_spec())
-        self.lines[1].set_ydata(self.spectrum.smooth(self.spectrum.get_spec()))
+        spec = self.spectrum.get_spec()
+        self.lines[0].set_ydata(spec)
+        self.lines[1].set_ydata(self.spectrum.smooth(spec))
         self.ax.relim()
         self.ax.autoscale_view(False, False, True)
         self.canvas.draw()
