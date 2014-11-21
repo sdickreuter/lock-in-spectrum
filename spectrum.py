@@ -47,8 +47,8 @@ class Spectrum(object):
 
     def _init_spectrometer(self):
         try:
-            #self._spectrometer = oceanoptics.QE65000()
-            self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage)
+            self._spectrometer = oceanoptics.QE65000()
+            #self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage)
             #self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage,particles = [[10, 10], [11, 10],[12, 10],[14, 10],[11, 14],[11, 12],[14, 13],[15, 15]])
             self._spectrometer.integration_time(self.settings.integration_time/1000)
             #print(self._spectrometer._query_status())
@@ -210,19 +210,32 @@ class Spectrum(object):
 
         def finish():
             self.running.clear()
-            self.status.set_label('Scanning done')
-            plt.figure()
-            area = self.map - np.min(self.map)
-            area = area/np.max(self.map)
-            area = (3000 * area) + 10
-            plt.scatter(self.x, self.y, c=self.peakpos, s=area, cmap=plt.cm.jet, edgecolors='None', alpha=0.75)
-            plt.ylabel('Y [um]')
-            plt.xlabel('X [um]')
-            plt.axis('equal')
-            bar = plt.colorbar()
-            bar.set_label('Peak Wavelength [nm]', rotation=270)
-            plt.savefig(self.scanner_path+"scanning_map.png")
-            plt.close()
+
+            if self.scanner_search:
+                plt.figure()
+                area = self.map - np.min(self.map)
+                area = area/np.max(self.map)
+                area = (3000 * area) + 10
+                plt.scatter(self.x, self.y, c=self.peakpos, s=area, cmap=plt.cm.jet, edgecolors='None', alpha=0.75)
+                plt.ylabel('Y [um]')
+                plt.xlabel('X [um]')
+                plt.axis('equal')
+                bar = plt.colorbar()
+                bar.set_label('Peak Wavelength [nm]', rotation=270)
+                plt.savefig(self.scanner_path+"scanning_map.png")
+                plt.close()
+            else:
+                plt.figure()
+                x = np.linspace(min(self.x),max(self.x),len(self.x))
+                y = np.linspace(min(self.y),max(self.y),len(self.y))
+                xg, yg = np.meshgrid( x, y)
+                zg = griddata( (self.x, self.y), self.map, (xg, yg),method='linear')
+                plt.imshow(zg,cmap=plt.cm.jet)
+                plt.ylabel('Y [um]')
+                plt.xlabel('X [um]')
+                bar = plt.colorbar()
+                bar.set_label('Max. Counts', rotation=270)
+                plt.savefig(self.scanner_path+"scanning_map.png")
             self.status.set_text("Scan complete")
 
         if self.scanner_mode is "start":
@@ -249,6 +262,10 @@ class Spectrum(object):
             self._spec = spec
             if finished:
                 self.worker.join(0.5)
+                if not self.dark is None:
+                    spec = spec - self.dark
+                    if not self.lamp is None:
+                        spec = spec / self.lamp
                 self.lockin = self.calc_lockin()
                 self._spec = self.lockin
                 smooth = self.smooth(self._spec)
@@ -272,6 +289,10 @@ class Spectrum(object):
             self._spec = spec
             if finished:
                 self.worker.join(0.5)
+                if not self.dark is None:
+                    spec = spec - self.dark
+                    if not self.lamp is None:
+                        spec = spec / self.lamp
                 self.normal = spec
                 self._spec = self.normal
                 smooth = self.smooth(self._spec)
