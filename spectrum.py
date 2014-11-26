@@ -181,6 +181,11 @@ class Spectrum(object):
                 # self.show_pos()
                 self.status.set_text("Max. approached")
 
+            if not self.dark is None:
+                self._spec = self._spec - self.dark
+                if not self.lamp is None:
+                    self._spec = self._spec / self.lamp
+
         if not self.running.is_set():
             self.worker.join(0.5)
             self.enable_buttons()
@@ -206,20 +211,22 @@ class Spectrum(object):
 
         def finish():
             self.running.clear()
-            plt.figure()
-            x = np.linspace(min(self.x),max(self.x),10000)
-            y = np.linspace(min(self.y),max(self.y),10000)
-            xg, yg = np.meshgrid( x, y)
+            #plt.figure()
+            #x = np.linspace(min(self.x),max(self.x),10000)
+            #y = np.linspace(min(self.y),max(self.y),10000)
+            #xg, yg = np.meshgrid( x, y)
             #zg = griddata( (self.x, self.y), self.map, (xg, yg), method='nearest')
-            zg = mlab.griddata( self.x, self.y, self.map, xg, yg, interp="linear")
-            plt.pcolormesh(xg,yg,zg)
-            plt.scatter(self.x,self.y,c=self.map)
+            #zg = mlab.griddata( self.x, self.y, self.map, xg, yg, interp="linear")
+            #plt.pcolormesh(xg,yg,zg)
+            #plt.scatter(self.x,self.y,c=self.map)
             #plt.imshow(zg,cmap=plt.cm.jet)
-            plt.ylabel('Y [um]')
-            plt.xlabel('X [um]')
-            bar = plt.colorbar()
-            bar.set_label('Max. Counts', rotation=270)
-            plt.savefig(self.scanner_path+"scanning_map.png")
+            #plt.ylabel('Y [um]')
+            #plt.xlabel('X [um]')
+            #bar = plt.colorbar()
+            #bar.set_label('Max. Counts', rotation=270)
+            #plt.savefig(self.scanner_path+"scanning_map.png")
+            map = pandas.DataFrame((self.x,self.y,self.map,self.peakpos), columns=('x', 'y', 'int', 'peak'))
+            map.to_csv("map.csv", header=True, index=False)
             self.status.set_text("Scan complete")
 
         if self.scanner_mode is "start":
@@ -278,7 +285,7 @@ class Spectrum(object):
                     if not self.lamp is None:
                         spec = spec / self.lamp
                 self.normal = spec
-                self._spec = self.normal
+                self._spec = spec
                 smooth = self.smooth(self._spec)
                 maxind = np.argmax(smooth)
                 self.map.append(smooth[maxind])
@@ -332,14 +339,14 @@ class Spectrum(object):
         return True
 
     def _mean_spectrum(self, connection):
-        spec = self._spectrometer.intensities()
-        for i in range(self.settings.number_of_samples - 1):
+        spec = np.zeros(1024, dtype=np.float)
+        for i in range(self.settings.number_of_samples):
             spec = (spec + self._spectrometer.intensities())  # / 2
             progress_fraction = float(i + 1) / self.settings.number_of_samples
-            connection.send([False, progress_fraction, spec / i])
+            connection.send([False, progress_fraction, spec / (i+1)])
             if not self.running.is_set():
                 return True
-        connection.send([True, 1., spec / i])
+        connection.send([True, 1., spec / self.settings.number_of_samples])
         return True
 
     def _live_spectrum(self, connection):
