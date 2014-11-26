@@ -225,8 +225,14 @@ class Spectrum(object):
             #bar = plt.colorbar()
             #bar.set_label('Max. Counts', rotation=270)
             #plt.savefig(self.scanner_path+"scanning_map.png")
-            map = pandas.DataFrame((self.x,self.y,self.map,self.peakpos), columns=('x', 'y', 'int', 'peak'))
-            map.to_csv("map.csv", header=True, index=False)
+            map = np.ones((len(self.x), 4), dtype=np.float)
+            map[:,0] = self.x
+            map[:,1] = self.y
+            map[:,2] = self.map
+            map[:,3] = self.peakpos
+            map = pandas.DataFrame(map, columns=('x', 'y', 'int', 'peak'))
+            filename = self.scanner_path + 'map.csv'
+            map.to_csv(filename, header=True, index=False)
             self.status.set_text("Scan complete")
 
         if self.scanner_mode is "start":
