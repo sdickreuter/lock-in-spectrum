@@ -211,20 +211,6 @@ class Spectrum(object):
 
         def finish():
             self.running.clear()
-            #plt.figure()
-            #x = np.linspace(min(self.x),max(self.x),10000)
-            #y = np.linspace(min(self.y),max(self.y),10000)
-            #xg, yg = np.meshgrid( x, y)
-            #zg = griddata( (self.x, self.y), self.map, (xg, yg), method='nearest')
-            #zg = mlab.griddata( self.x, self.y, self.map, xg, yg, interp="linear")
-            #plt.pcolormesh(xg,yg,zg)
-            #plt.scatter(self.x,self.y,c=self.map)
-            #plt.imshow(zg,cmap=plt.cm.jet)
-            #plt.ylabel('Y [um]')
-            #plt.xlabel('X [um]')
-            #bar = plt.colorbar()
-            #bar.set_label('Max. Counts', rotation=270)
-            #plt.savefig(self.scanner_path+"scanning_map.png")
             map = np.ones((len(self.x), 4), dtype=np.float)
             map[:,0] = self.x
             map[:,1] = self.y
