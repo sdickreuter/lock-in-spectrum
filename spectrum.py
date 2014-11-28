@@ -7,10 +7,8 @@ import oceanoptics
 import numpy as np
 import scipy.optimize as opt
 import matplotlib.pyplot as plt
-import matplotlib.mlab as mlab
 import multiprocessing
 import pandas
-from scipy.interpolate import griddata
 
 class Spectrum(object):
     def __init__(self, stage, settings, status, progress, enable_buttons, disable_buttons):
@@ -386,6 +384,11 @@ class Spectrum(object):
             initial_guess = (max - min, pos[maxind], self.settings.sigma, min)
 
             update_connection(repetitions/i)
+
+            plt.figure()
+            plt.plot(pos,measured)
+            plt.savefig("particle_search"+str(j)+".png")
+            plt.close()
 
             popt = None
             try:
