@@ -356,27 +356,28 @@ class Spectrum(object):
             if not self.running.is_set():
                 return True
 
-        # use position of stage as origin
-        self.stage.query_pos()
-        origin = self.stage.last_pos()
-
         spec = self.smooth(self._spectrometer.intensities())
         min = np.min(spec)
         max = np.max(spec)
 
         d = np.linspace(-self.settings.rasterwidth, self.settings.rasterwidth, self.settings.rasterdim)
 
-        pos = d+origin[0]
-
         repetitions = 4
 
         for j in range(repetitions):
+            self.stage.query_pos()
+            origin = self.stage.last_pos()
             measured = np.zeros(self.settings.rasterdim)
+            if j%2:
+                pos = d+origin[0]
+            else:
+                pos = d+origin[1]
+
             for i in range(len(pos)):
                 if j%2:
-                    self.stage.moveabs(x=origin[0]+d[i])
+                    self.stage.moveabs(x=pos[i])
                 else:
-                    self.stage.moveabs(y=origin[0]+d[i])
+                    self.stage.moveabs(y=pos[i])
                 spec = self.smooth(self._spectrometer.intensities())
                 measured[i] = np.max(spec)
             maxind = np.argmax(measured)
@@ -398,8 +399,12 @@ class Spectrum(object):
             except RuntimeError as e:
                 print(e)
                 print("Could not determine particle position")
-                self.stage.moveabs(x=origin[0],y=origin[1])
-                return True
+                if j%2:
+                    self.stage.moveabs(x=origin[0]+d[maxind])
+                else:
+                    self.stage.moveabs(y=origin[1]+d[maxind])
+                #self.stage.moveabs(x=origin[0],y=origin[1])
+                #return True
             else:
                 if j%2:
                     self.stage.moveabs(x=float(popt[1]))
