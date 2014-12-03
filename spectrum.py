@@ -2,13 +2,15 @@ __author__ = 'sei'
 
 from datetime import datetime
 import math
+import multiprocessing
+
 import PIStage
 import oceanoptics
 import numpy as np
 import scipy.optimize as opt
 import matplotlib.pyplot as plt
-import multiprocessing
 import pandas
+
 
 class Spectrum(object):
     def __init__(self, stage, settings, status, progress, enable_buttons, disable_buttons):
@@ -43,9 +45,9 @@ class Spectrum(object):
     def _init_spectrometer(self):
         try:
             self._spectrometer = oceanoptics.QE65000()
-            #self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage)
+            # self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage)
             #self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage,particles = [[10, 10], [11, 10],[12, 10],[14, 10],[11, 14],[11, 12],[14, 13],[15, 15]])
-            self._spectrometer.integration_time(self.settings.integration_time/1000)
+            self._spectrometer.integration_time(self.settings.integration_time / 1000)
             sp = self._spectrometer.spectrum()
             self._wl = np.array(sp[0], dtype=np.float)
             print("Spectrometer initialized and working")
@@ -73,7 +75,7 @@ class Spectrum(object):
         return self._spec
 
     def reset(self):
-        self._spectrometer.integration_time(self.settings.integration_time/1000)
+        self._spectrometer.integration_time(self.settings.integration_time / 1000)
         self._spectrum_ready = False
         self._juststarted = True
 
@@ -124,7 +126,7 @@ class Spectrum(object):
         self.worker_mode = "search"
         self.start_process(self._search_max_int)
 
-    def make_scan(self, points, path, search = False, lockin = False):
+    def make_scan(self, points, path, search=False, lockin=False):
         self.scanner_lockin = lockin
         self.scanner_search = search
         self.scanner_points = points
@@ -212,10 +214,10 @@ class Spectrum(object):
         def finish():
             self.running.clear()
             map = np.ones((len(self.x), 4), dtype=np.float)
-            map[:,0] = self.x
-            map[:,1] = self.y
-            map[:,2] = self.map
-            map[:,3] = self.peakpos
+            map[:, 0] = self.x
+            map[:, 1] = self.y
+            map[:, 2] = self.map
+            map[:, 3] = self.peakpos
             map = pandas.DataFrame(map, columns=('x', 'y', 'int', 'peak'))
             filename = self.scanner_path + 'map.csv'
             map.to_csv(filename, header=True, index=False)
@@ -253,8 +255,11 @@ class Spectrum(object):
                 self.peakpos.append(self._wl[maxind])
                 self.x.append(self.scanner_point[0])
                 self.y.append(self.scanner_point[1])
-                filename = self.scanner_path + 'lockin_' + 'x_{0:3.2f}um_y_{1:3.2f}um'.format( self.scanner_point[0], self.scanner_point[1]) + '.csv'
-                data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1), self.lockin.reshape(self.lockin.shape[0], 1), 1)
+                filename = self.scanner_path + 'lockin_' + 'x_{0:3.2f}um_y_{1:3.2f}um'.format(self.scanner_point[0],
+                                                                                              self.scanner_point[
+                                                                                                  1]) + '.csv'
+                data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
+                                 self.lockin.reshape(self.lockin.shape[0], 1), 1)
                 data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
                 data.to_csv(filename, header=True, index=False)
                 self.scanner_index += 1
@@ -280,8 +285,11 @@ class Spectrum(object):
                 self.peakpos.append(self._wl[maxind])
                 self.x.append(self.scanner_point[0])
                 self.y.append(self.scanner_point[1])
-                filename = self.scanner_path + 'mean_' + 'x_{0:3.2f}um_y_{1:3.2f}um'.format( self.scanner_point[0], self.scanner_point[1]) + '.csv'
-                data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1), self.normal.reshape(self.normal.shape[0], 1), 1)
+                filename = self.scanner_path + 'mean_' + 'x_{0:3.2f}um_y_{1:3.2f}um'.format(self.scanner_point[0],
+                                                                                            self.scanner_point[
+                                                                                                1]) + '.csv'
+                data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
+                                 self.normal.reshape(self.normal.shape[0], 1), 1)
                 data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
                 data.to_csv(filename, header=True, index=False)
                 self.scanner_index += 1
@@ -296,7 +304,7 @@ class Spectrum(object):
             self.worker_mode = None
             self.scanner_mode = None
 
-        self.progress.set_fraction((self.scanner_index+1)/len(self.scanner_points))
+        self.progress.set_fraction((self.scanner_index + 1) / len(self.scanner_points))
 
         return True
 
@@ -332,7 +340,7 @@ class Spectrum(object):
         for i in range(self.settings.number_of_samples):
             spec = (spec + self._spectrometer.intensities())  # / 2
             progress_fraction = float(i + 1) / self.settings.number_of_samples
-            connection.send([False, progress_fraction, spec / (i+1)])
+            connection.send([False, progress_fraction, spec / (i + 1)])
             if not self.running.is_set():
                 return True
         connection.send([True, 1., spec / self.settings.number_of_samples])
@@ -367,13 +375,15 @@ class Spectrum(object):
             self.stage.query_pos()
             origin = self.stage.last_pos()
             measured = np.zeros(self.settings.rasterdim)
-            if j%2:
-                pos = d+origin[0]
+            if j is 4:
+                d /= 2
+            if j % 2:
+                pos = d + origin[0]
             else:
-                pos = d+origin[1]
+                pos = d + origin[1]
 
             for i in range(len(pos)):
-                if j%2:
+                if j % 2:
                     self.stage.moveabs(x=pos[i])
                 else:
                     self.stage.moveabs(y=pos[i])
@@ -383,11 +393,11 @@ class Spectrum(object):
 
             initial_guess = (max - min, pos[maxind], self.settings.sigma, min)
 
-            update_connection(j/repetitions)
+            update_connection(j / repetitions)
 
             plt.figure()
-            plt.plot(pos,measured)
-            plt.savefig("particle_search"+str(j)+".png")
+            plt.plot(pos, measured)
+            plt.savefig("particle_search" + str(j) + ".png")
             plt.close()
 
             popt = None
@@ -398,18 +408,18 @@ class Spectrum(object):
             except RuntimeError as e:
                 print(e)
                 print("Could not determine particle position")
-                if j%2:
-                    self.stage.moveabs(x=origin[0]+d[maxind])
+                if j % 2:
+                    self.stage.moveabs(x=origin[0] + d[maxind])
                 else:
-                    self.stage.moveabs(y=origin[1]+d[maxind])
-                #self.stage.moveabs(x=origin[0],y=origin[1])
-                #return True
+                    self.stage.moveabs(y=origin[1] + d[maxind])
+                    # self.stage.moveabs(x=origin[0],y=origin[1])
+                    #return True
             else:
-                if j%2:
+                if j % 2:
                     self.stage.moveabs(x=float(popt[1]))
                 else:
                     self.stage.moveabs(y=float(popt[1]))
-            #print(popt)
+                    # print(popt)
 
         connection.send([True, 1.0, None])
         return True
@@ -465,7 +475,7 @@ class Spectrum(object):
     def gauss(x, amplitude, xo, fwhm, offset):
         sigma = fwhm / 2.3548
         xo = float(xo)
-        g = offset + amplitude * np.exp( -np.power(x - xo, 2.) / (2 * np.power(sigma, 2.)))
+        g = offset + amplitude * np.exp(-np.power(x - xo, 2.) / (2 * np.power(sigma, 2.)))
         return g.ravel()
 
 
