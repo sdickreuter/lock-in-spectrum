@@ -21,7 +21,7 @@ class SettingsDialog(Gtk.Dialog):
                                                    page_size=0)
         self.integration_time_spin = Gtk.SpinButton(adjustment=self.integration_time_adj, climb_rate=0.1, digits=0)
         self.integration_time_spin.set_tooltip_text("Set Integration time of the spectrometer")
-        self.number_of_samples_adj = Gtk.Adjustment(value=1000, lower=100, upper=10000, step_incr=100, page_incr=10,
+        self.number_of_samples_adj = Gtk.Adjustment(value=1000, lower=10, upper=10000, step_incr=10, page_incr=100,
                                                     page_size=0)
         self.number_of_samples_spin = Gtk.SpinButton(adjustment=self.number_of_samples_adj, climb_rate=0.1, digits=0)
         self.number_of_samples_spin.set_tooltip_text("Set how many samples are taken at each run")

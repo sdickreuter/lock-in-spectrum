@@ -42,8 +42,8 @@ class Spectrum(object):
 
     def _init_spectrometer(self):
         try:
-            #self._spectrometer = oceanoptics.QE65000()
-            self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage)
+            self._spectrometer = oceanoptics.QE65000()
+            #self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage)
             #self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage,particles = [[10, 10], [11, 10],[12, 10],[14, 10],[11, 14],[11, 12],[14, 13],[15, 15]])
             self._spectrometer.integration_time(self.settings.integration_time/1000)
             sp = self._spectrometer.spectrum()
@@ -117,6 +117,7 @@ class Spectrum(object):
         self.worker_mode = "lockin"
         self.reset()
         self.lockin = None
+        self._data = np.ones((self.settings.number_of_samples, 1026), dtype=np.float)
         self.start_process(self._lockin_spectrum)
 
     def search_max(self):
@@ -179,10 +180,11 @@ class Spectrum(object):
                 # self.show_pos()
                 self.status.set_text("Max. approached")
 
-            if not self.dark is None:
-                self._spec = self._spec - self.dark
-                if not self.lamp is None:
-                    self._spec = self._spec / self.lamp
+            if not self.worker_mode is "lockin":
+                if not self.dark is None:
+                    self._spec = self._spec - self.dark
+                    if not self.lamp is None:
+                        self._spec = self._spec / self.lamp
 
         if not self.running.is_set():
             self.worker.join(0.5)
@@ -243,10 +245,6 @@ class Spectrum(object):
             self._spec = spec
             if finished:
                 self.worker.join(0.5)
-                if not self.dark is None:
-                    spec = spec - self.dark
-                    if not self.lamp is None:
-                        spec = spec / self.lamp
                 self.lockin = self.calc_lockin()
                 self._spec = self.lockin
                 smooth = self.smooth(self._spec)
@@ -306,7 +304,8 @@ class Spectrum(object):
     def _lockin_spectrum(self, connection):
         cycle_factor = -1.0 / (
             7.0 * self.settings.number_of_samples / 1000)  # cycle time is calculated using this factor
-        pos = self.stage.query_pos()
+        self.stage.query_pos()
+        pos = self.stage.last_pos()
         self._startx = pos[0]
         self._starty = pos[1]
         self._startz = pos[2]
@@ -362,7 +361,7 @@ class Spectrum(object):
 
         d = np.linspace(-self.settings.rasterwidth, self.settings.rasterwidth, self.settings.rasterdim)
 
-        repetitions = 4
+        repetitions = 6
 
         for j in range(repetitions):
             self.stage.query_pos()
@@ -384,7 +383,7 @@ class Spectrum(object):
 
             initial_guess = (max - min, pos[maxind], self.settings.sigma, min)
 
-            update_connection(repetitions/i)
+            update_connection(j/repetitions)
 
             plt.figure()
             plt.plot(pos,measured)
@@ -419,32 +418,32 @@ class Spectrum(object):
         filename = self._gen_filename()
         cols = ('t', 'ref') + tuple(map(str, np.round(self._wl, 1)))
         data = pandas.DataFrame(self._data, columns=cols)
-        data.to_csv('spectrum_' + filename, header=True, index=False)
+        data.to_csv(prefix + 'spectrum_' + filename, header=True, index=False)
         if not self.dark is None:
             data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
                              self.dark.reshape(self.dark.shape[0], 1), 1)
             data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
-            data.to_csv('dark_' + filename, header=True, index=False)
+            data.to_csv(prefix + 'dark_' + filename, header=True, index=False)
         if not self.lamp is None:
             data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
                              self.lamp.reshape(self.lamp.shape[0], 1), 1)
             data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
-            data.to_csv('lamp_' + filename, header=True, index=False)
+            data.to_csv(prefix + 'lamp_' + filename, header=True, index=False)
         if not self.normal is None:
             data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
                              self.normal.reshape(self.normal.shape[0], 1), 1)
             data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
-            data.to_csv('normal_' + filename, header=True, index=False)
+            data.to_csv(prefix + 'normal_' + filename, header=True, index=False)
         if not self.normal is None:
             data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
                              self.normal.reshape(self.normal.shape[0], 1), 1)
             data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
-            data.to_csv('normal_' + filename, header=True, index=False)
+            data.to_csv(prefix + 'normal_' + filename, header=True, index=False)
         if not self.lockin is None:
             data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
                              self.lockin.reshape(self.lockin.shape[0], 1), 1)
             data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
-            data.to_csv('lockin_' + filename, header=True, index=False)
+            data.to_csv(prefix + 'lockin_' + filename, header=True, index=False)
 
     @staticmethod
     def _gen_filename():
