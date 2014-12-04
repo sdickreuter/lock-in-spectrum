@@ -1,24 +1,20 @@
-import time
-from itertools import cycle
-from datetime import datetime
 import os
 
 import pandas
-import numpy as np
 import PIStage
 from gi.repository import Gtk
 from gi.repository import GObject
 from gi.repository import GLib
 
 from spectrum import Spectrum
-from pygamepad import Gamepad
 import dialogs
 from settings import Settings
 
-#import objgraph
+# import objgraph
 
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_gtk3cairo import FigureCanvasGTK3Cairo as FigureCanvas
+
 
 class LockinGui(object):
     _window_title = "Lock-in Spectrum"
@@ -32,7 +28,7 @@ class LockinGui(object):
 
         self.x_step = .0
         self.y_step = .0
-        self.step_distance = 1 #in um
+        self.step_distance = 1  #in um
         self.pad = None
         #try:
         #    self.pad = Gamepad(True)
@@ -189,13 +185,13 @@ class LockinGui(object):
         self.button_spangrid = Gtk.Button('Span Grid')
         self.button_searchonoff = Gtk.Switch()
         self.label_searchonoff = Gtk.Label('Search Max.')
-        self.searchonoff_box =Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        self.searchonoff_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         self.searchonoff_box.set_homogeneous(True)
         self.searchonoff_box.add(self.label_searchonoff)
         self.searchonoff_box.add(self.button_searchonoff)
         self.button_lockinonoff = Gtk.Switch()
         self.label_lockinonoff = Gtk.Label('Use Lock-In')
-        self.lockinonoff_box =Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        self.lockinonoff_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         self.lockinonoff_box.set_homogeneous(True)
         self.lockinonoff_box.add(self.label_lockinonoff)
         self.lockinonoff_box.add(self.button_lockinonoff)
@@ -298,9 +294,10 @@ class LockinGui(object):
 
         self.window.show_all()
 
-        self.spectrum = Spectrum(self.stage, self.settings, self.status, self.progress, self.enable_buttons, self.disable_buttons)  # logger class which coordinates the spectrometer and the stage
+        self.spectrum = Spectrum(self.stage, self.settings, self.status, self.progress, self.enable_buttons,
+                                 self.disable_buttons)  # logger class which coordinates the spectrometer and the stage
 
-        spec = self.spectrum.get_spec() # get an initial spectrum for display
+        spec = self.spectrum.get_spec()  # get an initial spectrum for display
         self._wl = self.spectrum.get_wl()  # get the wavelengths
         self.lines = []
         self.lines.extend(self.ax.plot(self._wl, spec, "-"))
@@ -346,15 +343,15 @@ class LockinGui(object):
             self.on_stepdown_clicked(None)
         if y:
             self.on_stepup_clicked(None)
-          #print(self.pad.get_analogL_x()-128)
-        self.x_step = float((self.pad.get_analogL_x()-128))
+            #print(self.pad.get_analogL_x()-128)
+        self.x_step = float((self.pad.get_analogL_x() - 128))
         if abs(self.x_step) > 8:
-            self.x_step = self.x_step/128*self.settings.stepsize
+            self.x_step = self.x_step / 128 * self.settings.stepsize
         else:
             self.x_step = 0.0
-        self.y_step = float((self.pad.get_analogL_y()-128))
+        self.y_step = float((self.pad.get_analogL_y() - 128))
         if abs(self.y_step) > 8:
-            self.y_step = self.y_step/128*self.settings.stepsize
+            self.y_step = self.y_step / 128 * self.settings.stepsize
         else:
             self.y_step = 0.0
         #print('x_step: {0:3.2f} um   y_step: {1:3.2f} um'.format( self.x_step, self.y_step))
@@ -364,15 +361,14 @@ class LockinGui(object):
         if self.pad is not None:
             if abs(self.x_step) > 0.0001:
                 if abs(self.y_step) > 0.0001:
-                    self.stage.moverel(dx=self.x_step,dy=self.y_step)
+                    self.stage.moverel(dx=self.x_step, dy=self.y_step)
                 else:
                     self.stage.moverel(dx=self.x_step)
             elif abs(self.y_step) > 0.001:
-                    self.stage.moverel(dy=self.y_step)
+                self.stage.moverel(dy=self.y_step)
         return True
 
     # ##---------------- button connect functions ----------
-
 
     def on_scan_start_clicked(self, widget):
         os.chdir(self.savedir)
@@ -384,10 +380,11 @@ class LockinGui(object):
                 # os.path.exists(prefix)
                 os.mkdir(prefix)
             except:
-                print("Error creating directory ./"+prefix)
+                print("Error creating directory ./" + prefix)
             path = self.savedir + prefix + '/'
             self.status.set_label('Scanning')
-            self.spectrum.make_scan(self.scan_store, path,self.button_searchonoff.get_active(), self.button_lockinonoff.get_active())
+            self.spectrum.make_scan(self.scan_store, path, self.button_searchonoff.get_active(),
+                                    self.button_lockinonoff.get_active())
             self.disable_buttons()
 
         os.chdir('../')
@@ -401,16 +398,19 @@ class LockinGui(object):
     def on_spangrid_clicked(self, widget):
         iter = self.scan_store.get_iter_first()
         grid = self.spangrid_dialog.rundialog()
-        if (len(self.scan_store) >= 3) & ((grid[0] is not 0) | (grid[1] is not 0))  :
+        if (len(self.scan_store) >= 3) & ((grid[0] is not 0) | (grid[1] is not 0)):
             a = self.scan_store[iter][:]
             iter = self.scan_store.iter_next(iter)
             b = self.scan_store[iter][:]
             iter = self.scan_store.iter_next(iter)
             c = self.scan_store[iter][:]
 
-            grid_vec_1 = [b[0] - a[0], b[1] - b[1]]
-            grid_vec_2 = [c[0] - a[0], c[1] - b[1]]
-
+            if abs(b[0]) > abs(c[0]) :
+                grid_vec_1 = [b[0] - a[0], b[1] - a[1]]
+                grid_vec_2 = [c[0] - a[0], c[1] - a[1]]
+            else:
+                grid_vec_2 = [b[0] - a[0], b[1] - a[1]]
+                grid_vec_1 = [c[0] - a[0], c[1] - a[1]]
 
             self.scan_store.clear()
 
@@ -597,7 +597,8 @@ class LockinGui(object):
         try:
             GLib.timeout_add(self._heartbeat, self._update_plot)
             GLib.timeout_add(self._heartbeat, self._pad_make_step)
-            GLib.io_add_watch(self.spectrum.conn_for_main, GLib.IO_IN | GLib.IO_PRI, self.spectrum.callback, args=(self.spectrum,))
+            GLib.io_add_watch(self.spectrum.conn_for_main, GLib.IO_IN | GLib.IO_PRI, self.spectrum.callback,
+                              args=(self.spectrum,))
             if self.pad is not None:
                 GLib.io_add_watch(self.pad.receiver, GLib.IO_IN | GLib.IO_PRI, self._on_pad_change, args=(self,))
             Gtk.main()
@@ -622,10 +623,11 @@ class LockinGui(object):
                 # os.path.exists(prefix)
                 os.mkdir(prefix)
             except:
-                print("Error creating directory ./"+prefix)
+                print("Error creating directory ./" + prefix)
             path = prefix + '/'
             self.spectrum.save_data(path)
         os.chdir('../')
+
 
 if __name__ == "__main__":
     gui = LockinGui()
