@@ -44,9 +44,9 @@ class Spectrum(object):
 
     def _init_spectrometer(self):
         try:
-            self._spectrometer = oceanoptics.QE65000()
+            #self._spectrometer = oceanoptics.QE65000()
             # self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage)
-            #self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage,particles = [[10, 10], [11, 10],[12, 10],[14, 10],[11, 14],[11, 12],[14, 13],[15, 15]])
+            self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage,particles = [[10, 10], [11, 10],[12, 10],[14, 10],[11, 14],[11, 12],[14, 13],[15, 15]])
             self._spectrometer.integration_time(self.settings.integration_time / 1000)
             sp = self._spectrometer.spectrum()
             self._wl = np.array(sp[0], dtype=np.float)
