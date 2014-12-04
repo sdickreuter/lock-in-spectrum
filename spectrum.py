@@ -283,8 +283,14 @@ class Spectrum(object):
                 maxind = np.argmax(smooth)
                 self.map.append(smooth[maxind])
                 self.peakpos.append(self._wl[maxind])
-                self.x.append(self.scanner_point[0])
-                self.y.append(self.scanner_point[1])
+
+                if self.scanner_search:
+                    pos = self.stage.last_pos()
+                    self.x.append(pos[0])
+                    self.y.append(pos[1])
+                else:
+                    self.x.append(self.scanner_point[0])
+                    self.y.append(self.scanner_point[1])
                 filename = self.scanner_path + 'mean_' + 'x_{0:3.2f}um_y_{1:3.2f}um'.format(self.scanner_point[0],
                                                                                             self.scanner_point[
                                                                                                 1]) + '.csv'
