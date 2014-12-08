@@ -41,12 +41,14 @@ class Spectrum(object):
         self._spec = np.zeros(1024, dtype=np.float)
         self._spec = self._spectrometer.intensities()
 
+        self.lamp = self.gauss(self._wl, 1000, 650, 400, 0)+np.random.random_integers(2400, 2600, 1024)
+        self.dark = np.random.random_integers(2400, 2600, 1024)
 
     def _init_spectrometer(self):
         try:
             #self._spectrometer = oceanoptics.QE65000()
-            # self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage)
-            self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage,particles = [[10, 10], [11, 10],[12, 10],[14, 10],[11, 14],[11, 12],[14, 13],[15, 15]])
+            self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage)
+            #self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage,particles = [[10, 10], [11, 10],[12, 10],[14, 10],[11, 14],[11, 12],[14, 13],[15, 15]])
             self._spectrometer.integration_time(self.settings.integration_time / 1000)
             sp = self._spectrometer.spectrum()
             self._wl = np.array(sp[0], dtype=np.float)
@@ -93,7 +95,8 @@ class Spectrum(object):
             if not self.dark is None:
                 buf = buf - self.dark[i]
                 if not self.lamp is None:
-                    buf = buf / (self.lamp[i])
+                    #buf = buf / (self.lamp[i]- self.dark[i])
+                    buf = buf / (self.lamp[i]- self.dark[i])
             buf = buf * self._data[:, 1]
             buf = np.sum(buf)
             res[i] = buf
@@ -186,7 +189,8 @@ class Spectrum(object):
                 if not self.dark is None:
                     self._spec = self._spec - self.dark
                     if not self.lamp is None:
-                        self._spec = self._spec / self.lamp
+                        #self._spec = self._spec / self.lamp
+                        self._spec = self._spec / (self.lamp - self.dark)
 
         if not self.running.is_set():
             self.worker.join(0.5)
@@ -276,7 +280,8 @@ class Spectrum(object):
                 if not self.dark is None:
                     spec = spec - self.dark
                     if not self.lamp is None:
-                        spec = spec / self.lamp
+                        #self._spec = self._spec / self.lamp
+                        self._spec = spec / (self.lamp - self.dark)
                 self.normal = spec
                 self._spec = spec
                 smooth = self.smooth(self._spec)
@@ -358,7 +363,8 @@ class Spectrum(object):
             if not self.dark is None:
                 spec = spec - self.dark
                 if not self.lamp is None:
-                    spec = spec / self.lamp
+                    #spec = self._spec / self.lamp
+                    spec = spec / (self.lamp - self.dark)
             connection.send([False, 0., spec])
         return True
 
