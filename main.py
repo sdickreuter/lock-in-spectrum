@@ -13,8 +13,9 @@ from settings import Settings
 # import objgraph
 
 from matplotlib.figure import Figure
-from matplotlib.backends.backend_gtk3cairo import FigureCanvasGTK3Cairo as FigureCanvas
 
+# to make it work: sudo pip install cairocffi
+from matplotlib.backends.backend_gtk3agg import FigureCanvasGTK3Agg as FigureCanvas
 
 class LockinGui(object):
     _window_title = "Lock-in Spectrum"
@@ -263,6 +264,7 @@ class LockinGui(object):
         self.ax.grid(True)
         self.ax.set_xlabel("Wavelength [nm]")
         self.ax.set_ylabel("Intensity")
+        self.ax.set_xlim([400,900])
         self.canvas = FigureCanvas(self.figure)
         self.canvas.set_hexpand(True)
         self.canvas.set_vexpand(True)
@@ -609,9 +611,8 @@ class LockinGui(object):
         spec = self.spectrum.get_spec()
         self.lines[0].set_ydata(spec)
         self.lines[1].set_ydata(self.spectrum.smooth(spec))
-        self.ax.set_xlim([400,900])
         self.ax.set_ylim(min(spec[262:921]),max(spec[262:921]))
-        self.ax.autoscale_view(False, False, True)
+        self.ax.autoscale_view(None, False, True)
         self.canvas.draw()
         self.show_pos()
         return True
