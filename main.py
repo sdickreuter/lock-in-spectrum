@@ -10,12 +10,11 @@ from spectrum import Spectrum
 import dialogs
 from settings import Settings
 
-# import objgraph
-
 from matplotlib.figure import Figure
 
-# to make it work: sudo pip install cairocffi
+# to make it work: "sudo pip install cairocffi"
 from matplotlib.backends.backend_gtk3agg import FigureCanvasGTK3Agg as FigureCanvas
+
 
 class LockinGui(object):
     _window_title = "Lock-in Spectrum"
@@ -29,9 +28,9 @@ class LockinGui(object):
 
         self.x_step = .0
         self.y_step = .0
-        self.step_distance = 1  #in um
+        self.step_distance = 1  # in um
         self.pad = None
-        #try:
+        # try:
         #    self.pad = Gamepad(True)
         #except:
         #    print("Could not initialize Gamepad")
@@ -264,7 +263,7 @@ class LockinGui(object):
         self.ax.grid(True)
         self.ax.set_xlabel("Wavelength [nm]")
         self.ax.set_ylabel("Intensity")
-        self.ax.set_xlim([400,900])
+        self.ax.set_xlim([400, 900])
         self.canvas = FigureCanvas(self.figure)
         self.canvas.set_hexpand(True)
         self.canvas.set_vexpand(True)
@@ -323,7 +322,7 @@ class LockinGui(object):
         Gtk.main_quit(*args)
 
     def disable_buttons(self):
-        #self.stack_switcher.set_sensitive(False)
+        # self.stack_switcher.set_sensitive(False)
         self.scan_hbox.set_sensitive(False)
         self.SpectrumBox.set_sensitive(False)
         self.stage_hbox.set_sensitive(False)
@@ -332,7 +331,7 @@ class LockinGui(object):
 
 
     def enable_buttons(self):
-        #self.stack_switcher.set_sensitive(True)
+        # self.stack_switcher.set_sensitive(True)
         self.scan_hbox.set_sensitive(True)
         self.SpectrumBox.set_sensitive(True)
         self.stage_hbox.set_sensitive(True)
@@ -345,7 +344,7 @@ class LockinGui(object):
             self.on_stepdown_clicked(None)
         if y:
             self.on_stepup_clicked(None)
-            #print(self.pad.get_analogL_x()-128)
+            # print(self.pad.get_analogL_x()-128)
         self.x_step = float((self.pad.get_analogL_x() - 128))
         if abs(self.x_step) > 8:
             self.x_step = self.x_step / 128 * self.settings.stepsize
@@ -356,7 +355,7 @@ class LockinGui(object):
             self.y_step = self.y_step / 128 * self.settings.stepsize
         else:
             self.y_step = 0.0
-        #print('x_step: {0:3.2f} um   y_step: {1:3.2f} um'.format( self.x_step, self.y_step))
+        # print('x_step: {0:3.2f} um   y_step: {1:3.2f} um'.format( self.x_step, self.y_step))
         return True
 
     def _pad_make_step(self):
@@ -398,16 +397,16 @@ class LockinGui(object):
         self.scan_store.append([pos[0], pos[1]])
 
     def on_spangrid_clicked(self, widget):
-        iter = self.scan_store.get_iter_first()
+        iterator = self.scan_store.get_iter_first()
         grid = self.spangrid_dialog.rundialog()
         if (len(self.scan_store) >= 3) & ((grid[0] is not 0) | (grid[1] is not 0)):
-            a = self.scan_store[iter][:]
-            iter = self.scan_store.iter_next(iter)
-            b = self.scan_store[iter][:]
-            iter = self.scan_store.iter_next(iter)
-            c = self.scan_store[iter][:]
+            a = self.scan_store[iterator][:]
+            iterator = self.scan_store.iter_next(iterator)
+            b = self.scan_store[iterator][:]
+            iterator = self.scan_store.iter_next(iterator)
+            c = self.scan_store[iterator][:]
 
-            if abs(b[0]) > abs(c[0]) :
+            if abs(b[0]) > abs(c[0]):
                 grid_vec_1 = [b[0] - a[0], b[1] - a[1]]
                 grid_vec_2 = [c[0] - a[0], c[1] - a[1]]
             else:
@@ -540,7 +539,7 @@ class LockinGui(object):
 
     def show_pos(self):
         pos = self.stage.last_pos()
-        #print(pos)
+        # print(pos)
         self.label_x.set_text("x: {0:+8.4f}".format(pos[0]))
         self.label_y.set_text("y: {0:+8.4f}".format(pos[1]))
         self.label_z.set_text("z: {0:+8.4f}".format(pos[2]))
@@ -611,7 +610,7 @@ class LockinGui(object):
         spec = self.spectrum.get_spec()
         self.lines[0].set_ydata(spec)
         self.lines[1].set_ydata(self.spectrum.smooth(spec))
-        self.ax.set_ylim(min(spec[262:921]),max(spec[262:921]))
+        self.ax.set_ylim(min(spec[262:921]), max(spec[262:921]))
         self.ax.autoscale_view(None, False, True)
         self.canvas.draw()
         self.show_pos()

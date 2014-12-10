@@ -10,20 +10,20 @@ import numpy as np
 import scipy.optimize as opt
 import matplotlib.pyplot as plt
 import pandas
-
+from progress import *
 
 class Spectrum(object):
-    def __init__(self, stage, settings, status, progress, enable_buttons, disable_buttons):
+    def __init__(self, stage, settings, status, progressbar, enable_buttons, disable_buttons):
         self.settings = settings
         self.stage = stage
         self.status = status
-        self.progress = progress
+        self.progressbar = progressbar
         self.enable_buttons = enable_buttons
         self.disable_buttons = disable_buttons
         self._init_spectrometer()
         self._cycle_time_start = 250
-        self._juststarted = True
         self._data = np.ones((self.settings.number_of_samples, 1026), dtype=np.float)
+        self.prev_time = None
 
         # variables for storing the spectra
         self.lamp = None
@@ -41,12 +41,12 @@ class Spectrum(object):
         self._spec = np.zeros(1024, dtype=np.float)
         self._spec = self._spectrometer.intensities()
 
-        self.lamp = self.gauss(self._wl, 1000, 650, 400, 0)+np.random.random_integers(2400, 2600, 1024)
+        self.lamp = self.gauss(self._wl, 1000, 650, 400, 0) + np.random.random_integers(2400, 2600, 1024)
         self.dark = np.random.random_integers(2400, 2600, 1024)
 
     def _init_spectrometer(self):
         try:
-            #self._spectrometer = oceanoptics.QE65000()
+            # self._spectrometer = oceanoptics.QE65000()
             self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage)
             #self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage,particles = [[10, 10], [11, 10],[12, 10],[14, 10],[11, 14],[11, 12],[14, 13],[15, 15]])
             self._spectrometer.integration_time(self.settings.integration_time / 1000)
@@ -65,11 +65,6 @@ class Spectrum(object):
     def stop_process(self):
         self.running.clear()
 
-    def _millis(self, starttime):
-        dt = datetime.now() - starttime
-        ms = (dt.days * 24 * 60 * 60 + dt.seconds) * 1000 + dt.microseconds / 1000.0
-        return ms
-
     def get_wl(self):
         return self._wl
 
@@ -78,8 +73,6 @@ class Spectrum(object):
 
     def reset(self):
         self._spectrometer.integration_time(self.settings.integration_time / 1000)
-        self._spectrum_ready = False
-        self._juststarted = True
 
     def move_stage(self, dist):
         x = self._startx + self.settings.amplitude / 2 * dist * self.settings.direction_x
@@ -95,8 +88,8 @@ class Spectrum(object):
             if not self.dark is None:
                 buf = buf - self.dark[i]
                 if not self.lamp is None:
-                    #buf = buf / (self.lamp[i]- self.dark[i])
-                    buf = buf / (self.lamp[i]- self.dark[i])
+                    # buf = buf / (self.lamp[i]- self.dark[i])
+                    buf = buf / (self.lamp[i] - self.dark[i])
             buf = buf * self._data[:, 1]
             buf = np.sum(buf)
             res[i] = buf
@@ -141,6 +134,7 @@ class Spectrum(object):
         self.peakpos = list()
         self.x = list()
         self.y = list()
+        self.progress = Progress(max=len(self.scanner_points))
         self._callback_scan()
 
     def callback(self, io, condition):
@@ -160,7 +154,7 @@ class Spectrum(object):
         else:
             finished, self._progress_fraction, spec = self.conn_for_main.recv()
 
-        self.progress.set_fraction(self._progress_fraction)
+        self.progressbar.set_fraction(self._progress_fraction)
 
         if spec is not None:
             self._spec = spec
@@ -189,7 +183,7 @@ class Spectrum(object):
                 if not self.dark is None:
                     self._spec = self._spec - self.dark
                     if not self.lamp is None:
-                        #self._spec = self._spec / self.lamp
+                        # self._spec = self._spec / self.lamp
                         self._spec = self._spec / (self.lamp - self.dark)
 
         if not self.running.is_set():
@@ -200,6 +194,7 @@ class Spectrum(object):
         return True
 
     def _callback_scan(self):
+
 
         def start():
             self.scanner_point = self.scanner_points[self.scanner_index]
@@ -267,6 +262,7 @@ class Spectrum(object):
                 data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
                 data.to_csv(filename, header=True, index=False)
                 self.scanner_index += 1
+                self.progress.next()
                 if self.scanner_index >= len(self.scanner_points):
                     finish()
                 else:
@@ -280,7 +276,7 @@ class Spectrum(object):
                 if not self.dark is None:
                     spec = spec - self.dark
                     if not self.lamp is None:
-                        #self._spec = self._spec / self.lamp
+                        # self._spec = self._spec / self.lamp
                         self._spec = spec / (self.lamp - self.dark)
                 self.normal = spec
                 self._spec = spec
@@ -304,6 +300,7 @@ class Spectrum(object):
                 data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
                 data.to_csv(filename, header=True, index=False)
                 self.scanner_index += 1
+                self.progress.next()
                 if self.scanner_index >= len(self.scanner_points):
                     finish()
                 else:
@@ -315,7 +312,8 @@ class Spectrum(object):
             self.worker_mode = None
             self.scanner_mode = None
 
-        self.progress.set_fraction((self.scanner_index + 1) / len(self.scanner_points))
+        self.status.set_text("ETA: "+str(self.progress.eta_td))
+        self.progressbar.set_fraction((self.scanner_index + 1) / len(self.scanner_points))
 
         return True
 
@@ -340,7 +338,7 @@ class Spectrum(object):
             if not self.running.is_set():
                 return True
 
-        print("%s spectra aquired" % (i + 1))
+        print("%s spectra aquired" % self.settings.number_of_samples)
         print("time taken: %s s" % (self._millis(starttime) / 1000))
         self.stage.moveabs(x=self._startx, y=self._starty, z=self._startz)
         connection.send([True, 1., spec, ref, self.settings.number_of_samples - 1])
@@ -363,7 +361,7 @@ class Spectrum(object):
             if not self.dark is None:
                 spec = spec - self.dark
                 if not self.lamp is None:
-                    #spec = self._spec / self.lamp
+                    # spec = self._spec / self.lamp
                     spec = spec / (self.lamp - self.dark)
             connection.send([False, 0., spec])
         return True
@@ -376,8 +374,8 @@ class Spectrum(object):
                 return True
 
         spec = self.smooth(self._spectrometer.intensities())
-        min = np.min(spec)
-        max = np.max(spec)
+        minval = np.min(spec)
+        maxval = np.max(spec)
 
         d = np.linspace(-self.settings.rasterwidth, self.settings.rasterwidth, self.settings.rasterdim)
 
@@ -403,7 +401,7 @@ class Spectrum(object):
                 measured[i] = np.max(spec)
             maxind = np.argmax(measured)
 
-            initial_guess = (max - min, pos[maxind], self.settings.sigma, min)
+            initial_guess = (maxval - minval, pos[maxind], self.settings.sigma, minval)
 
             update_connection(j / repetitions)
 
@@ -425,7 +423,7 @@ class Spectrum(object):
                 else:
                     self.stage.moveabs(y=origin[1] + d[maxind])
                     # self.stage.moveabs(x=origin[0],y=origin[1])
-                    #return True
+                    # return True
             else:
                 if j % 2:
                     self.stage.moveabs(x=float(popt[1]))
@@ -511,3 +509,9 @@ class Spectrum(object):
         y = np.convolve(w / w.sum(), s, mode='valid')
         y = y[(window_len / 2):-(window_len / 2)]
         return y
+
+    @staticmethod
+    def _millis(starttime):
+        dt = datetime.now() - starttime
+        ms = (dt.days * 24 * 60 * 60 + dt.seconds) * 1000 + dt.microseconds / 1000.0
+        return ms

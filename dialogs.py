@@ -51,7 +51,6 @@ class SettingsDialog(Gtk.Dialog):
         self.hide()
 
 
-
 class DirectionDialog(Gtk.Dialog):
     def __init__(self, parent, settings):
         self.settings = settings
