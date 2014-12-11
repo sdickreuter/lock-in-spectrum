@@ -455,7 +455,6 @@ class LockinGui(object):
     def on_save_clicked(self, widget):
         self.status.set_label("Saving Data ...")
         self.save_data()
-        self.status.set_label('Data saved')
 
     def on_settings_clicked(self, widget):
         self.settings_dialog.rundialog()
@@ -627,6 +626,9 @@ class LockinGui(object):
                 print("Error creating directory ./" + prefix)
             path = prefix + '/'
             self.spectrum.save_data(path)
+            self.status.set_text("Data saved")
+        else:
+            self.status.set_text("Could not save data")
         os.chdir('../')
 
 
