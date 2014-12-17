@@ -2,6 +2,7 @@ import os
 
 import pandas
 import PIStage
+from pygamepad import Gamepad
 from gi.repository import Gtk
 from gi.repository import GObject
 from gi.repository import GLib
@@ -30,13 +31,13 @@ class LockinGui(object):
         self.y_step = .0
         self.step_distance = 1  # in um
         self.pad = None
-        # try:
-        #    self.pad = Gamepad(True)
-        #except:
-        #    print("Could not initialize Gamepad")
+        try:
+            self.pad = Gamepad(True)
+        except:
+            print("Could not initialize Gamepad")
 
-        self.stage = PIStage.Dummy()
-        #self.stage = PIStage.E545();
+        #self.stage = PIStage.Dummy()
+        self.stage = PIStage.E545()
 
         GObject.threads_init()
         # only GObject.idle_add() is in the background thread

@@ -46,8 +46,8 @@ class Spectrum(object):
 
     def _init_spectrometer(self):
         try:
-            # self._spectrometer = oceanoptics.QE65000()
-            self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage)
+            self._spectrometer = oceanoptics.QE65000()
+            # self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage)
             #self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage,particles = [[10, 10], [11, 10],[12, 10],[14, 10],[11, 14],[11, 12],[14, 13],[15, 15]])
             self._spectrometer.integration_time(self.settings.integration_time / 1000)
             sp = self._spectrometer.spectrum()
@@ -373,6 +373,8 @@ class Spectrum(object):
             if not self.running.is_set():
                 return True
 
+        self._spectrometer._set_integration_time(100)
+
         spec = self.smooth(self._spectrometer.intensities())
         minval = np.min(spec)
         maxval = np.max(spec)
@@ -412,7 +414,7 @@ class Spectrum(object):
 
             popt = None
             try:
-                popt, pcov = opt.curve_fit(self.gauss, pos, measured, p0=initial_guess)
+                popt, pcov = opt.curve_fit(self.gauss, pos[2:(len(pos)-1)], measured[2:(len(pos)-1)], p0=initial_guess)
                 if popt[0] < 20:
                     RuntimeError("Peak is to small")
             except RuntimeError as e:
@@ -431,6 +433,7 @@ class Spectrum(object):
                     self.stage.moveabs(y=float(popt[1]))
                     # print(popt)
 
+        self._spectrometer._set_integration_time(self.settings.integration_time)
         connection.send([True, 1.0, None])
         return True
 
