@@ -222,6 +222,9 @@ class Spectrum(object):
             map.to_csv(filename, header=True, index=False)
             self.status.set_text("Scan complete")
 
+        def make_filename():
+            return self.scanner_path + 'lockin_' + 'x_{0:3.3f}um_y_{1:3.3f}um'.format(self.scanner_point[0], self.scanner_point[1]) + '.csv'
+
         if self.scanner_mode is "start":
             start()
 
@@ -254,9 +257,7 @@ class Spectrum(object):
                 self.peakpos.append(self._wl[maxind])
                 self.x.append(self.scanner_point[0])
                 self.y.append(self.scanner_point[1])
-                filename = self.scanner_path + 'lockin_' + 'x_{0:3.2f}um_y_{1:3.2f}um'.format(self.scanner_point[0],
-                                                                                              self.scanner_point[
-                                                                                                  1]) + '.csv'
+                filename = make_filename()
                 data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
                                  self.lockin.reshape(self.lockin.shape[0], 1), 1)
                 data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
@@ -292,11 +293,8 @@ class Spectrum(object):
                 else:
                     self.x.append(self.scanner_point[0])
                     self.y.append(self.scanner_point[1])
-                filename = self.scanner_path + 'mean_' + 'x_{0:3.2f}um_y_{1:3.2f}um'.format(self.scanner_point[0],
-                                                                                            self.scanner_point[
-                                                                                                1]) + '.csv'
-                data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
-                                 self.normal.reshape(self.normal.shape[0], 1), 1)
+                filename = make_filename()
+                data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1), self.normal.reshape(self.normal.shape[0], 1), 1)
                 data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
                 data.to_csv(filename, header=True, index=False)
                 self.scanner_index += 1
