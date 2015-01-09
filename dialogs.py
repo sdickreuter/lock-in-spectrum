@@ -64,7 +64,7 @@ class SettingsDialog(Gtk.Dialog):
 
         self.grid.attach(Gtk.Label(label="Spectrum Settings"), 0, 0, 3, 1)
 
-        self.grid.attach(Gtk.Label(label="Integration Time [s]"), 0, 1, 1, 1)
+        self.grid.attach(Gtk.Label(label="Integration Time [ms]"), 0, 1, 1, 1)
         self.grid.attach(self.integration_time_spin, 1, 1, 2, 1)
 
         self.grid.attach(Gtk.Label(label="Number of Samples"), 0, 2, 1, 1)
@@ -73,25 +73,25 @@ class SettingsDialog(Gtk.Dialog):
         self.grid.attach(Gtk.Separator(), 0, 4, 3, 1)
         self.grid.attach(Gtk.Label(label="Search Max Settings"), 0, 5, 3, 1)
 
-        self.grid.attach(Gtk.Label(label="Inegration Time [s]"), 0, 6, 1, 1)
+        self.grid.attach(Gtk.Label(label="Inegration Time [ms]"), 0, 6, 1, 1)
         self.grid.attach(self.search_int_time_spin, 1, 6, 2, 1)
 
-        self.grid.attach(Gtk.Label(label="Raster dimension"), 0, 7, 1, 1)
+        self.grid.attach(Gtk.Label(label="Raster dimension [steps]"), 0, 7, 1, 1)
         self.grid.attach(self.rasterdim_spin, 1, 7, 2, 1)
 
-        self.grid.attach(Gtk.Label(label="Raster width"), 0, 8, 1, 1)
+        self.grid.attach(Gtk.Label(label="Raster width [um]"), 0, 8, 1, 1)
         self.grid.attach(self.rasterwidth_spin, 1, 8, 2, 1)
 
-        self.grid.attach(Gtk.Label(label="Starting Sigma"), 0, 9, 1, 1)
+        self.grid.attach(Gtk.Label(label="Starting Sigma [um]"), 0, 9, 1, 1)
         self.grid.attach(self.sigma_spin, 1, 9, 2, 1)
 
         self.grid.attach(Gtk.Separator(), 0, 10, 3, 1)
         self.grid.attach(Gtk.Label(label="View Settings"), 0, 11, 3, 1)
 
-        self.grid.attach(Gtk.Label(label="Min. Wavelength"), 0, 12, 1, 1)
+        self.grid.attach(Gtk.Label(label="Min. Wavelength [nm]"), 0, 12, 1, 1)
         self.grid.attach(self.min_wl_spin, 1, 12, 2, 1)
 
-        self.grid.attach(Gtk.Label(label="Max. Wavelength"), 0, 13, 1, 1)
+        self.grid.attach(Gtk.Label(label="Max. Wavelength [nm]"), 0, 13, 1, 1)
         self.grid.attach(self.max_wl_spin, 1, 13, 2, 1)
 
         self.box.add(self.grid)
