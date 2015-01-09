@@ -176,12 +176,12 @@ class Spectrum(object):
                 # self.show_pos()
                 self.status.set_text("Max. approached")
 
-            if not self.worker_mode is "lockin":
-                if not self.dark is None:
-                    self._spec = self._spec - self.dark
-                    if not self.lamp is None:
-                        # self._spec = self._spec / self.lamp
-                        self._spec = self._spec / (self.lamp - self.dark)
+            #if not self.worker_mode is "lockin":
+                #if not self.dark is None:
+                #    self._spec = self._spec - self.dark
+                #    if not self.lamp is None:
+                #        # self._spec = self._spec / self.lamp
+                #        self._spec = self._spec / (self.lamp - self.dark)
 
         if not self.running.is_set():
             self.worker.join(0.5)
@@ -217,6 +217,14 @@ class Spectrum(object):
             map = pandas.DataFrame(map, columns=('x', 'y', 'int', 'peak'))
             filename = self.scanner_path + 'map.csv'
             map.to_csv(filename, header=True, index=False)
+            if not self.dark is None:
+               data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1), self.dark.reshape(self.dark.shape[0], 1), 1)
+               data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
+               data.to_csv(self.scanner_path+"dark", header=True, index=False)
+            if not self.lamp is None:
+               data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1), self.lamp.reshape(self.lamp.shape[0], 1), 1)
+               data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
+               data.to_csv(self.scanner_path+"lamp", header=True, index=False)
             self.status.set_text("Scan complete")
 
         def make_filename():
@@ -271,11 +279,6 @@ class Spectrum(object):
             self._spec = spec
             if finished:
                 self.worker.join(0.5)
-                if not self.dark is None:
-                    spec = spec - self.dark
-                    if not self.lamp is None:
-                        # self._spec = self._spec / self.lamp
-                        self._spec = spec / (self.lamp - self.dark)
                 self.normal = spec
                 self._spec = spec
                 smooth = self.smooth(self._spec)
