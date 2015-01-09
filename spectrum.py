@@ -458,11 +458,6 @@ class Spectrum(object):
                              self.normal.reshape(self.normal.shape[0], 1), 1)
             data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
             data.to_csv(prefix + 'normal_' + filename, header=True, index=False)
-        if not self.normal is None:
-            data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
-                             self.normal.reshape(self.normal.shape[0], 1), 1)
-            data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
-            data.to_csv(prefix + 'normal_' + filename, header=True, index=False)
         if not self.lockin is None:
             data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
                              self.lockin.reshape(self.lockin.shape[0], 1), 1)
