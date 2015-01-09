@@ -14,8 +14,6 @@ class Settings(object):
         except:
             print("Error loading settings.")
             RuntimeError("Error loading settings.")
-            # self.integration_time = 0.08
-            # self.number_of_samples = 1000
             return
 
         self.integration_time = int(self.config['spectrum']['integration_time'])

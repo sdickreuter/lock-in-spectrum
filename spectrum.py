@@ -369,7 +369,8 @@ class Spectrum(object):
         def update_connection(progress):
             connection.send([False, progress, None])
             if not self.running.is_set():
-                return True
+                return False
+            return True
 
         self._spectrometer.integration_time(self.settings.search_integration_time/1000)
 
@@ -403,7 +404,9 @@ class Spectrum(object):
 
             initial_guess = (maxval - minval, pos[maxind], self.settings.sigma, minval)
 
-            update_connection(j / repetitions)
+            if not update_connection(j / repetitions):
+                self.stage.moveabs(x=origin[0], y=origin[1])
+                break
 
             plt.figure()
             plt.plot(pos, measured)
