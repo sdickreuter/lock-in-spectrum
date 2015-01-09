@@ -165,9 +165,18 @@ class LockinGui(object):
         self.SpectrumBox.add(self.button_loadlamp)
         self.SpectrumBox.add(Gtk.Separator())
 
+        # Switch corrected Spectrum yes/no
+        self.button_corronoff = Gtk.Switch()
+        self.label_corronoff = Gtk.Label('Correct Spectrum')
+        self.corronoff_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        self.corronoff_box.set_homogeneous(True)
+        self.corronoff_box.add(self.label_corronoff)
+        self.corronoff_box.add(self.button_corronoff)
+
         # box for Stage control
         self.stage_hbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
         # self.stage_hbox.add(Gtk.Separator())
+        self.stage_hbox.add(self.corronoff_box)
         self.stage_hbox.add(self.button_search)
         self.stage_hbox.add(Gtk.Label(label="Stage Control"))
         self.stage_hbox.add(self.table_stagecontrol)
@@ -604,7 +613,7 @@ class LockinGui(object):
             pass
 
     def _update_plot(self):
-        spec = self.spectrum.get_spec()
+        spec = self.spectrum.get_spec(self.button_corronoff.get_active())
         self.lines[0].set_ydata(spec)
         self.lines[1].set_ydata(self.spectrum.smooth(spec))
         self.ax.set_ylim(min(spec[262:921]), max(spec[262:921]))

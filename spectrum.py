@@ -65,7 +65,12 @@ class Spectrum(object):
     def get_wl(self):
         return self._wl
 
-    def get_spec(self):
+    def get_spec(self, corrected = False):
+        if corrected:
+            if not self.dark is None:
+                if not self.lamp is None:
+                    return (self._spec - self.dark) / (self.lamp - self.dark)
+                return self._spec - self.dark
         return self._spec
 
     def reset(self):
