@@ -74,9 +74,9 @@ class LockinGui(object):
         self.button_normal.set_tooltip_text("Start/Stop taking a normal spectrum as comparison to the Lock-In spectrum")
         self.button_reset = Gtk.Button(label="Reset")
         self.button_reset.set_tooltip_text("Reset all spectral data (if not saved data is lost!)")
-        self.button_loaddark = Gtk.Button(label="Loard Dark Spectrum")
+        self.button_loaddark = Gtk.Button(label="Load Dark Spectrum")
         self.button_loaddark.set_tooltip_text("Load Dark Spectrum from file")
-        self.button_loadlamp = Gtk.Button(label="Loard Lamp Spectrum")
+        self.button_loadlamp = Gtk.Button(label="Load Lamp Spectrum")
         self.button_loadlamp.set_tooltip_text("Load Lamp Spectrum from file")
 
         # Stage Control Buttons
@@ -455,7 +455,8 @@ class LockinGui(object):
 
     def on_settings_clicked(self, widget):
         self.settings_dialog.rundialog()
-        self.spectrum.reset()
+        self.ax.set_xlim([self.settings.min_wl, self.settings.max_wl])
+        #self.spectrum.reset()
 
     def on_dark_clicked(self, widget):
         self.status.set_label('Taking Dark Spectrum')

@@ -220,11 +220,11 @@ class Spectrum(object):
             if not self.dark is None:
                data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1), self.dark.reshape(self.dark.shape[0], 1), 1)
                data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
-               data.to_csv(self.scanner_path+"dark", header=True, index=False)
+               data.to_csv(self.scanner_path+"dark.csv", header=True, index=False)
             if not self.lamp is None:
                data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1), self.lamp.reshape(self.lamp.shape[0], 1), 1)
                data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
-               data.to_csv(self.scanner_path+"lamp", header=True, index=False)
+               data.to_csv(self.scanner_path+"lamp.csv", header=True, index=False)
             self.status.set_text("Scan complete")
 
         def make_filename():

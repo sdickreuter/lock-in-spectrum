@@ -105,11 +105,23 @@ class SettingsDialog(Gtk.Dialog):
         if result == Gtk.ResponseType.OK:
             self.settings.number_of_samples = self.number_of_samples_spin.get_value_as_int()
             self.settings.integration_time = self.integration_time_spin.get_value_as_int()
+            self.settings.search_integration_time = self.search_int_time_spin.get_value_as_int()
+            self.settings.rasterdim = self.rasterdim_spin.get_value_as_int()
+            self.settings.rasterwidth = self.rasterwidth_spin.get_value_as_int()
+            self.settings.sigma = self.sigma_spin.get_value_as_int()
+            self.settings.min_wl = self.min_wl_spin.get_value_as_int()
+            self.settings.max_wl = self.max_wl_spin.get_value_as_int()
+
             self.settings.save()
         else:
             self.number_of_samples_spin.set_value(self.settings.number_of_samples)
             self.integration_time_spin.set_value(self.settings.integration_time)
-
+            self.search_int_time_spin.set_value(self.settings.search_integration_time)
+            self.rasterdim_spin.set_value(self.settings.rasterdim)
+            self.rasterwidth_spin.set_value(self.settings.rasterwidth)
+            self.sigma_spin.set_value(self.settings.number_of_samples)
+            self.min_wl_spin.set_value(self.settings.min_wl)
+            self.max_wl_spin.set_value(self.settings.max_wl)
         self.hide()
 
 
