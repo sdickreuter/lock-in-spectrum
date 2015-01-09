@@ -29,10 +29,30 @@ class SettingsDialog(Gtk.Dialog):
         self.number_of_samples_spin.set_value(self.settings.number_of_samples)
         self.integration_time_spin.set_value(self.settings.integration_time)
 
-        self.box.add(Gtk.Label(label="Integration Time [s]"))
-        self.box.add(self.integration_time_spin)
-        self.box.add(Gtk.Label(label="Number of Samples"))
-        self.box.add(self.number_of_samples_spin)
+        self.grid = Gtk.Grid()
+        self.grid.set_row_spacing(5)
+        self.grid.set_column_spacing(20)
+
+        self.grid.attach(Gtk.Label(label="Spectrum Settings"), 0, 0, 3, 1)
+
+        self.grid.attach(Gtk.Label(label="Integration Time [s]"), 0, 1, 1, 1)
+        self.grid.attach(self.integration_time_spin, 1, 1, 2, 1)
+
+        self.grid.attach(Gtk.Label(label="Number of Samples"), 0, 2, 1, 1)
+        self.grid.attach(self.number_of_samples_spin, 1, 2, 2, 1)
+
+        self.grid.attach(Gtk.Separator(), 0, 4, 3, 1)
+        self.grid.attach(Gtk.Label(label="Search For Max Settings"), 0, 5, 3, 1)
+
+
+        self.grid.attach(Gtk.Label(label="Number of Samples"), 0, 6, 1, 1)
+        #self.grid.attach(self.number_of_samples_spin, 1, 6, 2, 1)
+
+        self.grid.attach(Gtk.Label(label="Number of Samples"), 0, 7, 1, 1)
+        #self.grid.attach(self.number_of_samples_spin, 1, 7, 2, 1)
+
+
+        self.box.add(self.grid)
 
         self.hide()
 

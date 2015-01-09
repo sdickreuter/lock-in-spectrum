@@ -41,13 +41,10 @@ class Spectrum(object):
         self._spec = np.zeros(1024, dtype=np.float)
         self._spec = self._spectrometer.intensities()
 
-        self.lamp = self.gauss(self._wl, 1000, 650, 400, 0) + np.random.random_integers(2400, 2600, 1024)
-        self.dark = np.random.random_integers(2400, 2600, 1024)
-
     def _init_spectrometer(self):
         try:
-            self._spectrometer = oceanoptics.QE65000()
-            # self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage)
+            #self._spectrometer = oceanoptics.QE65000()
+            self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage)
             #self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage,particles = [[10, 10], [11, 10],[12, 10],[14, 10],[11, 14],[11, 12],[14, 13],[15, 15]])
             self._spectrometer.integration_time(self.settings.integration_time / 1000)
             sp = self._spectrometer.spectrum()
@@ -356,11 +353,11 @@ class Spectrum(object):
     def _live_spectrum(self, connection):
         while self.running.is_set():
             spec = self._spectrometer.intensities()
-            if not self.dark is None:
-                spec = spec - self.dark
-                if not self.lamp is None:
-                    # spec = self._spec / self.lamp
-                    spec = spec / (self.lamp - self.dark)
+            #if not self.dark is None:
+            #    spec = spec - self.dark
+            #    if not self.lamp is None:
+            #        # spec = self._spec / self.lamp
+            #        spec = spec / (self.lamp - self.dark)
             connection.send([False, 0., spec])
         return True
 
@@ -371,7 +368,7 @@ class Spectrum(object):
             if not self.running.is_set():
                 return True
 
-        self._spectrometer._set_integration_time(100)
+        self._spectrometer.integration_time(100)
 
         spec = self.smooth(self._spectrometer.intensities())
         minval = np.min(spec)
@@ -431,7 +428,7 @@ class Spectrum(object):
                     self.stage.moveabs(y=float(popt[1]))
                     # print(popt)
 
-        self._spectrometer._set_integration_time(self.settings.integration_time)
+        self._spectrometer.integration_time(self.settings.integration_time)
         connection.send([True, 1.0, None])
         return True
 

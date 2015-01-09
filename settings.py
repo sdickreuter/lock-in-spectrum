@@ -31,7 +31,10 @@ class Settings(object):
         self.sigma = float(self.config['searchmax']['sigma'])
         self.rasterdim = int(self.config['searchmax']['rasterdim'])
         self.rasterwidth = float(self.config['searchmax']['rasterwidth'])
+        self.search_integration_time = float(self.config['searchmax']['integration_time'])
 
+        self.min_wl = int(self.config['view']['min_wl'])
+        self.max_wl = int(self.config['view']['max_wl'])
 
 
     def save(self):
@@ -45,6 +48,9 @@ class Settings(object):
         self.config.set('searchmax', 'sigma', str(self.sigma))
         self.config.set('searchmax', 'rasterdim', str(self.rasterdim))
         self.config.set('searchmax', 'rasterwidth', str(self.rasterwidth))
+        self.config.set('searchmax', 'integration_time', str(self.search_integration_time))
+        self.config.set('view', 'min_wl', str(self.min_wl))
+        self.config.set('view', 'max_wl', str(self.max_wl))
         try:
             with open(self._filename, 'w') as configfile:
                 self.config.write(configfile)
