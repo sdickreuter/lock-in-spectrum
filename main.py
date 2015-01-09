@@ -373,14 +373,12 @@ class LockinGui(object):
     # ##---------------- button connect functions ----------
 
     def on_scan_start_clicked(self, widget):
-        os.chdir(self.savedir)
-
         prefix = self.prefix_dialog.rundialog()
 
         if prefix is not None:
             try:
                 # os.path.exists(prefix)
-                os.mkdir(prefix)
+                os.mkdir(self.savedir+prefix)
             except:
                 print("Error creating directory ./" + prefix)
             path = self.savedir + prefix + '/'
@@ -388,8 +386,6 @@ class LockinGui(object):
             self.spectrum.make_scan(self.scan_store, path, self.button_searchonoff.get_active(),
                                     self.button_lockinonoff.get_active())
             self.disable_buttons()
-
-        os.chdir('../')
 
 
     def on_add_position_clicked(self, widget):
@@ -617,21 +613,18 @@ class LockinGui(object):
         return True
 
     def save_data(self):
-        os.chdir(self.savedir)
         prefix = self.prefix_dialog.rundialog()
         if prefix is not None:
             try:
                 # os.path.exists(prefix)
-                os.mkdir(prefix)
+                os.mkdir(self.savedir+prefix)
             except:
                 print("Error creating directory ./" + prefix)
-            path = prefix + '/'
+            path = self.savedir + prefix + '/'
             self.spectrum.save_data(path)
             self.status.set_text("Data saved")
         else:
             self.status.set_text("Could not save data")
-        os.chdir('../')
-
 
 if __name__ == "__main__":
     gui = LockinGui()

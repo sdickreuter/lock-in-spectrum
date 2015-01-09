@@ -368,7 +368,7 @@ class Spectrum(object):
             if not self.running.is_set():
                 return True
 
-        self._spectrometer.integration_time(100)
+        self._spectrometer.integration_time(self.settings.search_integration_time/1000)
 
         spec = self.smooth(self._spectrometer.intensities())
         minval = np.min(spec)
@@ -404,7 +404,7 @@ class Spectrum(object):
 
             plt.figure()
             plt.plot(pos, measured)
-            plt.savefig("particle_search" + str(j) + ".png")
+            plt.savefig("search_max/search" + str(j) + ".png")
             plt.close()
 
             popt = None
@@ -428,7 +428,7 @@ class Spectrum(object):
                     self.stage.moveabs(y=float(popt[1]))
                     # print(popt)
 
-        self._spectrometer.integration_time(self.settings.integration_time)
+        self._spectrometer.integration_time(self.settings.integration_time / 1000)
         connection.send([True, 1.0, None])
         return True
 

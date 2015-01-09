@@ -42,14 +42,14 @@ class SettingsDialog(Gtk.Dialog):
         self.grid.attach(self.number_of_samples_spin, 1, 2, 2, 1)
 
         self.grid.attach(Gtk.Separator(), 0, 4, 3, 1)
-        self.grid.attach(Gtk.Label(label="Search For Max Settings"), 0, 5, 3, 1)
+        self.grid.attach(Gtk.Label(label="Spectrum Settings"), 0, 5, 3, 1)
 
 
         self.grid.attach(Gtk.Label(label="Number of Samples"), 0, 6, 1, 1)
-        #self.grid.attach(self.number_of_samples_spin, 1, 6, 2, 1)
+        self.grid.attach(self.number_of_samples_spin, 1, 7, 2, 1)
 
         self.grid.attach(Gtk.Label(label="Number of Samples"), 0, 7, 1, 1)
-        #self.grid.attach(self.number_of_samples_spin, 1, 7, 2, 1)
+        self.grid.attach(self.number_of_samples_spin, 1, 7, 2, 1)
 
 
         self.box.add(self.grid)
