@@ -54,6 +54,7 @@ class Spectrum(object):
             raise RuntimeError("Error opening spectrometer. Exiting...")
 
     def start_process(self, target):
+        self._spectrometer.integration_time(self.settings.integration_time / 1000)
         self.worker = multiprocessing.Process(target=target, args=(self._conn_for_worker,))
         self.worker.daemon = True
         self.running.set()
@@ -72,9 +73,6 @@ class Spectrum(object):
                     return (self._spec - self.dark) / (self.lamp - self.dark)
                 return self._spec - self.dark
         return self._spec
-
-    def reset(self):
-        self._spectrometer.integration_time(self.settings.integration_time / 1000)
 
     def move_stage(self, dist):
         x = self._startx + self.settings.amplitude / 2 * dist * self.settings.direction_x
