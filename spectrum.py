@@ -43,10 +43,10 @@ class Spectrum(object):
 
     def _init_spectrometer(self):
         try:
-            #self._spectrometer = oceanoptics.QE65000()
-            self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage)
+            self._spectrometer = oceanoptics.QE65000()
+            #self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage)
             #self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage,particles = [[10, 10], [11, 10],[12, 10],[14, 10],[11, 14],[11, 12],[14, 13],[15, 15]])
-            self._spectrometer.integration_time(self.settings.integration_time / 1000)
+            self._spectrometer.integration_time(100 / 1000)
             sp = self._spectrometer.spectrum()
             self._wl = np.array(sp[0], dtype=np.float)
             print("Spectrometer initialized and working")
@@ -113,7 +113,7 @@ class Spectrum(object):
 
     def take_lockin(self):
         self.worker_mode = "lockin"
-        self.reset()
+        #self.reset()
         self.lockin = None
         self._data = np.ones((self.settings.number_of_samples, 1026), dtype=np.float)
         self.start_process(self._lockin_spectrum)
@@ -199,7 +199,7 @@ class Spectrum(object):
         def start():
             self.scanner_point = self.scanner_points[self.scanner_index]
             self.stage.moveabs(x=self.scanner_point[0], y=self.scanner_point[1])
-            self.reset()
+            #self.reset()
             if self.scanner_search:
                 self.scanner_mode = "search"
                 self.start_process(self._search_max_int)
@@ -229,9 +229,10 @@ class Spectrum(object):
                data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
                data.to_csv(self.scanner_path+"lamp.csv", header=True, index=False)
             self.status.set_text("Scan complete")
+            self.scanner_index += 1
 
         def make_filename():
-            return self.scanner_path + 'lockin_' + 'x_{0:3.3f}um_y_{1:3.3f}um'.format(self.scanner_point[0], self.scanner_point[1]) + '.csv'
+            return self.scanner_path + 'scan_' + 'x_{0:3.3f}um_y_{1:3.3f}um'.format(self.scanner_point[0], self.scanner_point[1]) + '.csv'
 
         if self.scanner_mode is "start":
             start()
@@ -314,7 +315,7 @@ class Spectrum(object):
             self.scanner_mode = None
 
         self.status.set_text("ETA: "+str(self.progress.eta_td))
-        self.progressbar.set_fraction((self.scanner_index + 1) / len(self.scanner_points))
+        self.progressbar.set_fraction((self.scanner_index) / (len(self.scanner_points)))
 
         return True
 
@@ -407,7 +408,7 @@ class Spectrum(object):
 
             initial_guess = (maxval - minval, pos[maxind], self.settings.sigma, minval)
 
-            if not update_connection(j / repetitions):
+            if not update_connection( j / (repetitions+1)):
                 self.stage.moveabs(x=origin[0], y=origin[1])
                 break
 
@@ -437,6 +438,7 @@ class Spectrum(object):
                     self.stage.moveabs(y=float(popt[1]))
                     # print(popt)
 
+        for i in range(3): self._spectrometer.intensities() # make sure that the buffer of the spectrometer is depleted
         self._spectrometer.integration_time(self.settings.integration_time / 1000)
         connection.send([True, 1.0, None])
         return True
