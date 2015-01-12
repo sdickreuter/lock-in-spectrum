@@ -17,7 +17,7 @@ class SettingsDialog(Gtk.Dialog):
         self.box.set_spacing(6)
 
         # Spinbuttons
-        self.integration_time_adj = Gtk.Adjustment(value=10, lower=10, upper=1000, step_incr=10, page_incr=10, page_size=0)
+        self.integration_time_adj = Gtk.Adjustment(value=10, lower=10, upper=10000, step_incr=10, page_incr=100, page_size=0)
         self.integration_time_spin = Gtk.SpinButton(adjustment=self.integration_time_adj, climb_rate=0.1, digits=0)
         self.integration_time_spin.set_tooltip_text("Set Integration time of the spectrometer")
 
