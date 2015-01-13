@@ -438,8 +438,8 @@ class Spectrum(object):
                     self.stage.moveabs(y=float(popt[1]))
                     # print(popt)
 
-        for i in range(3): self._spectrometer.intensities() # make sure that the buffer of the spectrometer is depleted
         self._spectrometer.integration_time(self.settings.integration_time / 1000)
+        self._spectrometer.intensities()
         connection.send([True, 1.0, None])
         return True
 
