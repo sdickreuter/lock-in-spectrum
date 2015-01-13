@@ -71,7 +71,9 @@ class LockinGui(object):
         self.button_lamp = Gtk.Button(label="Take Lamp Spectrum")
         self.button_lamp.set_tooltip_text("Take lamp spectrum to normalize spectrum")
         self.button_normal = Gtk.Button(label="Take Normal Spectrum")
-        self.button_normal.set_tooltip_text("Start/Stop taking a normal spectrum as comparison to the Lock-In spectrum")
+        self.button_normal.set_tooltip_text("Start/Stop taking a normal spectrum")
+        self.button_bg = Gtk.Button(label="Take Background Spectrum")
+        self.button_bg.set_tooltip_text("Start/Stop taking a Background spectrum")
         self.button_reset = Gtk.Button(label="Reset")
         self.button_reset.set_tooltip_text("Reset all spectral data (if not saved data is lost!)")
         self.button_loaddark = Gtk.Button(label="Load Dark Spectrum")
@@ -109,6 +111,7 @@ class LockinGui(object):
         self.button_dark.connect("clicked", self.on_dark_clicked)
         self.button_lamp.connect("clicked", self.on_lamp_clicked)
         self.button_normal.connect("clicked", self.on_normal_clicked)
+        self.button_bg.connect("clicked", self.on_bg_clicked)
         self.button_reset.connect("clicked", self.on_reset_clicked)
         self.button_loaddark.connect("clicked", self.on_loaddark_clicked)
         self.button_loadlamp.connect("clicked", self.on_loadlamp_clicked)
@@ -156,6 +159,7 @@ class LockinGui(object):
         self.SpectrumBox.add(self.button_dark)
         self.SpectrumBox.add(self.button_lamp)
         self.SpectrumBox.add(self.button_normal)
+        self.SpectrumBox.add(self.button_bg)
         self.SpectrumBox.add(Gtk.Separator())
         self.SpectrumBox.add(Gtk.Label(label="Miscellaneous"))
         self.SpectrumBox.add(self.button_save)
@@ -480,6 +484,11 @@ class LockinGui(object):
     def on_normal_clicked(self, widget):
         self.status.set_label('Taking Normal Spectrum')
         self.spectrum.take_normal()
+        self.disable_buttons()
+
+    def on_bg_clicked(self, widget):
+        self.status.set_label('Taking Background Spectrum')
+        self.spectrum.take_bg()
         self.disable_buttons()
 
     def on_loaddark_clicked(self, widget):

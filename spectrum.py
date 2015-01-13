@@ -29,6 +29,7 @@ class Spectrum(object):
         self.lamp = None
         self.dark = None
         self.normal = None
+        self.bg = None
         self.lockin = None
 
         self._progress_fraction = 0.0
@@ -74,9 +75,14 @@ class Spectrum(object):
     def get_spec(self, corrected = False):
         if corrected:
             if not self.dark is None:
-                if not self.lamp is None:
-                    return (self._spec - self.dark) / (self.lamp - self.dark)
-                return self._spec - self.dark
+                if not self.bg is None:
+                    if not self.lamp is None:
+                        return (self._spec - self.bg) / (self.lamp - self.dark)
+                    return self._spec - self.bg
+                else:
+                    if not self.lamp is None:
+                        return (self._spec - self.dark) / (self.lamp - self.dark)
+                    return self._spec - self.dark
         return self._spec
 
     def move_stage(self, dist):
@@ -114,6 +120,10 @@ class Spectrum(object):
 
     def take_normal(self):
         self.worker_mode = "normal"
+        self.start_process(self._mean_spectrum)
+
+    def take_bg(self):
+        self.worker_mode = "bg"
         self.start_process(self._mean_spectrum)
 
     def take_lockin(self):
@@ -180,6 +190,9 @@ class Spectrum(object):
             elif self.worker_mode is "normal":
                 self.normal = self._spec
                 self.status.set_label('Normal Spectrum taken')
+            elif self.worker_mode is "bg":
+                self.bg = self._spec
+                self.status.set_label('Background Spectrum taken')
             elif self.worker_mode is "search":
                 # self.show_pos()
                 self.status.set_text("Max. approached")
@@ -233,6 +246,10 @@ class Spectrum(object):
                data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1), self.lamp.reshape(self.lamp.shape[0], 1), 1)
                data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
                data.to_csv(self.scanner_path+"lamp.csv", header=True, index=False)
+            if not self.bg is None:
+               data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1), self.bg.reshape(self.bg.shape[0], 1), 1)
+               data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
+               data.to_csv(self.scanner_path+"background.csv", header=True, index=False)
             self.status.set_text("Scan complete")
             self.scanner_index += 1
 
@@ -468,6 +485,11 @@ class Spectrum(object):
                              self.normal.reshape(self.normal.shape[0], 1), 1)
             data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
             data.to_csv(prefix + 'normal_' + filename, header=True, index=False)
+        if not self.bg is None:
+            data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
+                             self.bg.reshape(self.bg.shape[0], 1), 1)
+            data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
+            data.to_csv(prefix + 'background_' + filename, header=True, index=False)
         if not self.lockin is None:
             data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
                              self.lockin.reshape(self.lockin.shape[0], 1), 1)
