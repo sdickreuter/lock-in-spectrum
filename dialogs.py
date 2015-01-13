@@ -37,7 +37,7 @@ class SettingsDialog(Gtk.Dialog):
         self.rasterwidth_spin = Gtk.SpinButton(adjustment=self.rasterwidth_adj, climb_rate=0.1, digits=1)
         self.rasterwidth_spin.set_tooltip_text("Set the distance that is covered by Search Max")
 
-        self.sigma_adj = Gtk.Adjustment(value=1.0, lower=0.1, upper=10, step_incr=0.1, page_incr=1, page_size=0)
+        self.sigma_adj = Gtk.Adjustment(value=1.0, lower=0.1, upper=10.0, step_incr=0.1, page_incr=1, page_size=0)
         self.sigma_spin = Gtk.SpinButton(adjustment=self.sigma_adj, climb_rate=0.1, digits=1)
         self.sigma_spin.set_tooltip_text("Set starting value for the sigma of the gauss fit that is used for Search Max")
 
