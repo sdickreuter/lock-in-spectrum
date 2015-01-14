@@ -22,7 +22,7 @@ class Spectrum(object):
         self.disable_buttons = disable_buttons
         self._init_spectrometer()
         self._cycle_time_start = 250
-        self._data = np.ones((self.settings.number_of_samples, 1026), dtype=np.float)
+        self._data = None
         self.prev_time = None
 
         # variables for storing the spectra
@@ -49,8 +49,8 @@ class Spectrum(object):
 
     def _init_spectrometer(self):
         try:
-            self._spectrometer = oceanoptics.QE65000()
-            #self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage)
+            #self._spectrometer = oceanoptics.QE65000()
+            self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage)
             #self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage,particles = [[10, 10], [11, 10],[12, 10],[14, 10],[11, 14],[11, 12],[14, 13],[15, 15]])
             self._spectrometer.integration_time(0.1)
             sp = self._spectrometer.spectrum()
@@ -239,22 +239,13 @@ class Spectrum(object):
             filename = self.scanner_path + 'map.csv'
             map.to_csv(filename, header=True, index=False)
             if not self.dark is None:
-               data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1), self.dark.reshape(self.dark.shape[0], 1), 1)
-               data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
-               data.to_csv(self.scanner_path+"dark.csv", header=True, index=False)
+               self.save_spectrum(self.dark,self.scanner_path+"dark.csv")
             if not self.lamp is None:
-               data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1), self.lamp.reshape(self.lamp.shape[0], 1), 1)
-               data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
-               data.to_csv(self.scanner_path+"lamp.csv", header=True, index=False)
+               self.save_spectrum(self.lamp,self.scanner_path+"lamp.csv")
             if not self.bg is None:
-               data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1), self.bg.reshape(self.bg.shape[0], 1), 1)
-               data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
-               data.to_csv(self.scanner_path+"background.csv", header=True, index=False)
+               self.save_spectrum(self.bg,self.scanner_path+"background.csv")
             self.status.set_text("Scan complete")
             self.scanner_index += 1
-
-        def make_filename():
-            return self.scanner_path + 'scan_' + 'x_{0:3.3f}um_y_{1:3.3f}um'.format(self.scanner_point[0], self.scanner_point[1]) + '.csv'
 
         if self.scanner_mode is "start":
             start()
@@ -288,11 +279,7 @@ class Spectrum(object):
                 self.peakpos.append(self._wl[maxind])
                 self.x.append(self.scanner_point[0])
                 self.y.append(self.scanner_point[1])
-                filename = make_filename()
-                data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
-                                 self.lockin.reshape(self.lockin.shape[0], 1), 1)
-                data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
-                data.to_csv(filename, header=True, index=False)
+                self.save_spectrum(self.lockin,self.scanner_path + str(self.scanner_index).zfill(3)+".csv",self.scanner_point)
                 self.scanner_index += 1
                 self.progress.next()
                 if self.scanner_index >= len(self.scanner_points):
@@ -319,10 +306,7 @@ class Spectrum(object):
                 else:
                     self.x.append(self.scanner_point[0])
                     self.y.append(self.scanner_point[1])
-                filename = make_filename()
-                data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1), self.normal.reshape(self.normal.shape[0], 1), 1)
-                data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
-                data.to_csv(filename, header=True, index=False)
+                self.save_spectrum(self.normal,self.scanner_path + str(self.scanner_index).zfill(3)+".csv",self.scanner_point)
                 self.scanner_index += 1
                 self.progress.next()
                 if self.scanner_index >= len(self.scanner_points):
@@ -467,34 +451,44 @@ class Spectrum(object):
 
     def save_data(self, prefix):
         filename = self._gen_filename()
-        cols = ('t', 'ref') + tuple(map(str, np.round(self._wl, 1)))
-        data = pandas.DataFrame(self._data, columns=cols)
-        data.to_csv(prefix + 'spectrum_' + filename, header=True, index=False)
+        if not self._data is None:
+            cols = ('t', 'ref') + tuple(map(str, np.round(self._wl, 1)))
+            data = pandas.DataFrame(self._data, columns=cols)
+            data.to_csv(prefix + 'spectrum_' + filename, header=True, index=False)
         if not self.dark is None:
-            data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
-                             self.dark.reshape(self.dark.shape[0], 1), 1)
-            data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
-            data.to_csv(prefix + 'dark_' + filename, header=True, index=False)
+            self.save_spectrum(self.dark,prefix + 'dark_' + filename)
         if not self.lamp is None:
-            data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
-                             self.lamp.reshape(self.lamp.shape[0], 1), 1)
-            data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
-            data.to_csv(prefix + 'lamp_' + filename, header=True, index=False)
+            self.save_spectrum(self.dark,prefix + 'lamp_' + filename)
         if not self.normal is None:
-            data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
-                             self.normal.reshape(self.normal.shape[0], 1), 1)
-            data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
-            data.to_csv(prefix + 'normal_' + filename, header=True, index=False)
+            self.save_spectrum(self.dark,prefix + 'normal_' + filename)
         if not self.bg is None:
-            data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
-                             self.bg.reshape(self.bg.shape[0], 1), 1)
-            data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
-            data.to_csv(prefix + 'background_' + filename, header=True, index=False)
+            self.save_spectrum(self.dark,prefix + 'background_' + filename)
         if not self.lockin is None:
-            data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1),
-                             self.lockin.reshape(self.lockin.shape[0], 1), 1)
-            data = pandas.DataFrame(data, columns=('wavelength', 'intensity'))
-            data.to_csv(prefix + 'lockin_' + filename, header=True, index=False)
+            self.save_spectrum(self.dark,prefix + 'lockin_' + filename)
+
+    def save_spectrum(self, spec, filename, pos=None):
+        data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1), spec.reshape(spec.shape[0], 1), 1)
+
+        f = open(filename, 'w')
+        f.write( str(datetime.now().day).zfill(2)+"."+str(datetime.now().month).zfill(2)+"."+str(datetime.now().year) +"\r\n")
+        f.write( str(datetime.now().hour).zfill(2)+":"+str(datetime.now().minute).zfill(2)+":"+str(datetime.now().second).zfill(2) +"\r\n")
+        f.write("integration time [ms]"+"\r\n")
+        f.write(str(self.settings.integration_time)+"\r\n")
+        f.write("number of samples"+"\r\n")
+        f.write(str(self.settings.number_of_samples)+"\r\n")
+        if pos is not None:
+            f.write("x"+"\r\n")
+            f.write(str(pos[0])+"\r\n")
+            f.write("y"+"\r\n")
+            f.write(str(pos[1])+"\r\n")
+
+        f.write("\r\n")
+        f.write("wavelength,counts"+"\r\n")
+        for i in range(len(data)):
+            f.write(str(data[i][0])+","+str(data[i][1])+"\r\n")
+
+        f.close()
+
 
     @staticmethod
     def _gen_filename():
