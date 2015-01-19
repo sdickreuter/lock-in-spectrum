@@ -213,7 +213,6 @@ class Spectrum(object):
 
     def _callback_scan(self):
 
-
         def start():
             self.scanner_point = self.scanner_points[self.scanner_index]
             self.stage.moveabs(x=self.scanner_point[0], y=self.scanner_point[1])
@@ -279,7 +278,7 @@ class Spectrum(object):
                 self.peakpos.append(self._wl[maxind])
                 self.x.append(self.scanner_point[0])
                 self.y.append(self.scanner_point[1])
-                self.save_spectrum(self.lockin,self.scanner_path + str(self.scanner_index).zfill(3)+".csv",self.scanner_point)
+                self.save_spectrum(self.lockin,self.scanner_path + str(self.scanner_index).zfill(5)+".csv",self.scanner_point)
                 self.scanner_index += 1
                 self.progress.next()
                 if self.scanner_index >= len(self.scanner_points):
@@ -306,7 +305,7 @@ class Spectrum(object):
                 else:
                     self.x.append(self.scanner_point[0])
                     self.y.append(self.scanner_point[1])
-                self.save_spectrum(self.normal,self.scanner_path + str(self.scanner_index).zfill(3)+".csv",self.scanner_point)
+                self.save_spectrum(self.normal,self.scanner_path + str(self.scanner_index).zfill(5)+".csv",self.scanner_point)
                 self.scanner_index += 1
                 self.progress.next()
                 if self.scanner_index >= len(self.scanner_points):
@@ -366,11 +365,6 @@ class Spectrum(object):
     def _live_spectrum(self, connection):
         while self.running.is_set():
             spec = self._spectrometer.intensities()
-            #if not self.dark is None:
-            #    spec = spec - self.dark
-            #    if not self.lamp is None:
-            #        # spec = self._spec / self.lamp
-            #        spec = spec / (self.lamp - self.dark)
             connection.send([False, 0., spec])
         return True
 
