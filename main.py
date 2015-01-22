@@ -331,6 +331,7 @@ class LockinGui(object):
         Function for quitting the program, will also stop the worker thread
         :param args:
         """
+        self.spectrum._spectrometer.dispose()
         self.spectrum = None
         self.pad = None
         Gtk.main_quit(*args)

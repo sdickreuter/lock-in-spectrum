@@ -43,14 +43,15 @@ class Spectrum(object):
         self._spec = self._spectrometer.intensities()
 
     def __del__(self):
-        self._spectrometer._set_integration_time(0.1)
-        self._spectrometer.intensities()
+        #self._spectrometer._set_integration_time(0.1)
+        #self._spectrometer.intensities()
+        #self._spectrometer.dispose()
         self._spectrometer = None
 
     def _init_spectrometer(self):
         try:
-            #self._spectrometer = oceanoptics.QE65000()
-            self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage)
+            self._spectrometer = oceanoptics.QE65000()
+            #self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage)
             #self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage,particles = [[10, 10], [11, 10],[12, 10],[14, 10],[11, 14],[11, 12],[14, 13],[15, 15]])
             self._spectrometer.integration_time(0.1)
             sp = self._spectrometer.spectrum()
