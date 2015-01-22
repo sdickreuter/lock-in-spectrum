@@ -453,13 +453,13 @@ class Spectrum(object):
         if not self.dark is None:
             self.save_spectrum(self.dark,prefix + 'dark_' + filename)
         if not self.lamp is None:
-            self.save_spectrum(self.dark,prefix + 'lamp_' + filename)
+            self.save_spectrum(self.lamp,prefix + 'lamp_' + filename)
         if not self.normal is None:
-            self.save_spectrum(self.dark,prefix + 'normal_' + filename)
+            self.save_spectrum(self.normal,prefix + 'normal_' + filename)
         if not self.bg is None:
-            self.save_spectrum(self.dark,prefix + 'background_' + filename)
+            self.save_spectrum(self.bg,prefix + 'background_' + filename)
         if not self.lockin is None:
-            self.save_spectrum(self.dark,prefix + 'lockin_' + filename)
+            self.save_spectrum(self.lockin,prefix + 'lockin_' + filename)
 
     def save_spectrum(self, spec, filename, pos=None):
         data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1), spec.reshape(spec.shape[0], 1), 1)
