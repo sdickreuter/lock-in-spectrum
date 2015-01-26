@@ -21,7 +21,7 @@ class Spectrum(object):
         self.enable_buttons = enable_buttons
         self.disable_buttons = disable_buttons
         self._init_spectrometer()
-        self._cycle_time_start = 250
+        self._cycle_time_start = 60
         self._data = None
         self.prev_time = None
 
@@ -97,11 +97,6 @@ class Spectrum(object):
         res = np.empty(1024)
         for i in range(1024):
             buf = self._data[:, i + 2]
-            if not self.dark is None:
-                buf = buf - self.dark[i]
-                if not self.lamp is None:
-                    # buf = buf / (self.lamp[i]- self.dark[i])
-                    buf = buf / (self.lamp[i] - self.dark[i])
             buf = buf * self._data[:, 1]
             buf = np.sum(buf)
             res[i] = buf
@@ -327,8 +322,7 @@ class Spectrum(object):
 
 
     def _lockin_spectrum(self, connection):
-        cycle_factor = -1.0 / (
-            7.0 * self.settings.number_of_samples / 1000)  # cycle time is calculated using this factor
+        cycle_factor = 30 * 1/self.settings.number_of_samples  # cycle time is calculated using this factor
         self.stage.query_pos()
         pos = self.stage.last_pos()
         self._startx = pos[0]
