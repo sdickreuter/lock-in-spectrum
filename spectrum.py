@@ -332,7 +332,7 @@ class Spectrum(object):
 
         for i in range(self.settings.number_of_samples):
             ref = math.cos(2 * math.pi * i * f)
-            self.move_stage((-ref + 1) / 2)
+            self.move_stage(ref / 2)
             spec = self._spectrometer.intensities()
             progress_fraction = float(i + 1) / self.settings.number_of_samples
             connection.send([False, progress_fraction, spec, ref, i])
