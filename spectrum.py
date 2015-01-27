@@ -322,7 +322,7 @@ class Spectrum(object):
 
 
     def _lockin_spectrum(self, connection):
-        cycle_factor = 30 * 1/self.settings.number_of_samples  # cycle time is calculated using this factor
+        f = self.settings.f
         self.stage.query_pos()
         pos = self.stage.last_pos()
         self._startx = pos[0]
@@ -331,8 +331,7 @@ class Spectrum(object):
         starttime = datetime.now()
 
         for i in range(self.settings.number_of_samples):
-            cycle_time = cycle_factor * i + self._cycle_time_start
-            ref = math.cos(2 * math.pi * i / cycle_time)
+            ref = math.cos(2 * math.pi * i * f)
             self.move_stage((-ref + 1) / 2)
             spec = self._spectrometer.intensities()
             progress_fraction = float(i + 1) / self.settings.number_of_samples

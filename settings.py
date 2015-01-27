@@ -23,6 +23,8 @@ class Settings(object):
         self.direction_y = float(self.config['direction']['y'])
         self.direction_z = float(self.config['direction']['z'])
         self.amplitude = float(self.config['direction']['amplitude'])
+        self.f = float(self.config['direction']['f'])
+
 
         self.stepsize = float(self.config['stage']['stepsize'])
 
@@ -42,6 +44,7 @@ class Settings(object):
         self.config.set('direction', 'y', str(self.direction_y))
         self.config.set('direction', 'z', str(self.direction_z))
         self.config.set('direction', 'amplitude', str(self.amplitude))
+        self.config.set('direction', 'f', str(self.f))
         self.config.set('stage', 'stepsize', str(self.stepsize))
         self.config.set('searchmax', 'sigma', str(self.sigma))
         self.config.set('searchmax', 'rasterdim', str(self.rasterdim))
