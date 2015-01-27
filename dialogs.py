@@ -142,13 +142,13 @@ class DirectionDialog(Gtk.Dialog):
         self.x_adj = Gtk.Adjustment(value=1, lower=-1, upper=1, step_incr=0.1, page_incr=0.1, page_size=0)
         self.y_adj = Gtk.Adjustment(value=0, lower=-1, upper=1, step_incr=0.1, page_incr=0.1, page_size=0)
         self.z_adj = Gtk.Adjustment(value=0, lower=-1, upper=1, step_incr=0.1, page_incr=0.1, page_size=0)
-        self.amp_adj = Gtk.Adjustment(value=5, lower=1, upper=20, step_incr=1, page_incr=1, page_size=0)
+        self.amp_adj = Gtk.Adjustment(value=5, lower=0.1, upper=20, step_incr=0.1, page_incr=1, page_size=0)
         self.f_adj = Gtk.Adjustment(value=0.01, lower=0.00001, upper=10, step_incr=0.001, page_incr=0.01, page_size=0)
 
         self.x_spin = Gtk.SpinButton(adjustment=self.x_adj, climb_rate=0.1, digits=2)
         self.y_spin = Gtk.SpinButton(adjustment=self.y_adj, climb_rate=0.1, digits=2)
         self.z_spin = Gtk.SpinButton(adjustment=self.z_adj, climb_rate=0.1, digits=2)
-        self.amp_spin = Gtk.SpinButton(adjustment=self.amp_adj, climb_rate=1, digits=0)
+        self.amp_spin = Gtk.SpinButton(adjustment=self.amp_adj, climb_rate=0.1, digits=2)
         self.f_spin = Gtk.SpinButton(adjustment=self.f_adj, climb_rate=0.0001, digits=6)
 
         # self.number_of_samples_spin.set_value(self.settings.number_of_samples)
