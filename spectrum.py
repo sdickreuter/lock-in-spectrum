@@ -452,9 +452,9 @@ class Spectrum(object):
         if not self.bg is None:
             self.save_spectrum(self.bg,prefix + 'background_' + filename)
         if not self.lockin is None:
-            self.save_spectrum(self.lockin,prefix + 'lockin_' + filename)
+            self.save_spectrum(self.lockin,prefix + 'lockin_' + filename, lockin=True)
 
-    def save_spectrum(self, spec, filename, pos=None):
+    def save_spectrum(self, spec, filename, pos=None, lockin = False):
         data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1), spec.reshape(spec.shape[0], 1), 1)
 
         f = open(filename, 'w')
@@ -464,6 +464,12 @@ class Spectrum(object):
         f.write(str(self.settings.integration_time)+"\r\n")
         f.write("number of samples"+"\r\n")
         f.write(str(self.settings.number_of_samples)+"\r\n")
+        if lockin:
+            f.write("amplitude"+"\r\n")
+            f.write(str(self.settings.amplitude)+"\r\n")
+            f.write("frequency"+"\r\n")
+            f.write(str(self.settings.f)+"\r\n")
+
         if pos is not None:
             f.write("x"+"\r\n")
             f.write(str(pos[0])+"\r\n")
