@@ -36,8 +36,8 @@ class LockinGui(object):
         except:
             print("Could not initialize Gamepad")
 
-        #self.stage = PIStage.Dummy()
-        self.stage = PIStage.E545()
+        self.stage = PIStage.Dummy()
+        #self.stage = PIStage.E545()
 
         GObject.threads_init()
         # only GObject.idle_add() is in the background thread
@@ -354,18 +354,21 @@ class LockinGui(object):
         self.button_stop.set_sensitive(False)
 
     def _on_pad_change(self, io, condition):
-        a, y, ax, ay = self.pad.receiver.recv()
+        a, b, y, ax, ay = self.pad.receiver.recv()
         if a:
             self.on_stepdown_clicked(None)
         if y:
             self.on_stepup_clicked(None)
-            # print(self.pad.get_analogL_x()-128)
-        self.x_step = float((self.pad.get_analogL_x() - 128))
+        if b:
+            self.on_add_position_clicked(None)
+
+        self.x_step = float((ax - 128))
         if abs(self.x_step) > 8:
             self.x_step = self.x_step / 128 * self.settings.stepsize
         else:
             self.x_step = 0.0
-        self.y_step = float((self.pad.get_analogL_y() - 128))
+
+        self.y_step = float((ay - 128))
         if abs(self.y_step) > 8:
             self.y_step = self.y_step / 128 * self.settings.stepsize
         else:
