@@ -50,8 +50,8 @@ class Spectrum(object):
 
     def _init_spectrometer(self):
         try:
-            self._spectrometer = oceanoptics.QE65000()
-            #self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage)
+            #self._spectrometer = oceanoptics.QE65000()
+            self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage)
             #self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage,particles = [[10, 10], [11, 10],[12, 10],[14, 10],[11, 14],[11, 12],[14, 13],[15, 15]])
             self._spectrometer.integration_time(0.1)
             sp = self._spectrometer.spectrum()
@@ -133,6 +133,13 @@ class Spectrum(object):
         self.worker_mode = "search"
         self.start_process(self._search_max_int)
 
+    def take_series(self, path):
+        self.series_path = path
+        self.save_data(self.series_path)
+        self.worker_mode = "series"
+        self.series_count = 0;
+        self.start_process(self._live_spectrum)
+
     def make_scan(self, points, path, search=False, lockin=False):
         self.scanner_lockin = lockin
         self.scanner_search = search
@@ -162,6 +169,13 @@ class Spectrum(object):
             self._data[i, 0] = i
             self._data[i, 1] = ref
             self._data[i, 2:] = spec
+        elif self.worker_mode is "series":
+            finished, self._progress_fraction, spec = self.conn_for_main.recv()
+            self._progress_fraction = self.series_count/self.settings.number_of_samples
+            self.series_count += 1;
+            self.save_spectrum(spec,self.series_path+str(self.series_count).zfill(5)+".csv")
+            if self.series_count >= self.settings.number_of_samples:
+                finished = True
         else:
             finished, self._progress_fraction, spec = self.conn_for_main.recv()
 
@@ -192,6 +206,9 @@ class Spectrum(object):
             elif self.worker_mode is "search":
                 # self.show_pos()
                 self.status.set_text("Max. approached")
+            elif self.worker_mode is "series":
+                # self.show_pos()
+                self.status.set_text("Time series finished")
 
             #if not self.worker_mode is "lockin":
                 #if not self.dark is None:
@@ -459,7 +476,7 @@ class Spectrum(object):
 
         f = open(filename, 'w')
         f.write( str(datetime.now().day).zfill(2)+"."+str(datetime.now().month).zfill(2)+"."+str(datetime.now().year) +"\r\n")
-        f.write( str(datetime.now().hour).zfill(2)+":"+str(datetime.now().minute).zfill(2)+":"+str(datetime.now().second).zfill(2) +"\r\n")
+        f.write( str(datetime.now().hour).zfill(2)+":"+str(datetime.now().minute).zfill(2)+":"+str(datetime.now().second).zfill(2)+":"+str(datetime.now().microsecond).zfill(2) +"\r\n")
         f.write("integration time [ms]"+"\r\n")
         f.write(str(self.settings.integration_time)+"\r\n")
         f.write("number of samples"+"\r\n")

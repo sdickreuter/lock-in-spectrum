@@ -32,12 +32,17 @@ class LockinGui(object):
         self.step_distance = 1  # in um
         self.pad = None
         try:
-            self.pad = Gamepad(True)
+            pass
+            #self.pad = Gamepad(True)
         except:
             print("Could not initialize Gamepad")
 
-        #self.stage = PIStage.Dummy()
-        self.stage = PIStage.E545()
+        try:
+            self.stage = PIStage.E545()
+        except:
+            self.stage = None
+            self.stage = PIStage.Dummy()
+            print("Could not initialize PIStage, using Dummy instead")
 
         GObject.threads_init()
         # only GObject.idle_add() is in the background thread
@@ -74,6 +79,8 @@ class LockinGui(object):
         self.button_normal.set_tooltip_text("Start/Stop taking a normal spectrum")
         self.button_bg = Gtk.Button(label="Take Background Spectrum")
         self.button_bg.set_tooltip_text("Start/Stop taking a Background spectrum")
+        self.button_series = Gtk.Button(label="Take Time Series")
+        self.button_series.set_tooltip_text("Start/Stop taking a Time Series of Spectra")
         self.button_reset = Gtk.Button(label="Reset")
         self.button_reset.set_tooltip_text("Reset all spectral data (if not saved data is lost!)")
         self.button_loaddark = Gtk.Button(label="Load Dark Spectrum")
@@ -112,6 +119,7 @@ class LockinGui(object):
         self.button_lamp.connect("clicked", self.on_lamp_clicked)
         self.button_normal.connect("clicked", self.on_normal_clicked)
         self.button_bg.connect("clicked", self.on_bg_clicked)
+        self.button_series.connect("clicked", self.on_series_clicked)
         self.button_reset.connect("clicked", self.on_reset_clicked)
         self.button_loaddark.connect("clicked", self.on_loaddark_clicked)
         self.button_loadlamp.connect("clicked", self.on_loadlamp_clicked)
@@ -160,6 +168,7 @@ class LockinGui(object):
         self.SpectrumBox.add(self.button_lamp)
         self.SpectrumBox.add(self.button_normal)
         self.SpectrumBox.add(self.button_bg)
+        self.SpectrumBox.add(self.button_series)
         self.SpectrumBox.add(Gtk.Separator())
         self.SpectrumBox.add(Gtk.Label(label="Miscellaneous"))
         self.SpectrumBox.add(self.button_save)
@@ -496,6 +505,22 @@ class LockinGui(object):
         self.status.set_label('Taking Background Spectrum')
         self.spectrum.take_bg()
         self.disable_buttons()
+
+    def on_series_clicked(self, widget):
+        self.status.set_label('Taking Time Series')
+        prefix = self.prefix_dialog.rundialog()
+        if prefix is not None:
+            try:
+                # os.path.exists(prefix)
+                os.mkdir(self.savedir+prefix)
+            except:
+                print("Error creating directory ./" + prefix)
+            path = self.savedir + prefix + '/'
+        else:
+            self.status.set_text("Error")
+        self.spectrum.take_series(path)
+        self.disable_buttons()
+
 
     def on_loaddark_clicked(self, widget):
         buf = self._load_spectrum_from_file()
