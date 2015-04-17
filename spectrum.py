@@ -4,13 +4,14 @@ from datetime import datetime
 import math
 import multiprocessing
 
-import PIStage
+import seabreeze.spectrometers as sb
 import oceanoptics
 import numpy as np
 import scipy.optimize as opt
 import matplotlib.pyplot as plt
 import pandas
 from progress import *
+
 
 class Spectrum(object):
     def __init__(self, stage, settings, status, progressbar, enable_buttons, disable_buttons):
@@ -43,22 +44,29 @@ class Spectrum(object):
         self._spec = self._spectrometer.intensities()
 
     def __del__(self):
-        #self._spectrometer._set_integration_time(0.1)
+        # self._spectrometer._set_integration_time(0.1)
         #self._spectrometer.intensities()
         #self._spectrometer.dispose()
         self._spectrometer = None
 
     def _init_spectrometer(self):
+        # self._spectrometer = oceanoptics.QE65000()
+        #self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage)
+        #self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage,particles = [[10, 10], [11, 10],[12, 10],[14, 10],[11, 14],[11, 12],[14, 13],[15, 15]])
+
         try:
-            #self._spectrometer = oceanoptics.QE65000()
-            self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage)
-            #self._spectrometer = oceanoptics.ParticleDummy(stage=self.stage,particles = [[10, 10], [11, 10],[12, 10],[14, 10],[11, 14],[11, 12],[14, 13],[15, 15]])
-            self._spectrometer.integration_time(0.1)
-            sp = self._spectrometer.spectrum()
-            self._wl = np.array(sp[0], dtype=np.float)
-            print("Spectrometer initialized and working")
+            devices = sb.list_devices()
+            self._spectrometer = sb.Spectrometer(devices[0])
+            self._spectrometer.integration_time_micros(100000)
+            print("Spectrometer " + str(self._spectrometer.serial_number) + " initialized and working")
         except:
-            raise RuntimeError("Error opening spectrometer. Exiting...")
+            #raise RuntimeError("Error opening spectrometer. Exiting...")
+            print("Error opening Spectrometer, using Dummy instead")
+            self._spectrometer = oceanoptics.Dummy()
+
+        sp = self._spectrometer.spectrum()
+        self._wl = np.array(sp[0], dtype=np.float)
+
 
     def start_process(self, target):
         self._spectrometer.integration_time(self.settings.integration_time / 1000)
@@ -73,7 +81,7 @@ class Spectrum(object):
     def get_wl(self):
         return self._wl
 
-    def get_spec(self, corrected = False):
+    def get_spec(self, corrected=False):
         if corrected:
             if not self.dark is None:
                 if not self.bg is None:
@@ -124,7 +132,7 @@ class Spectrum(object):
 
     def take_lockin(self):
         self.worker_mode = "lockin"
-        #self.reset()
+        # self.reset()
         self.lockin = None
         self._data = np.ones((self.settings.number_of_samples, 1026), dtype=np.float)
         self.start_process(self._lockin_spectrum)
@@ -137,7 +145,7 @@ class Spectrum(object):
         self.series_path = path
         self.save_data(self.series_path)
         self.worker_mode = "series"
-        self.series_count = 0;
+        self.series_count = 0
         self.start_process(self._live_spectrum)
 
     def make_scan(self, points, path, search=False, lockin=False):
@@ -171,9 +179,9 @@ class Spectrum(object):
             self._data[i, 2:] = spec
         elif self.worker_mode is "series":
             finished, self._progress_fraction, spec = self.conn_for_main.recv()
-            self._progress_fraction = self.series_count/self.settings.number_of_samples
-            self.series_count += 1;
-            self.save_spectrum(spec,self.series_path+str(self.series_count).zfill(5)+".csv")
+            self._progress_fraction = self.series_count / self.settings.number_of_samples
+            self.series_count += 1
+            self.save_spectrum(spec, self.series_path + str(self.series_count).zfill(5) + ".csv")
             if self.series_count >= self.settings.number_of_samples:
                 finished = True
         else:
@@ -210,7 +218,7 @@ class Spectrum(object):
                 # self.show_pos()
                 self.status.set_text("Time series finished")
 
-            #if not self.worker_mode is "lockin":
+                # if not self.worker_mode is "lockin":
                 #if not self.dark is None:
                 #    self._spec = self._spec - self.dark
                 #    if not self.lamp is None:
@@ -229,7 +237,7 @@ class Spectrum(object):
         def start():
             self.scanner_point = self.scanner_points[self.scanner_index]
             self.stage.moveabs(x=self.scanner_point[0], y=self.scanner_point[1])
-            #self.reset()
+            # self.reset()
             if self.scanner_search:
                 self.scanner_mode = "search"
                 self.start_process(self._search_max_int)
@@ -251,11 +259,11 @@ class Spectrum(object):
             filename = self.scanner_path + 'map.csv'
             map.to_csv(filename, header=True, index=False)
             if not self.dark is None:
-               self.save_spectrum(self.dark,self.scanner_path+"dark.csv")
+                self.save_spectrum(self.dark, self.scanner_path + "dark.csv")
             if not self.lamp is None:
-               self.save_spectrum(self.lamp,self.scanner_path+"lamp.csv")
+                self.save_spectrum(self.lamp, self.scanner_path + "lamp.csv")
             if not self.bg is None:
-               self.save_spectrum(self.bg,self.scanner_path+"background.csv")
+                self.save_spectrum(self.bg, self.scanner_path + "background.csv")
             self.status.set_text("Scan complete")
             self.scanner_index += 1
 
@@ -291,7 +299,8 @@ class Spectrum(object):
                 self.peakpos.append(self._wl[maxind])
                 self.x.append(self.scanner_point[0])
                 self.y.append(self.scanner_point[1])
-                self.save_spectrum(self.lockin,self.scanner_path + str(self.scanner_index).zfill(5)+".csv",self.scanner_point)
+                self.save_spectrum(self.lockin, self.scanner_path + str(self.scanner_index).zfill(5) + ".csv",
+                                   self.scanner_point)
                 self.scanner_index += 1
                 self.progress.next()
                 if self.scanner_index >= len(self.scanner_points):
@@ -318,7 +327,8 @@ class Spectrum(object):
                 else:
                     self.x.append(self.scanner_point[0])
                     self.y.append(self.scanner_point[1])
-                self.save_spectrum(self.normal,self.scanner_path + str(self.scanner_index).zfill(5)+".csv",self.scanner_point)
+                self.save_spectrum(self.normal, self.scanner_path + str(self.scanner_index).zfill(5) + ".csv",
+                                   self.scanner_point)
                 self.scanner_index += 1
                 self.progress.next()
                 if self.scanner_index >= len(self.scanner_points):
@@ -332,8 +342,8 @@ class Spectrum(object):
             self.worker_mode = None
             self.scanner_mode = None
 
-        self.status.set_text("ETA: "+str(self.progress.eta_td))
-        self.progressbar.set_fraction((self.scanner_index) / (len(self.scanner_points)))
+        self.status.set_text("ETA: " + str(self.progress.eta_td))
+        self.progressbar.set_fraction(self.scanner_index / (len(self.scanner_points)))
 
         return True
 
@@ -387,7 +397,7 @@ class Spectrum(object):
                 return False
             return True
 
-        self._spectrometer.integration_time(self.settings.search_integration_time/1000)
+        self._spectrometer.integration_time(self.settings.search_integration_time / 1000)
 
         spec = self.smooth(self._spectrometer.intensities())
         minval = np.min(spec)
@@ -419,7 +429,7 @@ class Spectrum(object):
 
             initial_guess = (maxval - minval, pos[maxind], self.settings.sigma, minval)
 
-            if not update_connection( j / (repetitions+1)):
+            if not update_connection(j / (repetitions + 1)):
                 self.stage.moveabs(x=origin[0], y=origin[1])
                 break
 
@@ -428,9 +438,9 @@ class Spectrum(object):
             plt.savefig("search_max/search" + str(j) + ".png")
             plt.close()
 
-            popt = None
             try:
-                popt, pcov = opt.curve_fit(self.gauss, pos[2:(len(pos)-1)], measured[2:(len(pos)-1)], p0=initial_guess)
+                popt, pcov = opt.curve_fit(self.gauss, pos[2:(len(pos) - 1)], measured[2:(len(pos) - 1)],
+                                           p0=initial_guess)
                 if popt[0] < 20:
                     RuntimeError("Peak is to small")
             except RuntimeError as e:
@@ -461,42 +471,44 @@ class Spectrum(object):
             data = pandas.DataFrame(self._data, columns=cols)
             data.to_csv(prefix + 'spectrum_' + filename, header=True, index=False)
         if not self.dark is None:
-            self.save_spectrum(self.dark,prefix + 'dark_' + filename)
+            self.save_spectrum(self.dark, prefix + 'dark_' + filename)
         if not self.lamp is None:
-            self.save_spectrum(self.lamp,prefix + 'lamp_' + filename)
+            self.save_spectrum(self.lamp, prefix + 'lamp_' + filename)
         if not self.normal is None:
-            self.save_spectrum(self.normal,prefix + 'normal_' + filename)
+            self.save_spectrum(self.normal, prefix + 'normal_' + filename)
         if not self.bg is None:
-            self.save_spectrum(self.bg,prefix + 'background_' + filename)
+            self.save_spectrum(self.bg, prefix + 'background_' + filename)
         if not self.lockin is None:
-            self.save_spectrum(self.lockin,prefix + 'lockin_' + filename, lockin=True)
+            self.save_spectrum(self.lockin, prefix + 'lockin_' + filename, lockin=True)
 
-    def save_spectrum(self, spec, filename, pos=None, lockin = False):
+    def save_spectrum(self, spec, filename, pos=None, lockin=False):
         data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1), spec.reshape(spec.shape[0], 1), 1)
 
         f = open(filename, 'w')
-        f.write( str(datetime.now().day).zfill(2)+"."+str(datetime.now().month).zfill(2)+"."+str(datetime.now().year) +"\r\n")
-        f.write( str(datetime.now().hour).zfill(2)+":"+str(datetime.now().minute).zfill(2)+":"+str(datetime.now().second).zfill(2)+":"+str(datetime.now().microsecond).zfill(2) +"\r\n")
-        f.write("integration time [ms]"+"\r\n")
-        f.write(str(self.settings.integration_time)+"\r\n")
-        f.write("number of samples"+"\r\n")
-        f.write(str(self.settings.number_of_samples)+"\r\n")
+        f.write(str(datetime.now().day).zfill(2) + "." + str(datetime.now().month).zfill(2) + "." + str(
+            datetime.now().year) + "\r\n")
+        f.write(str(datetime.now().hour).zfill(2) + ":" + str(datetime.now().minute).zfill(2) + ":" + str(
+            datetime.now().second).zfill(2) + ":" + str(datetime.now().microsecond).zfill(2) + "\r\n")
+        f.write("integration time [ms]" + "\r\n")
+        f.write(str(self.settings.integration_time) + "\r\n")
+        f.write("number of samples" + "\r\n")
+        f.write(str(self.settings.number_of_samples) + "\r\n")
         if lockin:
-            f.write("amplitude"+"\r\n")
-            f.write(str(self.settings.amplitude)+"\r\n")
-            f.write("frequency"+"\r\n")
-            f.write(str(self.settings.f)+"\r\n")
+            f.write("amplitude" + "\r\n")
+            f.write(str(self.settings.amplitude) + "\r\n")
+            f.write("frequency" + "\r\n")
+            f.write(str(self.settings.f) + "\r\n")
 
         if pos is not None:
-            f.write("x"+"\r\n")
-            f.write(str(pos[0])+"\r\n")
-            f.write("y"+"\r\n")
-            f.write(str(pos[1])+"\r\n")
+            f.write("x" + "\r\n")
+            f.write(str(pos[0]) + "\r\n")
+            f.write("y" + "\r\n")
+            f.write(str(pos[1]) + "\r\n")
 
         f.write("\r\n")
-        f.write("wavelength,counts"+"\r\n")
+        f.write("wavelength,counts" + "\r\n")
         for i in range(len(data)):
-            f.write(str(data[i][0])+","+str(data[i][1])+"\r\n")
+            f.write(str(data[i][0]) + "," + str(data[i][1]) + "\r\n")
 
         f.close()
 
