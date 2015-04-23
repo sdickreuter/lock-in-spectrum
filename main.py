@@ -32,8 +32,8 @@ class LockinGui(object):
         self.step_distance = 1  # in um
         self.pad = None
         try:
-            pass
-            #self.pad = Gamepad(True)
+            #pass
+            self.pad = Gamepad(True)
         except:
             print("Could not initialize Gamepad")
 
@@ -325,7 +325,7 @@ class LockinGui(object):
         self._wl = self.spectrum.get_wl()  # get the wavelengths
         self.lines = []
         self.lines.extend(self.ax.plot(self._wl, spec, "-"))
-        self.lines.extend(self.ax.plot(self._wl, self.spectrum.smooth(spec), "-", c="black"))  # plot initial spectrum
+        self.lines.extend(self.ax.plot(self._wl, self.spectrum.smooth(spec), "-k"))  # plot initial spectrum
 
         #Dialogs
         self.settings_dialog = dialogs.SettingsDialog(self.window, self.settings)
