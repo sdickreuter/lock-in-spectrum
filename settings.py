@@ -36,6 +36,9 @@ class Settings(object):
         self.min_wl = int(self.config['view']['min_wl'])
         self.max_wl = int(self.config['view']['max_wl'])
 
+        self.stage_ip =self.config['stage']['ip']
+        self.stage_port =int(self.config['stage']['port'])
+
 
     def save(self):
         self.config.set('spectrum', 'integration_time', str(self.integration_time))

@@ -38,7 +38,7 @@ class LockinGui(object):
             print("Could not initialize Gamepad")
 
         try:
-            self.stage = PIStage.E545()
+            self.stage = PIStage.E545(self.settings.stage_ip,self.settings.stage_port)
         except:
             self.stage = None
             self.stage = PIStage.Dummy()
