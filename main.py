@@ -291,7 +291,7 @@ class LockinGui(object):
         self.canvas.set_hexpand(True)
         self.canvas.set_vexpand(True)
 
-        self.canvas.set_size_request(800, 800)
+        self.canvas.set_size_request(700, 700)
 
         self.stack = Gtk.Stack()
         self.stack.set_transition_type(Gtk.StackTransitionType.SLIDE_LEFT_RIGHT)
@@ -323,6 +323,8 @@ class LockinGui(object):
 
         spec = self.spectrum.get_spec()  # get an initial spectrum for display
         self._wl = self.spectrum.get_wl()  # get the wavelengths
+        print(len(self._wl))
+        print(len(spec))
         self.lines = []
         self.lines.extend(self.ax.plot(self._wl, spec, "-"))
         self.lines.extend(self.ax.plot(self._wl, self.spectrum.smooth(spec), "-", c="black"))  # plot initial spectrum
@@ -340,7 +342,6 @@ class LockinGui(object):
         Function for quitting the program, will also stop the worker thread
         :param args:
         """
-        self.spectrum._spectrometer.dispose()
         self.spectrum = None
         self.pad = None
         Gtk.main_quit(*args)
@@ -656,8 +657,8 @@ class LockinGui(object):
         spec = self.spectrum.get_spec(self.button_corronoff.get_active())
         self.lines[0].set_ydata(spec)
         self.lines[1].set_ydata(self.spectrum.smooth(spec))
-        self.ax.set_ylim(min(spec[262:921]), max(spec[262:921]))
-        self.ax.autoscale_view(None, False, True)
+        #self.ax.set_ylim(min(spec[262:921]), max(spec[262:921]))
+        self.ax.autoscale_view(None, True, True)
         self.canvas.draw()
         self.show_pos()
         return True

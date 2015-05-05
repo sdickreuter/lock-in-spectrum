@@ -40,8 +40,11 @@ class Spectrum(object):
         self.conn_for_main, self._conn_for_worker = multiprocessing.Pipe()
         self.running = multiprocessing.Event()
         self.running.clear()
-        self._spec = np.zeros(1024, dtype=np.float)
-        self._spec = self._spectrometer.intensities(correct_nonlinearity=True)
+        self._spec = np.zeros(1024, dtype=np.double)
+        self._spec = self._spectrometer.intensities(correct_dark_counts=True,correct_nonlinearity=True)
+        self._wl = np.zeros(1024, dtype=np.double)
+
+
 
     def __del__(self):
         self._spectrometer = None
@@ -60,8 +63,7 @@ class Spectrum(object):
             print("Error opening Spectrometer, using Dummy instead")
             #self._spectrometer = oceanoptics.Dummy()
 
-        sp = self._spectrometer.spectrum()
-        self._wl = np.array(sp[0], dtype=np.float)
+        self._wl = self._spectrometer.wavelengths()
 
 
     def start_process(self, target):
@@ -130,7 +132,7 @@ class Spectrum(object):
         self.worker_mode = "lockin"
         # self.reset()
         self.lockin = None
-        self._data = np.ones((self.settings.number_of_samples, 1026), dtype=np.float)
+        self._data = np.ones((self.settings.number_of_samples, 1026), dtype=np.double)
         self.start_process(self._lockin_spectrum)
 
     def search_max(self):
@@ -246,7 +248,7 @@ class Spectrum(object):
 
         def finish():
             self.running.clear()
-            map = np.ones((len(self.x), 4), dtype=np.float)
+            map = np.ones((len(self.x), 4), dtype=np.double)
             map[:, 0] = self.x
             map[:, 1] = self.y
             map[:, 2] = self.map
@@ -356,7 +358,7 @@ class Spectrum(object):
         for i in range(self.settings.number_of_samples):
             ref = math.cos(2 * math.pi * i * f)
             self.move_stage(ref / 2)
-            spec = self._spectrometer.intensities(correct_nonlinearity=True)
+            spec = self._spectrometer.intensities(correct_dark_counts=True,correct_nonlinearity=True)
             progress_fraction = float(i + 1) / self.settings.number_of_samples
             connection.send([False, progress_fraction, spec, ref, i])
             if not self.running.is_set():
@@ -369,9 +371,9 @@ class Spectrum(object):
         return True
 
     def _mean_spectrum(self, connection):
-        spec = np.zeros(1024, dtype=np.float)
+        spec = np.zeros(1024, dtype=np.double)
         for i in range(self.settings.number_of_samples):
-            spec = (spec + self._spectrometer.intensities(correct_nonlinearity=True))  # / 2
+            spec = (spec + self._spectrometer.intensities(correct_dark_counts=True,correct_nonlinearity=True))  # / 2
             progress_fraction = float(i + 1) / self.settings.number_of_samples
             connection.send([False, progress_fraction, spec / (i + 1)])
             if not self.running.is_set():
@@ -381,7 +383,7 @@ class Spectrum(object):
 
     def _live_spectrum(self, connection):
         while self.running.is_set():
-            spec = self._spectrometer.intensities(correct_nonlinearity=True)
+            spec = self._spectrometer.intensities(correct_dark_counts=True,correct_nonlinearity=True)
             connection.send([False, 0., spec])
         return True
 
@@ -395,7 +397,7 @@ class Spectrum(object):
 
         self._spectrometer.integration_time_micros(self.settings.search_integration_time * 1000)
 
-        spec = self.smooth(self._spectrometer.intensities(correct_nonlinearity=True))
+        spec = self.smooth(self._spectrometer.intensities(correct_dark_counts=True,correct_nonlinearity=True))
         minval = np.min(spec)
         maxval = np.max(spec)
 
@@ -419,7 +421,7 @@ class Spectrum(object):
                     self.stage.moveabs(x=pos[i])
                 else:
                     self.stage.moveabs(y=pos[i])
-                spec = self.smooth(self._spectrometer.intensities(correct_nonlinearity=True))
+                spec = self.smooth(self._spectrometer.intensities(correct_dark_counts=True,correct_nonlinearity=True))
                 measured[i] = np.max(spec)
             maxind = np.argmax(measured)
 
@@ -456,7 +458,7 @@ class Spectrum(object):
                     # print(popt)
 
         self._spectrometer.integration_time_micros(self.settings.integration_time / 1000)
-        self._spectrometer.intensities(correct_nonlinearity=True)
+        self._spectrometer.intensities(correct_dark_counts=True,correct_nonlinearity=True)
         connection.send([True, 1.0, None])
         return True
 
