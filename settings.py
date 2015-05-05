@@ -25,7 +25,6 @@ class Settings(object):
         self.amplitude = float(self.config['direction']['amplitude'])
         self.f = float(self.config['direction']['f'])
 
-
         self.stepsize = float(self.config['stage']['stepsize'])
 
         self.sigma = float(self.config['searchmax']['sigma'])

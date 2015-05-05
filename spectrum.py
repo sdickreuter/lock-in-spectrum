@@ -44,7 +44,7 @@ class Spectrum(object):
         self._spec = self._spectrometer.intensities()
 
     def __del__(self):
-        # self._spectrometer._set_integration_time(0.1)
+        #self._spectrometer._set_integration_time(0.1)
         #self._spectrometer.intensities()
         #self._spectrometer.dispose()
         self._spectrometer = None
@@ -57,6 +57,9 @@ class Spectrum(object):
         try:
             devices = sb.list_devices()
             self._spectrometer = sb.Spectrometer(devices[0])
+            self._spectrometer.tec_set_temperature_C(-17)
+            self._spectrometer.tec_set_enable(True)
+            print(self._spectrometer.tec_get_temperature_C())
             self._spectrometer.integration_time_micros(100000)
             print("Spectrometer " + str(self._spectrometer.serial_number) + " initialized and working")
         except:
@@ -81,7 +84,7 @@ class Spectrum(object):
     def get_wl(self):
         return self._wl
 
-    def get_spec(self, corrected=False):
+    def get_spec(self, corrected = False):
         if corrected:
             if not self.dark is None:
                 if not self.bg is None:

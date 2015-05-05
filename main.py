@@ -325,7 +325,7 @@ class LockinGui(object):
         self._wl = self.spectrum.get_wl()  # get the wavelengths
         self.lines = []
         self.lines.extend(self.ax.plot(self._wl, spec, "-"))
-        self.lines.extend(self.ax.plot(self._wl, self.spectrum.smooth(spec), "-k"))  # plot initial spectrum
+        self.lines.extend(self.ax.plot(self._wl, self.spectrum.smooth(spec), "-", c="black"))  # plot initial spectrum
 
         #Dialogs
         self.settings_dialog = dialogs.SettingsDialog(self.window, self.settings)
