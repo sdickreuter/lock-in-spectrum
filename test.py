@@ -1,6 +1,5 @@
 __author__ = 'dunkelfeld'
 
-import time
 from gi.repository import Gtk
 import seabreeze.spectrometers as sb
 
