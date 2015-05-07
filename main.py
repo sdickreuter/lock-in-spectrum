@@ -32,13 +32,13 @@ class LockinGui(object):
         self.step_distance = 1  # in um
         self.pad = None
         try:
-            pass
-            #self.pad = Gamepad(True)
+            #pass
+            self.pad = Gamepad(True)
         except:
             print("Could not initialize Gamepad")
 
         try:
-            self.stage = PIStage.E545()
+            self.stage = PIStage.E545('134.2.182.54',50000)
         except:
             self.stage = None
             self.stage = PIStage.Dummy()
@@ -548,8 +548,8 @@ class LockinGui(object):
         dialog.set_current_folder(os.path.dirname(os.path.abspath(__file__)))
         response = dialog.run()
         if response == Gtk.ResponseType.OK:
-            data = pandas.DataFrame(pandas.read_csv(dialog.get_filename()))
-            data = data['intensity']
+            data = pandas.read_csv(dialog.get_filename(),header=6)
+            data = data['counts']
         elif response == Gtk.ResponseType.CANCEL:
             data = None
         dialog.destroy()
