@@ -30,12 +30,6 @@ class LockinGui(object):
         self.x_step = .0
         self.y_step = .0
         self.step_distance = 1  # in um
-        self.pad = None
-        try:
-            #pass
-            self.pad = Gamepad(True)
-        except:
-            print("Could not initialize Gamepad")
 
         try:
             self.stage = PIStage.E545(self.settings.stage_ip,self.settings.stage_port)
@@ -335,6 +329,15 @@ class LockinGui(object):
         self.moverel_dialog = dialogs.MoveRelDialog(self.window, self.stage)
         self.spangrid_dialog = dialogs.SpanGridDialog(self.window)
         self.prefix_dialog = dialogs.PrefixDialog(self.window)
+
+        self.pad = None
+        try:
+            #pass
+            self.pad = Gamepad(True)
+        except:
+            print("Could not initialize Gamepad")
+
+
 
     def quit(self, *args):
         """
