@@ -155,7 +155,7 @@ class LockinGui(object):
         self.progress.set_fraction(self._progress_fraction)
 
         # Box for control of taking single spectra
-        self.SpectrumBox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        self.SpectrumBox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)
         self.SpectrumBox.add(Gtk.Separator())
         self.SpectrumBox.add(self.button_live)
         self.SpectrumBox.add(Gtk.Separator())
@@ -181,13 +181,13 @@ class LockinGui(object):
         # Switch corrected Spectrum yes/no
         self.button_corronoff = Gtk.Switch()
         self.label_corronoff = Gtk.Label('Correct Spectrum')
-        self.corronoff_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        self.corronoff_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=3)
         self.corronoff_box.set_homogeneous(True)
         self.corronoff_box.add(self.label_corronoff)
         self.corronoff_box.add(self.button_corronoff)
 
         # box for Stage control
-        self.stage_hbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        self.stage_hbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)
         # self.stage_hbox.add(Gtk.Separator())
         self.stage_hbox.add(self.corronoff_box)
         self.stage_hbox.add(self.button_search)
@@ -197,7 +197,7 @@ class LockinGui(object):
         self.stage_hbox.add(self.table_stepsize)
         self.stage_hbox.add(self.button_moverel)
         self.stage_hbox.add(self.button_moveabs)
-        self.labels_hbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        self.labels_hbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)
         self.labels_hbox.add(self.label_x)
         self.labels_hbox.add(self.label_y)
         self.labels_hbox.add(self.label_z)
@@ -208,18 +208,18 @@ class LockinGui(object):
         self.button_spangrid = Gtk.Button('Span Grid')
         self.button_searchonoff = Gtk.Switch()
         self.label_searchonoff = Gtk.Label('Search Max.')
-        self.searchonoff_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        self.searchonoff_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=3)
         self.searchonoff_box.set_homogeneous(True)
         self.searchonoff_box.add(self.label_searchonoff)
         self.searchonoff_box.add(self.button_searchonoff)
         self.button_lockinonoff = Gtk.Switch()
         self.label_lockinonoff = Gtk.Label('Use Lock-In')
-        self.lockinonoff_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        self.lockinonoff_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=3)
         self.lockinonoff_box.set_homogeneous(True)
         self.lockinonoff_box.add(self.label_lockinonoff)
         self.lockinonoff_box.add(self.button_lockinonoff)
         self.button_scan_start = Gtk.Button('Start Scan')
-        self.scan_hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        self.scan_hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=3)
         self.button_scan_add = Gtk.ToolButton(Gtk.STOCK_ADD)
         self.button_scan_remove = Gtk.ToolButton(Gtk.STOCK_REMOVE)
         self.button_scan_clear = Gtk.ToolButton(Gtk.STOCK_DELETE)
@@ -266,7 +266,7 @@ class LockinGui(object):
         self.scan_yrenderer.connect("edited", self.on_scan_yedited)
 
         #Box for control of scanning
-        self.ScanningBox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        self.ScanningBox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)
         self.ScanningBox.add(Gtk.Separator())
         self.ScanningBox.add(self.button_add_position)
         self.ScanningBox.add(self.button_spangrid)
@@ -303,7 +303,7 @@ class LockinGui(object):
         self.stack_switcher = Gtk.StackSwitcher()
         self.stack_switcher.set_stack(self.stack)
 
-        self.SideBox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        self.SideBox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)
         self.SideBox.add(self.stack_switcher)
         self.ScanningBox.add(Gtk.Separator())
         self.SideBox.add(self.button_stop)
@@ -323,8 +323,7 @@ class LockinGui(object):
 
         spec = self.spectrum.get_spec()  # get an initial spectrum for display
         self._wl = self.spectrum.get_wl()  # get the wavelengths
-        print(len(self._wl))
-        print(len(spec))
+        print(self._wl)
         self.lines = []
         self.lines.extend(self.ax.plot(self._wl, spec, "-"))
         self.lines.extend(self.ax.plot(self._wl, self.spectrum.smooth(spec), "-", c="black"))  # plot initial spectrum
@@ -658,7 +657,7 @@ class LockinGui(object):
         self.lines[0].set_ydata(spec)
         self.lines[1].set_ydata(self.spectrum.smooth(spec))
         #self.ax.set_ylim(min(spec[262:921]), max(spec[262:921]))
-        self.ax.autoscale_view(None, True, True)
+        self.ax.autoscale_view(None, False, True)
         self.canvas.draw()
         self.show_pos()
         return True
