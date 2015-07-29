@@ -5,7 +5,7 @@ import math
 import multiprocessing
 
 import seabreeze.spectrometers as sb
-#import oceanoptics
+import oceanoptics
 import numpy as np
 import scipy.optimize as opt
 import matplotlib.pyplot as plt
@@ -48,17 +48,17 @@ class Spectrum(object):
 
     def _init_spectrometer(self):
 
-        try:
-            devices = sb.list_devices()
-            self._spectrometer = sb.Spectrometer(devices[0])
-            self._spectrometer.tec_set_temperature_C(-17)
-            self._spectrometer.tec_set_enable(True)
-            print(self._spectrometer.tec_get_temperature_C())
-            self._spectrometer.integration_time_micros(100000)
-            print("Spectrometer " + str(self._spectrometer.serial_number) + " initialized and working")
-        except:
-            print("Error opening Spectrometer, using Dummy instead")
-            #self._spectrometer = oceanoptics.Dummy()
+    #    try:
+    #        devices = sb.list_devices()
+    #        self._spectrometer = sb.Spectrometer(devices[0])
+    #        self._spectrometer.tec_set_temperature_C(-17)
+    #        self._spectrometer.tec_set_enable(True)
+    #        print(self._spectrometer.tec_get_temperature_C())
+    #        self._spectrometer.integration_time_micros(100000)
+    #        print("Spectrometer " + str(self._spectrometer.serial_number) + " initialized and working")
+    #    except:
+    #        print("Error opening Spectrometer, using Dummy instead")
+        self._spectrometer = oceanoptics.Dummy()
 
         sp = self._spectrometer.spectrum()
         self._wl = np.array(sp[0], dtype=np.float)
@@ -508,6 +508,11 @@ class Spectrum(object):
 
         f.close()
 
+    def on_reset_clicked(self, widget):
+        self.dark = None
+        self.lamp = None
+        self.lockin = None
+        self.mean = None
 
     @staticmethod
     def _gen_filename():
