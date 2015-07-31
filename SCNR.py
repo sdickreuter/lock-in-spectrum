@@ -11,7 +11,7 @@ from spectrum import Spectrum
 #import dialogs
 from settings import Settings
 from PyQt5 import uic
-from PyQt5.QtCore import pyqtSlot, QTimer
+from PyQt5.QtCore import pyqtSlot, QTimer, QSocketNotifier
 from PyQt5.QtWidgets import QApplication, QMainWindow, QSizePolicy, QVBoxLayout
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
@@ -19,33 +19,6 @@ import numpy as np
 
 #Ui_MainWindow = uic.loadUiType("SCNR_main.ui")[0]
 from SCNR_main import Ui_MainWindow
-
-class MplCanvas(FigureCanvas):
-    """A canvas that updates itself every second with a new plot."""
-    def __init__(self, parent=None, dpi=100):
-        fig = Figure(dpi=dpi)
-        self.axes = fig.add_subplot(111)
-        self.axes.hold(False)
-
-        FigureCanvas.__init__(self, fig)
-        self.setParent(parent)
-
-        FigureCanvas.setSizePolicy(self,
-                                   QSizePolicy.Expanding,
-                                   QSizePolicy.Expanding)
-        FigureCanvas.updateGeometry(self)
-
-        timer = QTimer(self)
-        timer.timeout.connect(self.update_figure)
-        timer.start(50)
-
-        self.x  = np.arange(0, 4*np.pi, 0.1)
-        self.y  = np.sin(self.x)
-
-    def update_figure(self):
-        self.axes.plot(self.x, self.y)
-        #self.y = np.roll(self.y,-1)
-        self.draw()
 
 class SCNR(QMainWindow):
     _window_title = "Lock-in Spectrum"
@@ -66,9 +39,7 @@ class SCNR(QMainWindow):
         self.Canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.Canvas.updateGeometry()
 
-
         l = QVBoxLayout(self.ui.plotwidget)
-        #mplcanvas = MplCanvas(parent = self.ui.plotwidget, dpi=100)
         l.addWidget(self.Canvas)
 
         self.statusBar().showMessage("All hail matplotlib!", 2000)
@@ -98,35 +69,40 @@ class SCNR(QMainWindow):
 
         self.stage = PIStage.Dummy()
 
-        self.spectrum = Spectrum(self.stage, self.settings, self.status, self.progress, self.enable_buttons,
+        self.spectrum = Spectrum(self.stage, self.settings, self.ui.statusbar, self.ui.progressBar, self.enable_buttons,
                                  self.disable_buttons)  # logger class which coordinates the spectrometer and the stage
 
         spec = self.spectrum.get_spec()  # get an initial spectrum for display
         self._wl = self.spectrum.get_wl()  # get the wavelengths
+        self.update_plot()
 
-        timer = QTimer(self)
-        timer.timeout.connect(self.update_plot)
-        timer.start(50)
+        #timer = QTimer(self)
+        #timer.timeout.connect(self.update_plot)
+        #timer.start(50)
 
-
+        spectrumNotifier = QSocketNotifier(self.spectrum.conn_for_main.fileno(), QSocketNotifier.Read, self)
+        spectrumNotifier.setEnabled(True)
+        spectrumNotifier.activated.connect(self.spectrum.callback)
 
 
     def disable_buttons(self):
+        pass
         # self.stack_switcher.set_sensitive(False)
-        self.scan_hbox.set_sensitive(False)
-        self.SpectrumBox.set_sensitive(False)
-        self.stage_hbox.set_sensitive(False)
-        self.ScanningBox.set_sensitive(False)
-        self.button_stop.set_sensitive(True)
+        #self.scan_hbox.set_sensitive(False)
+        #self.SpectrumBox.set_sensitive(False)
+        #self.stage_hbox.set_sensitive(False)
+        #self.ScanningBox.set_sensitive(False)
+        #self.button_stop.set_sensitive(True)
 
 
     def enable_buttons(self):
+        pass
         # self.stack_switcher.set_sensitive(True)
-        self.scan_hbox.set_sensitive(True)
-        self.SpectrumBox.set_sensitive(True)
-        self.stage_hbox.set_sensitive(True)
-        self.ScanningBox.set_sensitive(True)
-        self.button_stop.set_sensitive(False)
+        #self.scan_hbox.set_sensitive(True)
+        #self.SpectrumBox.set_sensitive(True)
+        #self.stage_hbox.set_sensitive(True)
+        #self.ScanningBox.set_sensitive(True)
+        #self.button_stop.set_sensitive(False)
 
     def _on_pad_change(self, io, condition):
         a, b, x, y, ax, ay = self.pad.receiver.recv()
@@ -240,9 +216,13 @@ class SCNR(QMainWindow):
 
     @pyqtSlot()
     def on_live_clicked(self):
-        self.status.set_label('Liveview')
+        self.ui.statusbar.showMessage('Liveview',10000)
+        print("on_live1")
         self.spectrum.take_live()
+        print("on_live2")
         self.disable_buttons()
+        print("on_live3")
+
 
     @pyqtSlot()
     def on_search_clicked(self):
@@ -367,9 +347,9 @@ class SCNR(QMainWindow):
     def show_pos(self):
         pos = self.stage.last_pos()
         # print(pos)
-        self.label_x.set_text("x: {0:+8.4f}".format(pos[0]))
-        self.label_y.set_text("y: {0:+8.4f}".format(pos[1]))
-        self.label_z.set_text("z: {0:+8.4f}".format(pos[2]))
+        self.ui.label_x.setText("x: {0:+8.4f}".format(pos[0]))
+        self.ui.label_y.setText("y: {0:+8.4f}".format(pos[1]))
+        self.ui.label_z.setText("z: {0:+8.4f}".format(pos[2]))
 
     def on_xup_clicked(self):
         self.stage.moverel(dx=self.settings.stepsize)
@@ -420,8 +400,8 @@ class SCNR(QMainWindow):
 
 
     def update_plot(self):
-        spec = self.spectrum.get_spec(self.button_corronoff.get_active())
-        self.Canvas.axes.plot(self.x, self.y)
+        spec = self.spectrum.get_spec(self.ui.CheckBox_correct.isChecked())
+        self.axes.plot(self._wl, spec)
         self.Canvas.draw()
         self.show_pos()
         return True
