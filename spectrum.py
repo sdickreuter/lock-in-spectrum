@@ -2,20 +2,66 @@ __author__ = 'sei'
 
 from datetime import datetime
 import math
-import multiprocessing
 
-import seabreeze
-seabreeze.use('pyseabreeze')
-import seabreeze.spectrometers as sb
-#import oceanoptics
+#import seabreeze.spectrometers as sb
+import oceanoptics
 import numpy as np
 import scipy.optimize as opt
 import matplotlib.pyplot as plt
 import pandas
 from progress import *
+from PyQt5.QtCore import pyqtSlot, QThread, QMutex, QMutexLocker, QWaitCondition , pyqtSignal
 
 
-class Spectrum(object):
+class SpectrumThread(QThread):
+
+    spectrum = pyqtSignal(np.ndarray)
+
+    def __init__(self, spectrometer, parent=None):
+        super(SpectrumThread, self).__init__(parent)
+        self.spectrometer = spectrometer
+        self.mutex = QMutex()
+        self.condition = QWaitCondition()
+        self.restart = False
+        self.abort = False
+
+    def __del__(self):
+        self.mutex.lock()
+        self.abort = True
+        self.condition.wakeOne()
+        self.mutex.unlock()
+
+        self.wait()
+
+    def getSpectrum(self):
+        locker = QMutexLocker(self.mutex)
+
+        if not self.isRunning():
+            self.start(QThread.HighPriority)
+        else:
+            self.restart = True
+            self.condition.wakeOne()
+
+    def run(self):
+        while True:
+            self.mutex.lock()
+            spec = self.spectrometer.intensities()
+            self.mutex.unlock()
+
+            if not self.restart:
+                self.spectrum.emit(spec)
+
+            self.mutex.lock()
+            if not self.restart:
+                self.condition.wait(self.mutex)
+            self.restart = False
+            self.mutex.unlock()
+
+
+
+class Spectrum(QThread):
+
+
     def __init__(self, stage, settings, status, progressbar, enable_buttons, disable_buttons):
         self.settings = settings
         self.stage = stage
@@ -50,28 +96,34 @@ class Spectrum(object):
 
     def _init_spectrometer(self):
 
-        try:
-            devices = sb.list_devices()
-            self._spectrometer = sb.Spectrometer(devices[0])
-            self._spectrometer.tec_set_temperature_C(-17)
-            self._spectrometer.tec_set_enable(True)
-            print(self._spectrometer.tec_get_temperature_C())
-            self._spectrometer.integration_time_micros(100000)
-            print("Spectrometer " + str(self._spectrometer.serial_number) + " initialized and working")
-        except:
-            print("Error opening Spectrometer, using Dummy instead")
-        #self._spectrometer = oceanoptics.Dummy()
+    #    try:
+    #        devices = sb.list_devices()
+    #        self._spectrometer = sb.Spectrometer(devices[0])
+    #        self._spectrometer.tec_set_temperature_C(-17)
+    #        self._spectrometer.tec_set_enable(True)
+    #        print(self._spectrometer.tec_get_temperature_C())
+    #        self._spectrometer.integration_time_micros(100000)
+    #        print("Spectrometer " + str(self._spectrometer.serial_number) + " initialized and working")
+    #    except:
+    #        print("Error opening Spectrometer, using Dummy instead")
+        self._spectrometer = oceanoptics.Dummy()
 
         sp = self._spectrometer.spectrum()
         self._wl = np.array(sp[0], dtype=np.float)
 
 
     def start_process(self, target):
-        self._spectrometer.integration_time_micros(self.settings.integration_time * 1000)
+        print("start_process0")
+        #self._spectrometer.integration_time_micros(self.settings.integration_time * 1000)
+        print("start_process1")
         self.worker = multiprocessing.Process(target=target, args=(self._conn_for_worker,))
+        print("start_process2")
         self.worker.daemon = True
+        print("start_process3")
         self.running.set()
+        print("start_process4")
         self.worker.start()
+        print("start_process5")
 
     def stop_process(self):
         self.running.clear()
@@ -109,8 +161,11 @@ class Spectrum(object):
         return res
 
     def take_live(self):
+        print("live1")
         self.worker = "live"
+        print("live2")
         self.start_process(self._live_spectrum)
+        print("live3")
 
     def take_dark(self):
         self.worker_mode = "dark"
@@ -161,7 +216,8 @@ class Spectrum(object):
         self.progress = Progress(max=len(self.scanner_points))
         self._callback_scan()
 
-    def callback(self, io, condition):
+    @pyqtSlot()
+    def callback(self):
         if self.worker_mode is "scan":
             self._callback_scan()
         else:
@@ -196,25 +252,25 @@ class Spectrum(object):
             if self.worker_mode is "lockin":
                 self.lockin = self.calc_lockin()
                 self._spec = self.lockin
-                self.status.set_label('Lock-In Spectrum acquired')
+                self.status.showMessage('Lock-In Spectrum acquired',5000)
             elif self.worker_mode is "lamp":
                 self.lamp = self._spec
-                self.status.set_label('Lamp Spectrum taken')
+                self.status.showMessage('Lamp Spectrum taken',5000)
             elif self.worker_mode is "dark":
                 self.dark = self._spec
-                self.status.set_label('Dark Spectrum taken')
+                self.status.showMessage('Dark Spectrum taken',5000)
             elif self.worker_mode is "normal":
                 self.normal = self._spec
-                self.status.set_label('Normal Spectrum taken')
+                self.status.showMessage('Normal Spectrum taken',5000)
             elif self.worker_mode is "bg":
                 self.bg = self._spec
-                self.status.set_label('Background Spectrum taken')
+                self.status.showMessage('Background Spectrum taken',5000)
             elif self.worker_mode is "search":
                 # self.show_pos()
-                self.status.set_text("Max. approached")
+                self.status.showMessage("Max. approached",5000)
             elif self.worker_mode is "series":
                 # self.show_pos()
-                self.status.set_text("Time series finished")
+                self.status.showMessage("Time series finished",5000)
 
                 # if not self.worker_mode is "lockin":
                 #if not self.dark is None:
@@ -248,10 +304,6 @@ class Spectrum(object):
 
         def finish():
             self.running.clear()
-            self.scanner_points.clear()
-            for i in range(len(self.x)):
-                self.scan_store.append([self.x[i], self.y[i]])
-
             map = np.ones((len(self.x), 4), dtype=np.float)
             map[:, 0] = self.x
             map[:, 1] = self.y
@@ -277,10 +329,7 @@ class Spectrum(object):
             if spec is not None:
                 self._spec = spec
             if finished:
-                #xd, yd = self.conn_for_main.recv()
-                #self.x[self.scanner_index] = xd
-                #self.y[self.scanner_index] = yd
-                #self.worker.join(0.5)
+                self.worker.join(0.5)
                 if self.scanner_lockin:
                     self.scanner_mode = "lockin"
                     self.start_process(self._lockin_spectrum)
@@ -347,8 +396,8 @@ class Spectrum(object):
             self.worker_mode = None
             self.scanner_mode = None
 
-        self.status.set_text("ETA: " + str(self.progress.eta_td))
-        self.progressbar.set_fraction(self.scanner_index / (len(self.scanner_points)))
+        self.status.showMessage("ETA: " + str(self.progress.eta_td))
+        self.progressbar.setValue(self.scanner_index / (len(self.scanner_points))*100)
 
         return True
 
@@ -443,9 +492,6 @@ class Spectrum(object):
             plt.savefig("search_max/search" + str(j) + ".png")
             plt.close()
 
-            xd = origin[0] + d[maxind]
-            yd = origin[1] + d[maxind]
-
             try:
                 popt, pcov = opt.curve_fit(self.gauss, pos[2:(len(pos) - 1)], measured[2:(len(pos) - 1)],
                                            p0=initial_guess)
@@ -454,16 +500,18 @@ class Spectrum(object):
             except RuntimeError as e:
                 print(e)
                 print("Could not determine particle position")
-                self.stage.moveabs(x=xd, y= yd)
+                if j % 2:
+                    self.stage.moveabs(x=origin[0] + d[maxind])
+                else:
+                    self.stage.moveabs(y=origin[1] + d[maxind])
+                    # self.stage.moveabs(x=origin[0],y=origin[1])
+                    # return True
             else:
                 if j % 2:
-                   xd=float(popt[1])
+                    self.stage.moveabs(x=float(popt[1]))
                 else:
-                   yd=float(popt[1])
+                    self.stage.moveabs(y=float(popt[1]))
                     # print(popt)
-
-            self.stage.moveabs(x=xd, y=yd)
-
 
         self._spectrometer.integration_time_micros(self.settings.integration_time / 1000)
         self._spectrometer.intensities(correct_nonlinearity=True)
