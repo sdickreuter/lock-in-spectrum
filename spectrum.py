@@ -2,18 +2,26 @@ __author__ = 'sei'
 
 from datetime import datetime
 import math
-import multiprocessing
 
-import seabreeze.spectrometers as sb
+#import seabreeze.spectrometers as sb
 import oceanoptics
 import numpy as np
 import scipy.optimize as opt
 import matplotlib.pyplot as plt
 import pandas
 from progress import *
+from PyQt5.QtCore import pyqtSlot, QThread, QMutex, QMutexLocker, QWaitCondition , pyqtSignal
 
 
-class Spectrum(object):
+class Spectrum(QThread):
+
+    renderedImage = pyqtSignal(np.ndarray)
+
+
+
+class Spectrum(QThread):
+
+
     def __init__(self, stage, settings, status, progressbar, enable_buttons, disable_buttons):
         self.settings = settings
         self.stage = stage
@@ -65,11 +73,17 @@ class Spectrum(object):
 
 
     def start_process(self, target):
-        self._spectrometer.integration_time_micros(self.settings.integration_time * 1000)
+        print("start_process0")
+        #self._spectrometer.integration_time_micros(self.settings.integration_time * 1000)
+        print("start_process1")
         self.worker = multiprocessing.Process(target=target, args=(self._conn_for_worker,))
+        print("start_process2")
         self.worker.daemon = True
+        print("start_process3")
         self.running.set()
+        print("start_process4")
         self.worker.start()
+        print("start_process5")
 
     def stop_process(self):
         self.running.clear()
@@ -107,8 +121,11 @@ class Spectrum(object):
         return res
 
     def take_live(self):
+        print("live1")
         self.worker = "live"
+        print("live2")
         self.start_process(self._live_spectrum)
+        print("live3")
 
     def take_dark(self):
         self.worker_mode = "dark"
@@ -159,7 +176,8 @@ class Spectrum(object):
         self.progress = Progress(max=len(self.scanner_points))
         self._callback_scan()
 
-    def callback(self, io, condition):
+    @pyqtSlot()
+    def callback(self):
         if self.worker_mode is "scan":
             self._callback_scan()
         else:
@@ -194,25 +212,25 @@ class Spectrum(object):
             if self.worker_mode is "lockin":
                 self.lockin = self.calc_lockin()
                 self._spec = self.lockin
-                self.status.set_label('Lock-In Spectrum acquired')
+                self.status.showMessage('Lock-In Spectrum acquired',5000)
             elif self.worker_mode is "lamp":
                 self.lamp = self._spec
-                self.status.set_label('Lamp Spectrum taken')
+                self.status.showMessage('Lamp Spectrum taken',5000)
             elif self.worker_mode is "dark":
                 self.dark = self._spec
-                self.status.set_label('Dark Spectrum taken')
+                self.status.showMessage('Dark Spectrum taken',5000)
             elif self.worker_mode is "normal":
                 self.normal = self._spec
-                self.status.set_label('Normal Spectrum taken')
+                self.status.showMessage('Normal Spectrum taken',5000)
             elif self.worker_mode is "bg":
                 self.bg = self._spec
-                self.status.set_label('Background Spectrum taken')
+                self.status.showMessage('Background Spectrum taken',5000)
             elif self.worker_mode is "search":
                 # self.show_pos()
-                self.status.set_text("Max. approached")
+                self.status.showMessage("Max. approached",5000)
             elif self.worker_mode is "series":
                 # self.show_pos()
-                self.status.set_text("Time series finished")
+                self.status.showMessage("Time series finished",5000)
 
                 # if not self.worker_mode is "lockin":
                 #if not self.dark is None:
@@ -338,8 +356,8 @@ class Spectrum(object):
             self.worker_mode = None
             self.scanner_mode = None
 
-        self.status.set_text("ETA: " + str(self.progress.eta_td))
-        self.progressbar.set_fraction(self.scanner_index / (len(self.scanner_points)))
+        self.status.showMessage("ETA: " + str(self.progress.eta_td))
+        self.progressbar.setValue(self.scanner_index / (len(self.scanner_points))*100)
 
         return True
 
