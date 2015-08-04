@@ -68,7 +68,6 @@ class SCNR(QMainWindow):
             print("Could not initialize PIStage, using Dummy instead")
 
         self.stage = PIStage.Dummy()
-
         self.spectrum = Spectrum(self.stage, self.settings, self.ui.statusbar, self.ui.progressBar, self.enable_buttons,
                                  self.disable_buttons)  # logger class which coordinates the spectrometer and the stage
 
@@ -76,13 +75,9 @@ class SCNR(QMainWindow):
         self._wl = self.spectrum.get_wl()  # get the wavelengths
         self.update_plot()
 
-        #timer = QTimer(self)
-        #timer.timeout.connect(self.update_plot)
-        #timer.start(50)
-
-        spectrumNotifier = QSocketNotifier(self.spectrum.conn_for_main.fileno(), QSocketNotifier.Read, self)
-        spectrumNotifier.setEnabled(True)
-        spectrumNotifier.activated.connect(self.spectrum.callback)
+        timer = QTimer(self)
+        timer.timeout.connect(self.update_plot)
+        timer.start(50)
 
 
     def disable_buttons(self):
@@ -194,7 +189,6 @@ class SCNR(QMainWindow):
     def on_stop_clicked(self):
         self.spectrum.stop_process()
         self.enable_buttons()
-        self.status.set_label('Stopped')
 
     @pyqtSlot()
     def on_reset_clicked(self):
@@ -206,7 +200,7 @@ class SCNR(QMainWindow):
 
     @pyqtSlot()
     def on_lockin_clicked(self):
-        self.status.set_label('Acquiring ...')
+        #self.status.set_label('Acquiring ...')
         self.spectrum.take_lockin()
         self.disable_buttons()
 
@@ -226,13 +220,13 @@ class SCNR(QMainWindow):
 
     @pyqtSlot()
     def on_search_clicked(self):
-        self.status.set_text("Searching Max.")
+        #self.status.set_text("Searching Max.")
         self.spectrum.search_max()
         self.disable_buttons()
 
     @pyqtSlot()
     def on_save_clicked(self):
-        self.status.set_label("Saving Data ...")
+        #self.status.set_label("Saving Data ...")
         self.save_data()
 
     @pyqtSlot()
@@ -243,31 +237,35 @@ class SCNR(QMainWindow):
 
     @pyqtSlot()
     def on_dark_clicked(self):
-        self.status.set_label('Taking Dark Spectrum')
+        #self.status.set_label('Taking Dark Spectrum')
         self.spectrum.take_dark()
         self.disable_buttons()
 
     @pyqtSlot()
     def on_lamp_clicked(self):
-        self.status.set_label('Taking Lamp Spectrum')
+        #self.status.set_label('Taking Lamp Spectrum')
         self.spectrum.take_lamp()
         self.disable_buttons()
 
     @pyqtSlot()
-    def on_normal_clicked(self):
-        self.status.set_label('Taking Normal Spectrum')
-        self.spectrum.take_normal()
+    def on_mean_clicked(self):
+        #self.status.set_label('Taking Normal Spectrum')
+        print("mean1")
+        self.spectrum.take_mean()
+        print("mean2")
         self.disable_buttons()
+        print("mean3")
+
 
     @pyqtSlot()
     def on_bg_clicked(self):
-        self.status.set_label('Taking Background Spectrum')
+        #self.status.set_label('Taking Background Spectrum')
         self.spectrum.take_bg()
         self.disable_buttons()
 
     @pyqtSlot()
     def on_series_clicked(self):
-        self.status.set_label('Taking Time Series')
+        #self.status.set_label('Taking Time Series')
         prefix = self.prefix_dialog.rundialog()
         if prefix is not None:
             try:

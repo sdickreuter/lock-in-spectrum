@@ -13,17 +13,20 @@ from progress import *
 from PyQt5.QtCore import pyqtSlot, QThread, QMutex, QMutexLocker, QWaitCondition , pyqtSignal
 
 
-class SpectrumThread(QThread):
+class GetSpectrumThread(QThread):
 
-    spectrum = pyqtSignal(np.ndarray)
+    dynamicSpecSignal = pyqtSignal(np.ndarray)
 
     def __init__(self, spectrometer, parent=None):
-        super(SpectrumThread, self).__init__(parent)
+        if getattr(self.__class__, '_has_instance', False):
+            print('Cannot create another instance')
+            return None
+        self.__class__._has_instance = True
+
+        super(GetSpectrumThread, self).__init__(parent)
         self.spectrometer = spectrometer
         self.mutex = QMutex()
         self.condition = QWaitCondition()
-        self.restart = False
-        self.abort = False
 
     def __del__(self):
         self.mutex.lock()
@@ -34,33 +37,93 @@ class SpectrumThread(QThread):
         self.wait()
 
     def getSpectrum(self):
-        locker = QMutexLocker(self.mutex)
-
+    #    #locker = QMutexLocker(self.mutex)
         if not self.isRunning():
             self.start(QThread.HighPriority)
-        else:
-            self.restart = True
-            self.condition.wakeOne()
+
+    def run(self):
+        self.mutex.lock()
+        spec = self.spectrometer.intensities()
+        self.mutex.unlock()
+        self.dynamicSpecSignal.emit(spec)
+
+
+
+class MeasurementThread(QThread):
+
+    specSignal = pyqtSignal(np.ndarray)
+    progressSignal = pyqtSignal(float)
+    waitCondition = QWaitCondition()
+    abort = False
+
+    def __init__(self, getspecthread, parent=None):
+        if getattr(self.__class__, '_has_instance', False):
+            RuntimeError('Cannot create another instance')
+        self.__class__._has_instance = True
+
+        super(MeasurementThread, self).__init__(parent)
+        self.getspecthread = getspecthread
+        self.mutex = QMutex()
+        self.getspecthread.dynamicSpecSignal.connect(self.specCallback)
+        self.start(QThread.HighPriority)
+
+    def __del__(self):
+        self.mutex.lock()
+        self.__class__.has_instance = False
+        self.getspecthread.dynamicSpecSignal.disconnect(self.specCallback)
+        self.abort = True
+        self.waitCondition.wakeOne()
+        self.mutex.unlock()
+        self.wait()
+
+    def stop(self):
+        self.abort=True
+        self.waitCondition.wakeOne()
+
+    def work(self):
+        #pass #print(self.spec)
+        self.specSignal.emit(self.spec)
 
     def run(self):
         while True:
+            if self.abort:
+                return
+            self.getspecthread.getSpectrum()
             self.mutex.lock()
-            spec = self.spectrometer.intensities()
+            self.waitCondition.wait(self.mutex)
             self.mutex.unlock()
-
-            if not self.restart:
-                self.spectrum.emit(spec)
-
-            self.mutex.lock()
-            if not self.restart:
-                self.condition.wait(self.mutex)
-            self.restart = False
-            self.mutex.unlock()
+            self.work()
 
 
+    @pyqtSlot(np.ndarray)
+    def specCallback(self, spec):
+        self.waitCondition.wakeOne()
+        self.spec = spec
 
-class Spectrum(QThread):
+class MeanThread(MeasurementThread):
+    def __init__(self, getspecthread, number_of_samples, parent=None):
+        self.number_of_samples = number_of_samples
+        self.mean = np.zeros(1024, dtype=np.float)
+        self.i = 0
+        super(MeanThread, self).__init__(getspecthread)
 
+    def work(self):
+        self.mutex.lock()
+        print(self.i)
+        self.mean = (self.mean + self.spec)  # / 2
+        self.mutex.unlock()
+        self.specSignal.emit(self.mean/(self.i+1))
+        progressFraction = float(self.i + 1) / self.number_of_samples
+        self.progressSignal.emit(progressFraction*100)
+        self.mutex.lock()
+        self.i += 1
+        if self.i >= self.number_of_samples:
+            self.abort = True
+        self.mutex.unlock()
+
+
+
+class Spectrum(object):
 
     def __init__(self, stage, settings, status, progressbar, enable_buttons, disable_buttons):
         self.settings = settings
@@ -81,15 +144,12 @@ class Spectrum(QThread):
         self.bg = None
         self.lockin = None
 
-        self._progress_fraction = 0.0
-
-        self.worker = None
-        self.worker_mode = None
-        self.conn_for_main, self._conn_for_worker = multiprocessing.Pipe()
-        self.running = multiprocessing.Event()
-        self.running.clear()
         self._spec = np.zeros(1024, dtype=np.float)
         self._spec = self._spectrometer.intensities(correct_nonlinearity=True)
+
+        self.getspecthread = GetSpectrumThread(self._spectrometer)
+        self.workingthread = None
+
 
     def __del__(self):
         self._spectrometer = None
@@ -111,22 +171,14 @@ class Spectrum(QThread):
         sp = self._spectrometer.spectrum()
         self._wl = np.array(sp[0], dtype=np.float)
 
+    @pyqtSlot(float)
+    def progressCallback(self, progress):
+        self.progressbar.setValue(progress)
 
-    def start_process(self, target):
-        print("start_process0")
-        #self._spectrometer.integration_time_micros(self.settings.integration_time * 1000)
-        print("start_process1")
-        self.worker = multiprocessing.Process(target=target, args=(self._conn_for_worker,))
-        print("start_process2")
-        self.worker.daemon = True
-        print("start_process3")
-        self.running.set()
-        print("start_process4")
-        self.worker.start()
-        print("start_process5")
+    @pyqtSlot(np.ndarray)
+    def specCallback(self, spec):
+        self._spec = spec
 
-    def stop_process(self):
-        self.running.clear()
 
     def get_wl(self):
         return self._wl
@@ -160,24 +212,25 @@ class Spectrum(QThread):
             res[i] = buf
         return res
 
+    def stop_process(self):
+        self.workingthread.stop()
+        self.workingthread.wait()
+        self.workingthread = None
+
     def take_live(self):
-        print("live1")
-        self.worker = "live"
-        print("live2")
-        self.start_process(self._live_spectrum)
-        print("live3")
+        self.workingthread = MeasurementThread(self.getspecthread)
+        self.workingthread.specSignal.connect(self.specCallback)
 
     def take_dark(self):
-        self.worker_mode = "dark"
         self.start_process(self._mean_spectrum)
 
     def take_lamp(self):
-        self.worker_mode = "lamp"
         self.start_process(self._mean_spectrum)
 
-    def take_normal(self):
-        self.worker_mode = "normal"
-        self.start_process(self._mean_spectrum)
+    def take_mean(self):
+        self.workingthread = MeanThread(self.getspecthread,self.settings.number_of_samples)
+        self.workingthread.specSignal.connect(self.specCallback)
+        self.workingthread.progressSignal.connect(self.progressCallback)
 
     def take_bg(self):
         self.worker_mode = "bg"

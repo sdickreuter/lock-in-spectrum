@@ -765,7 +765,10 @@
     <item row="13" column="0">
      <widget class="QProgressBar" name="progressBar">
       <property name="value">
-       <number>24</number>
+       <number>0</number>
+      </property>
+      <property name="textVisible">
+       <bool>true</bool>
       </property>
      </widget>
     </item>
@@ -894,7 +897,7 @@
    <sender>Button_regular</sender>
    <signal>clicked()</signal>
    <receiver>MainWindow</receiver>
-   <slot>on_normal_clicked()</slot>
+   <slot>on_mean_clicked()</slot>
    <hints>
     <hint type="sourcelabel">
      <x>844</x>
@@ -1034,6 +1037,22 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>Button_stop</sender>
+   <signal>clicked()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>on_stop_clicked()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>775</x>
+     <y>44</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>1</x>
+     <y>70</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>on_live_clicked()</slot>
@@ -1041,7 +1060,6 @@
   <slot>on_direction_clicked()</slot>
   <slot>on_dark_clicked()</slot>
   <slot>on_lamp_clicked()</slot>
-  <slot>on_normal_clicked()</slot>
   <slot>on_bg_clicked()</slot>
   <slot>on_series_clicked()</slot>
   <slot>on_save_clicked()</slot>
@@ -1050,5 +1068,7 @@
   <slot>on_loaddark_clicked()</slot>
   <slot>on_loadlamp_clicked()</slot>
   <slot>on_search_clicked()</slot>
+  <slot>on_mean_clicked()</slot>
+  <slot>on_stop_clicked()</slot>
  </slots>
 </ui>
