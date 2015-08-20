@@ -8,7 +8,6 @@ import pandas
 import PIStage
 from pygamepad import Gamepad
 from spectrum import Spectrum
-#import dialogs
 from settings import Settings
 from PyQt5 import uic
 from PyQt5.QtCore import pyqtSlot, QTimer, QSocketNotifier
@@ -16,9 +15,10 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QSizePolicy, QVBoxLayout
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import numpy as np
-
+import dialogs
 #Ui_MainWindow = uic.loadUiType("SCNR_main.ui")[0]
 from SCNR_main import Ui_MainWindow
+
 
 class SCNR(QMainWindow):
     _window_title = "SCNR"
@@ -48,6 +48,8 @@ class SCNR(QMainWindow):
         self.path = "./"
 
         self.settings = Settings()
+
+        self.settings_dialog = dialogs.Settings_Dialog(self.settings)
 
         self.x_step = .0
         self.y_step = .0
@@ -82,23 +84,21 @@ class SCNR(QMainWindow):
 
 
     def disable_buttons(self):
-        pass
-        # self.stack_switcher.set_sensitive(False)
-        #self.scan_hbox.set_sensitive(False)
-        #self.SpectrumBox.set_sensitive(False)
-        #self.stage_hbox.set_sensitive(False)
-        #self.ScanningBox.set_sensitive(False)
-        #self.button_stop.set_sensitive(True)
-
+        self.ui.tabWidget.setDisabled(True)
+        self.ui.stage_frame.setDisabled(True)
+        self.ui.Button_searchmax.setDisabled(True)
+        self.ui.Button_stepup.setDisabled(True)
+        self.ui.Button_stepdown.setDisabled(True)
+        self.ui.Button_stop.setDisabled(False)
 
     def enable_buttons(self):
-        pass
-        # self.stack_switcher.set_sensitive(True)
-        #self.scan_hbox.set_sensitive(True)
-        #self.SpectrumBox.set_sensitive(True)
-        #self.stage_hbox.set_sensitive(True)
-        #self.ScanningBox.set_sensitive(True)
-        #self.button_stop.set_sensitive(False)
+        self.ui.tabWidget.setDisabled(False)
+        self.ui.stage_frame.setDisabled(False)
+        self.ui.Button_searchmax.setDisabled(False)
+        self.ui.Button_stepup.setDisabled(False)
+        self.ui.Button_stepdown.setDisabled(False)
+        self.ui.Button_stop.setDisabled(True)
+
 
     def _on_pad_change(self, io, condition):
         a, b, x, y, ax, ay = self.pad.receiver.recv()
@@ -155,36 +155,42 @@ class SCNR(QMainWindow):
             self.disable_buttons()
 
     @pyqtSlot()
-    def on_add_position_clicked(self):
+    def on_addpos_clicked(self):
         self.stage.query_pos()
         pos = self.stage.last_pos()
         self.scan_store.append([pos[0], pos[1]])
 
     @pyqtSlot()
     def on_spangrid_clicked(self):
-        iterator = self.scan_store.get_iter_first()
-        grid = self.spangrid_dialog.rundialog()
-        if (len(self.scan_store) >= 3) & ((grid[0] is not 0) | (grid[1] is not 0)):
-            a = self.scan_store[iterator][:]
-            iterator = self.scan_store.iter_next(iterator)
-            b = self.scan_store[iterator][:]
-            iterator = self.scan_store.iter_next(iterator)
-            c = self.scan_store[iterator][:]
+        x, y, ok = dialogs.SpanGrid_Dialog.getXY()
+        print((x,y,ok))
+        # iterator = self.scan_store.get_iter_first()
+        # grid = self.spangrid_dialog.rundialog()
+        # if (len(self.scan_store) >= 3) & ((grid[0] is not 0) | (grid[1] is not 0)):
+        #     a = self.scan_store[iterator][:]
+        #     iterator = self.scan_store.iter_next(iterator)
+        #     b = self.scan_store[iterator][:]
+        #     iterator = self.scan_store.iter_next(iterator)
+        #     c = self.scan_store[iterator][:]
+        #
+        #     if abs(b[0]) > abs(c[0]):
+        #         grid_vec_1 = [b[0] - a[0], b[1] - a[1]]
+        #         grid_vec_2 = [c[0] - a[0], c[1] - a[1]]
+        #     else:
+        #         grid_vec_2 = [b[0] - a[0], b[1] - a[1]]
+        #         grid_vec_1 = [c[0] - a[0], c[1] - a[1]]
+        #
+        #     self.scan_store.clear()
+        #
+        #     for x in range(int(grid[0])):
+        #         for y in range(int(grid[1])):
+        #             vec_x = a[0] + grid_vec_1[0] * x + grid_vec_2[0] * y
+        #             vec_y = a[1] + grid_vec_1[1] * x + grid_vec_2[1] * y
+        #             self.scan_store.append([vec_x, vec_y])
 
-            if abs(b[0]) > abs(c[0]):
-                grid_vec_1 = [b[0] - a[0], b[1] - a[1]]
-                grid_vec_2 = [c[0] - a[0], c[1] - a[1]]
-            else:
-                grid_vec_2 = [b[0] - a[0], b[1] - a[1]]
-                grid_vec_1 = [c[0] - a[0], c[1] - a[1]]
-
-            self.scan_store.clear()
-
-            for x in range(int(grid[0])):
-                for y in range(int(grid[1])):
-                    vec_x = a[0] + grid_vec_1[0] * x + grid_vec_2[0] * y
-                    vec_y = a[1] + grid_vec_1[1] * x + grid_vec_2[1] * y
-                    self.scan_store.append([vec_x, vec_y])
+    @pyqtSlot()
+    def on_searchgrid_clicked(self):
+        pass
 
     @pyqtSlot()
     def on_stop_clicked(self):
@@ -230,8 +236,8 @@ class SCNR(QMainWindow):
 
     @pyqtSlot()
     def on_settings_clicked(self):
-        self.settings_dialog.rundialog()
-        self.ax.set_xlim([self.settings.min_wl, self.settings.max_wl])
+        self.settings_dialog.show()
+        self.axes.set_xlim([self.settings.min_wl, self.settings.max_wl])
         #self.spectrum.reset()
 
     @pyqtSlot()
@@ -403,7 +409,7 @@ class SCNR(QMainWindow):
         spec = self.spectrum.get_spec(self.ui.CheckBox_correct.isChecked())
         self.axes.plot(self._wl, spec)
         self.Canvas.draw()
-        self.show_pos()
+        #self.show_pos()
         return True
 
 
