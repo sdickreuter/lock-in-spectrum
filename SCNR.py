@@ -10,14 +10,60 @@ from pygamepad import Gamepad
 from spectrum import Spectrum
 from settings import Settings
 from PyQt5 import uic
-from PyQt5.QtCore import pyqtSlot, QTimer, QSocketNotifier
-from PyQt5.QtWidgets import QApplication, QMainWindow, QSizePolicy, QVBoxLayout
+from PyQt5.QtCore import pyqtSlot, QTimer, QSocketNotifier, QAbstractTableModel, Qt, QVariant, QModelIndex
+from PyQt5.QtWidgets import QApplication, QMainWindow, QSizePolicy, QVBoxLayout, QHeaderView
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import numpy as np
 import dialogs
-Ui_MainWindow = uic.loadUiType("ui/SCNR_main.ui")[0]
-#from SCNR_main import Ui_MainWindow
+#Ui_MainWindow = uic.loadUiType("ui/SCNR_main.ui")[0]
+from ui.SCNR_main import Ui_MainWindow
+
+
+class NumpyModel(QAbstractTableModel):
+    def __init__(self, narray, parent=None):
+        QAbstractTableModel.__init__(self, parent)
+        self._array = narray
+
+    def update(self, narray):
+        self._array = narray
+        self.dataChanged.emit()
+
+    def rowCount(self, parent=None):
+        return self._array.shape[0]
+
+    def columnCount(self, parent=None):
+        return self._array.shape[1]
+
+    def data(self, index, role=Qt.DisplayRole):
+        if index.isValid():
+            if role == Qt.DisplayRole:
+                row = index.row()
+                col = index.column()
+                return QVariant("%.5f"%self._array[row, col])
+        return QVariant()
+
+    def setData(self, index, value, role = Qt.EditRole):
+        if role == Qt.EditRole:
+            try:
+                val = float(value)
+            except:
+                return False
+            self._array[index.row(),index.column()] = val
+            self.dataChanged.emit(index, index, ())
+            return True
+        return False
+
+    def flags(self, index):
+        #if (index.column() == 0):
+        return Qt.ItemIsEditable | Qt.ItemIsEnabled | Qt.ItemIsSelectable
+        #else:
+        #    return Qt.ItemIsEnabled
+
+    def headerData(self, col, orientation, role):
+        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
+            return QVariant()
+        return QVariant(['x','y'])
 
 
 class SCNR(QMainWindow):
@@ -28,6 +74,15 @@ class SCNR(QMainWindow):
         super(SCNR, self).__init__(parent)
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
+
+        self.positions = np.matrix([ [10.0,0.0], [0.0,10.0], [10.0,10.0]])
+        self.posModel = NumpyModel(self.positions)
+        self.ui.posTable.setModel(self.posModel)
+        #self.ui.posTable.horizontalHeader().show()
+        #self.ui.posTable.horizontalHeader()
+        #self.ui.posTable.horizontalHeader().setResizeMode(QHeaderView.Stretch)
+        #self.ui.posTable.show()
+        #self.ui.posTable.setH(("x","y"))
 
         self.fig = Figure()
         self.axes = self.fig.add_subplot(111)
@@ -99,7 +154,6 @@ class SCNR(QMainWindow):
         self.ui.Button_stepdown.setDisabled(False)
         self.ui.Button_stop.setDisabled(True)
 
-
     def _on_pad_change(self, io, condition):
         a, b, x, y, ax, ay = self.pad.receiver.recv()
         if a:
@@ -158,7 +212,11 @@ class SCNR(QMainWindow):
     def on_addpos_clicked(self):
         self.stage.query_pos()
         pos = self.stage.last_pos()
-        self.scan_store.append([pos[0], pos[1]])
+        self.ui.posTable.model()
+        for m, item in enumerate(self.data[key]):
+                newitem = QTableWidgetItem(item)
+                self.setItem(m, n, newitem)
+
 
     @pyqtSlot()
     def on_spangrid_clicked(self):

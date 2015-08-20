@@ -154,7 +154,6 @@ class MeanThread(MeasurementThread):
 
     def work(self):
         self.mutex.lock()
-        print(self.i)
         self.mean = (self.mean + self.spec)  # / 2
         self.mutex.unlock()
         self.specSignal.emit(self.mean / (self.i + 1))
@@ -166,16 +165,6 @@ class MeanThread(MeasurementThread):
             self.abort = True
             self.finishSignal.emit(self.mean / (self.number_of_samples))
         self.mutex.unlock()
-
-
-class ScanMeanThread(MeanThread):
-    def __init__(self, getspecthread, settings, scanning_points, parent=None):
-        self.points = scanning_points
-        self.settings = settings
-        super(ScanMeanThread, self).__init__(getspecthread, settings.number_of_samples)
-
-    def work(self):
-        super(ScanMeanThread, self).work()
 
 
 class SearchThread(MeasurementThread):
@@ -304,3 +293,14 @@ class SearchThread(MeasurementThread):
         self.mutex.unlock()
         # spec = self.getspec()
         # self.specSignal.emit(spec)
+
+
+
+class ScanMeanThread(MeanThread):
+    def __init__(self, getspecthread, settings, scanning_points, parent=None):
+        self.points = scanning_points
+        self.settings = settings
+        super(ScanMeanThread, self).__init__(getspecthread, settings.number_of_samples)
+
+    def work(self):
+        super(ScanMeanThread, self).work()
