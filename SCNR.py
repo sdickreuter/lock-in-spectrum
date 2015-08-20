@@ -16,8 +16,8 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import numpy as np
 import dialogs
-#Ui_MainWindow = uic.loadUiType("SCNR_main.ui")[0]
-from SCNR_main import Ui_MainWindow
+Ui_MainWindow = uic.loadUiType("ui/SCNR_main.ui")[0]
+#from SCNR_main import Ui_MainWindow
 
 
 class SCNR(QMainWindow):

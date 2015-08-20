@@ -7,8 +7,8 @@ import math
 from PyQt5.QtWidgets import QDialog
 from PyQt5 import uic
 
-Ui_SettingsDialog = uic.loadUiType("SCNR_settingsdialog.ui")[0]
-Ui_SpanGridDialog = uic.loadUiType("SCNR_griddialog.ui")[0]
+Ui_SettingsDialog = uic.loadUiType("ui/SCNR_settingsdialog.ui")[0]
+Ui_SpanGridDialog = uic.loadUiType("ui/SCNR_griddialog.ui")[0]
 
 class Settings_Dialog(QDialog):
     def __init__(self,settings, parent = None):
