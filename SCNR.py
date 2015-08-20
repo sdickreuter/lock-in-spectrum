@@ -21,7 +21,7 @@ import numpy as np
 from SCNR_main import Ui_MainWindow
 
 class SCNR(QMainWindow):
-    _window_title = "Lock-in Spectrum"
+    _window_title = "SCNR"
     _heartbeat = 100  # ms delay at which the plot/gui is refreshed, and the gamepad moves the stage
 
     def __init__(self, parent=None):
@@ -42,7 +42,7 @@ class SCNR(QMainWindow):
         l = QVBoxLayout(self.ui.plotwidget)
         l.addWidget(self.Canvas)
 
-        self.statusBar().showMessage("All hail matplotlib!", 2000)
+        self.ui.status.setText("Ready")
 
         self.savedir = "./Spectra/"
         self.path = "./"
@@ -68,16 +68,17 @@ class SCNR(QMainWindow):
             print("Could not initialize PIStage, using Dummy instead")
 
         self.stage = PIStage.Dummy()
-        self.spectrum = Spectrum(self.stage, self.settings, self.ui.statusbar, self.ui.progressBar, self.enable_buttons,
+        self.spectrum = Spectrum(self.stage, self.settings, self.ui.status, self.ui.progressBar, self.enable_buttons,
                                  self.disable_buttons)  # logger class which coordinates the spectrometer and the stage
 
         spec = self.spectrum.get_spec()  # get an initial spectrum for display
         self._wl = self.spectrum.get_wl()  # get the wavelengths
-        self.update_plot()
+        self.update_plot(None)
+        self.spectrum.getspecthread.dynamicSpecSignal.connect(self.update_plot)
 
-        timer = QTimer(self)
-        timer.timeout.connect(self.update_plot)
-        timer.start(50)
+        #timer = QTimer(self)
+        #timer.timeout.connect(self.update_plot)
+        #timer.start(50)
 
 
     def disable_buttons(self):
@@ -148,7 +149,7 @@ class SCNR(QMainWindow):
             except:
                 print("Error creating directory ./" + prefix)
             path = self.savedir + prefix + '/'
-            self.status.set_label('Scanning')
+            self.status.setText('Scanning')
             self.spectrum.make_scan(self.scan_store, path, self.button_searchonoff.get_active(),
                                     self.button_lockinonoff.get_active())
             self.disable_buttons()
@@ -187,6 +188,7 @@ class SCNR(QMainWindow):
 
     @pyqtSlot()
     def on_stop_clicked(self):
+        self.ui.status.setText('Stopped')
         self.spectrum.stop_process()
         self.enable_buttons()
 
@@ -200,7 +202,7 @@ class SCNR(QMainWindow):
 
     @pyqtSlot()
     def on_lockin_clicked(self):
-        #self.status.set_label('Acquiring ...')
+        self.ui.status.setText('Acquiring ...')
         self.spectrum.take_lockin()
         self.disable_buttons()
 
@@ -210,23 +212,20 @@ class SCNR(QMainWindow):
 
     @pyqtSlot()
     def on_live_clicked(self):
-        self.ui.statusbar.showMessage('Liveview',10000)
-        print("on_live1")
+        self.ui.status.setText('Liveview')
         self.spectrum.take_live()
-        print("on_live2")
         self.disable_buttons()
-        print("on_live3")
 
 
     @pyqtSlot()
     def on_search_clicked(self):
-        #self.status.set_text("Searching Max.")
+        self.ui.status.setText("Searching Max.")
         self.spectrum.search_max()
         self.disable_buttons()
 
     @pyqtSlot()
     def on_save_clicked(self):
-        #self.status.set_label("Saving Data ...")
+        self.ui.status.setText("Saving Data ...")
         self.save_data()
 
     @pyqtSlot()
@@ -237,35 +236,31 @@ class SCNR(QMainWindow):
 
     @pyqtSlot()
     def on_dark_clicked(self):
-        #self.status.set_label('Taking Dark Spectrum')
+        self.ui.status.setText('Taking Dark Spectrum')
         self.spectrum.take_dark()
         self.disable_buttons()
 
     @pyqtSlot()
     def on_lamp_clicked(self):
-        #self.status.set_label('Taking Lamp Spectrum')
+        self.ui.status.setText('Taking Lamp Spectrum')
         self.spectrum.take_lamp()
         self.disable_buttons()
 
     @pyqtSlot()
     def on_mean_clicked(self):
-        #self.status.set_label('Taking Normal Spectrum')
-        print("mean1")
+        self.ui.status.setText('Taking Normal Spectrum')
         self.spectrum.take_mean()
-        print("mean2")
         self.disable_buttons()
-        print("mean3")
-
 
     @pyqtSlot()
     def on_bg_clicked(self):
-        #self.status.set_label('Taking Background Spectrum')
+        self.ui.status.setText('Taking Background Spectrum')
         self.spectrum.take_bg()
         self.disable_buttons()
 
     @pyqtSlot()
     def on_series_clicked(self):
-        #self.status.set_label('Taking Time Series')
+        self.ui.status.setText('Taking Time Series')
         prefix = self.prefix_dialog.rundialog()
         if prefix is not None:
             try:
@@ -275,7 +270,7 @@ class SCNR(QMainWindow):
                 print("Error creating directory ./" + prefix)
             path = self.savedir + prefix + '/'
         else:
-            self.status.set_text("Error")
+            self.ui.status.setText("Error")
         self.spectrum.take_series(path)
         self.disable_buttons()
 
@@ -349,42 +344,50 @@ class SCNR(QMainWindow):
         self.ui.label_y.setText("y: {0:+8.4f}".format(pos[1]))
         self.ui.label_z.setText("z: {0:+8.4f}".format(pos[2]))
 
+    @pyqtSlot()
     def on_xup_clicked(self):
         self.stage.moverel(dx=self.settings.stepsize)
         self.show_pos()
 
+    @pyqtSlot()
     def on_xdown_clicked(self):
         self.stage.moverel(dx=-self.settings.stepsize)
         self.show_pos()
 
+    @pyqtSlot()
     def on_yup_clicked(self):
         self.stage.moverel(dy=self.settings.stepsize)
         self.show_pos()
 
+    @pyqtSlot()
     def on_ydown_clicked(self):
         self.stage.moverel(dy=-self.settings.stepsize)
         self.show_pos()
 
+    @pyqtSlot()
     def on_zup_clicked(self):
         self.stage.moverel(dz=self.settings.stepsize)
         self.show_pos()
 
+    @pyqtSlot()
     def on_zdown_clicked(self):
         self.stage.moverel(dz=-self.settings.stepsize)
         self.show_pos()
 
+    @pyqtSlot()
     def on_stepup_clicked(self):
         self.settings.stepsize *= 10
         if self.settings.stepsize > 10:
             self.settings.stepsize = 10.0
-        self.label_stepsize.set_text(str(self.settings.stepsize))
+        self.ui.label_stepsize.setText(str(self.settings.stepsize))
         self.settings.save()
 
+    @pyqtSlot()
     def on_stepdown_clicked(self):
         self.settings.stepsize /= 10
         if self.settings.stepsize < 0.001:
             self.settings.stepsize = 0.001
-        self.label_stepsize.set_text(str(self.settings.stepsize))
+        self.ui.label_stepsize.setText(str(self.settings.stepsize))
         self.settings.save()
 
     def on_moverel_clicked(self):
@@ -395,9 +398,8 @@ class SCNR(QMainWindow):
         self.moveabs_dialog.rundialog()
         self.show_pos()
 
-
-
-    def update_plot(self):
+    @pyqtSlot(np.ndarray)
+    def update_plot(self, spec):
         spec = self.spectrum.get_spec(self.ui.CheckBox_correct.isChecked())
         self.axes.plot(self._wl, spec)
         self.Canvas.draw()

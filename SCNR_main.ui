@@ -103,7 +103,7 @@
      </widget>
     </item>
     <item row="7" column="2">
-     <widget class="QLabel" name="label_4">
+     <widget class="QLabel" name="label_step_size">
       <property name="text">
        <string>Set Step Size [um]</string>
       </property>
@@ -366,6 +366,13 @@
            <widget class="QPushButton" name="Button_direction">
             <property name="text">
              <string>Set Direction</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="Line" name="line_4">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
             </property>
            </widget>
           </item>
@@ -681,8 +688,14 @@
               <height>60</height>
              </size>
             </property>
+            <property name="autoFillBackground">
+             <bool>false</bool>
+            </property>
             <property name="frameShape">
              <enum>QFrame::Box</enum>
+            </property>
+            <property name="frameShadow">
+             <enum>QFrame::Sunken</enum>
             </property>
             <property name="verticalScrollBarPolicy">
              <enum>Qt::ScrollBarAlwaysOn</enum>
@@ -712,7 +725,7 @@
              <bool>false</bool>
             </attribute>
             <attribute name="horizontalHeaderCascadingSectionResizes">
-             <bool>true</bool>
+             <bool>false</bool>
             </attribute>
             <attribute name="horizontalHeaderDefaultSectionSize">
              <number>104</number>
@@ -772,6 +785,13 @@
       </property>
      </widget>
     </item>
+    <item row="13" column="2">
+     <widget class="QLabel" name="status">
+      <property name="text">
+       <string/>
+      </property>
+     </widget>
+    </item>
    </layout>
   </widget>
   <widget class="QMenuBar" name="menubar">
@@ -784,7 +804,6 @@
     </rect>
    </property>
   </widget>
-  <widget class="QStatusBar" name="statusbar"/>
  </widget>
  <tabstops>
   <tabstop>tabWidget</tabstop>
@@ -1053,6 +1072,134 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>Button_xup</sender>
+   <signal>clicked()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>on_xup_clicked()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>766</x>
+     <y>768</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>772</x>
+     <y>950</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>Button_xdown</sender>
+   <signal>clicked()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>on_xdown_clicked()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>873</x>
+     <y>764</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>752</x>
+     <y>953</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>Button_ydown</sender>
+   <signal>clicked()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>on_ydown_clicked()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>829</x>
+     <y>795</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>892</x>
+     <y>956</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>Button_yup</sender>
+   <signal>clicked()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>on_yup_clicked()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>829</x>
+     <y>737</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>889</x>
+     <y>949</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>Button_zup</sender>
+   <signal>clicked()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>on_zup_clicked()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>949</x>
+     <y>738</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>994</x>
+     <y>704</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>Button_zdown</sender>
+   <signal>clicked()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>on_zdown_clicked()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>960</x>
+     <y>790</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>990</x>
+     <y>757</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>Button_stepup</sender>
+   <signal>clicked()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>on_stepup_clicked()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>769</x>
+     <y>848</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>993</x>
+     <y>911</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>Button_stepdown</sender>
+   <signal>clicked()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>on_stepdown_clicked()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>934</x>
+     <y>855</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>995</x>
+     <y>880</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>on_live_clicked()</slot>
@@ -1070,5 +1217,13 @@
   <slot>on_search_clicked()</slot>
   <slot>on_mean_clicked()</slot>
   <slot>on_stop_clicked()</slot>
+  <slot>on_xup_clicked()</slot>
+  <slot>on_xdown_clicked()</slot>
+  <slot>on_ydown_clicked()</slot>
+  <slot>on_yup_clicked()</slot>
+  <slot>on_zup_clicked()</slot>
+  <slot>on_zdown_clicked()</slot>
+  <slot>on_stepup_clicked()</slot>
+  <slot>on_stepdown_clicked()</slot>
  </slots>
 </ui>

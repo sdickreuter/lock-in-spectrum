@@ -2,7 +2,7 @@ __author__ = 'sei'
 
 from datetime import datetime
 import math
-
+import sys
 #import seabreeze.spectrometers as sb
 import oceanoptics
 import numpy as np
@@ -11,6 +11,46 @@ import matplotlib.pyplot as plt
 import pandas
 from progress import *
 from PyQt5.QtCore import pyqtSlot, QThread, QMutex, QMutexLocker, QWaitCondition , pyqtSignal
+
+# modified from: http://stackoverflow.com/questions/21566379/fitting-a-2d-gaussian-function-using-scipy-optimize-curve-fit-valueerror-and-m#comment33999040_21566831
+def gauss2D(pos, amplitude, xo, yo, fwhm, offset):
+    sigma = fwhm / 2.3548
+    xo = float(xo)
+    yo = float(yo)
+    g = offset + amplitude * np.exp(
+        -( np.power(pos[0] - xo, 2.) + np.power(pos[1] - yo, 2.) ) / (2 * np.power(sigma, 2.)))
+    return g.ravel()
+
+def gauss(x, amplitude, xo, fwhm, offset):
+    sigma = fwhm / 2.3548
+    xo = float(xo)
+    g = offset + amplitude * np.exp(-np.power(x - xo, 2.) / (2 * np.power(sigma, 2.)))
+    return g.ravel()
+
+def smooth(x):
+    """
+    modified from: http://wiki.scipy.org/Cookbook/SignalSmooth
+    """
+    window_len = 151
+
+    s = np.r_[x[window_len - 1:0:-1], x, x[-1:-window_len:-1]]
+
+    window = 'hanning'
+    # window='flat'
+
+    if window == 'flat':  # moving average
+        w = np.ones(window_len, 'd')
+    else:
+        w = eval('np.' + window + '(window_len)')
+
+    y = np.convolve(w / w.sum(), s, mode='valid')
+    y = y[(window_len / 2):-(window_len / 2)]
+    return y
+
+def _millis(starttime):
+    dt = datetime.now() - starttime
+    ms = (dt.days * 24 * 60 * 60 + dt.seconds) * 1000 + dt.microseconds / 1000.0
+    return ms
 
 
 class GetSpectrumThread(QThread):
@@ -48,11 +88,11 @@ class GetSpectrumThread(QThread):
         self.dynamicSpecSignal.emit(spec)
 
 
-
 class MeasurementThread(QThread):
 
     specSignal = pyqtSignal(np.ndarray)
     progressSignal = pyqtSignal(float)
+    finishSignal = pyqtSignal(np.ndarray)
     waitCondition = QWaitCondition()
     abort = False
 
@@ -71,6 +111,11 @@ class MeasurementThread(QThread):
         self.mutex.lock()
         self.__class__.has_instance = False
         self.getspecthread.dynamicSpecSignal.disconnect(self.specCallback)
+        try:
+            self.progressSignal.disconnect()
+            self.finishSignal.disconnect()
+        except TypeError:
+            pass
         self.abort = True
         self.waitCondition.wakeOne()
         self.mutex.unlock()
@@ -92,13 +137,17 @@ class MeasurementThread(QThread):
             self.mutex.lock()
             self.waitCondition.wait(self.mutex)
             self.mutex.unlock()
-            self.work()
-
+            try:
+                self.work()
+            except:
+                (type, value, traceback) = sys.exc_info()
+                sys.excepthook(type, value, traceback)
 
     @pyqtSlot(np.ndarray)
     def specCallback(self, spec):
         self.waitCondition.wakeOne()
         self.spec = spec
+
 
 class MeanThread(MeasurementThread):
     def __init__(self, getspecthread, number_of_samples, parent=None):
@@ -119,7 +168,129 @@ class MeanThread(MeasurementThread):
         self.i += 1
         if self.i >= self.number_of_samples:
             self.abort = True
+            self.finishSignal.emit(self.mean/(self.number_of_samples))
         self.mutex.unlock()
+
+
+
+class ScanMeanThread(MeanThread):
+    def __init__(self, getspecthread, settings, scanning_points,parent=None):
+        self.points = scanning_points
+        self.settings = settings
+        super(ScanMeanThread, self).__init__(getspecthread, settings.number_of_samples)
+
+    def work(self):
+        super(ScanMeanThread, self).work()
+
+
+
+class SearchThread(MeasurementThread):
+
+    def __init__(self, getspecthread, settings, scanning_points, stage, parent=None):
+        try:
+            self.scanning_points = scanning_points
+            self.settings = settings
+            self.stage = stage
+            self.i = 0
+            self.n = scanning_points.shape[0]
+            self.positions = np.zeros((self.n,2))
+            super(SearchThread, self).__init__(getspecthread)
+            self.spectrometer = self.getspecthread.spectrometer
+        except:
+            (type, value, traceback) = sys.exc_info()
+            sys.excepthook(type, value, traceback)
+
+    def work(self):
+        self.mutex.lock()
+        self.stage.moveabs(x=self.scanning_points[self.i,0],y=self.scanning_points[self.i,1])
+        self.mutex.unlock()
+        self.search()
+        self.mutex.lock()
+        x, y, z = self.stage.last_pos()
+        self.positions[self.i,0] = x
+        self.positions[self.i,1] = y
+        progressFraction = float(self.i + 1) / self.n
+        self.progressSignal.emit(progressFraction*100)
+        print(self.positions)
+        self.i += 1
+        print(self.i)
+        if self.i >= self.n:
+            self.abort = True
+            self.finishSignal.emit(self.positions)
+        self.mutex.unlock()
+
+    def search(self):
+        self.mutex.lock()
+        #self.spectrometer.integration_time_micros(self.settings.search_integration_time * 1000)
+        spec = smooth(self.spectrometer.intensities())
+        self.mutex.unlock()
+
+        minval = np.min(spec)
+        maxval = np.max(spec)
+
+        d = np.linspace(-self.settings.rasterwidth, self.settings.rasterwidth, self.settings.rasterdim)
+
+        repetitions = 4
+        for j in range(repetitions):
+            self.mutex.lock()
+            self.stage.query_pos()
+            origin = self.stage.last_pos()
+            measured = np.zeros(self.settings.rasterdim)
+            self.mutex.unlock()
+            if j is 4:
+                d /= 2
+            if j % 2:
+                pos = d + origin[0]
+            else:
+                pos = d + origin[1]
+
+            for k in range(len(pos)):
+                self.mutex.lock()
+                if j % 2:
+                    self.stage.moveabs(x=pos[k])
+                else:
+                    self.stage.moveabs(y=pos[k])
+                spec = smooth(self.spectrometer.intensities(correct_nonlinearity=True))
+                self.mutex.unlock()
+                self.specSignal.emit(spec)
+                measured[k] = np.max(spec)
+                #print(k)
+            maxind = np.argmax(measured)
+
+            self.mutex.lock()
+            initial_guess = (maxval - minval, pos[maxind], self.settings.sigma, minval)
+            self.mutex.unlock()
+            dx = origin[0]
+            dy = origin[1]
+            try:
+                popt, pcov = opt.curve_fit(gauss, pos[2:(len(pos) - 1)], measured[2:(len(pos) - 1)], p0=initial_guess)
+                perr = np.diag(pcov)
+                if perr[1] > 1:
+                    RuntimeError("Could not determine particle position: Variance to big")
+            except RuntimeError as e:
+                print(e)
+                print("Could not determine particle position: Fit error")
+            else:
+                if j % 2:
+                    dx=float(popt[1])
+                else:
+                    dy=float(popt[1])
+                    # print(popt)
+            self.mutex.lock()
+            plt.figure()
+            plt.plot(pos, measured,'bo')
+            x = np.linspace(min(pos),max(pos))
+            plt.plot(x, gauss(x,popt[0],popt[1],popt[2],popt[3]),'g-')
+            plt.savefig("search_max/search" + str(j) + ".png")
+            plt.close()
+            self.stage.moveabs(x=dx,y=dy)
+            self.mutex.unlock()
+        self.mutex.lock()
+        #self._spectrometer.integration_time_micros(self.settings.integration_time / 1000)
+        spec = self.spectrometer.intensities(correct_nonlinearity=True)
+        self.stage.query_pos()
+        self.mutex.unlock()
+        self.specSignal.emit(spec)
 
 
 
@@ -140,7 +311,7 @@ class Spectrum(object):
         # variables for storing the spectra
         self.lamp = None
         self.dark = None
-        self.normal = None
+        self.mean = None
         self.bg = None
         self.lockin = None
 
@@ -166,8 +337,9 @@ class Spectrum(object):
     #        print("Spectrometer " + str(self._spectrometer.serial_number) + " initialized and working")
     #    except:
     #        print("Error opening Spectrometer, using Dummy instead")
-        self._spectrometer = oceanoptics.Dummy()
-
+        #self._spectrometer = oceanoptics.Dummy()
+        self._spectrometer = oceanoptics.ParticleDummy(self.stage)
+        self._spectrometer._set_integration_time(100)
         sp = self._spectrometer.spectrum()
         self._wl = np.array(sp[0], dtype=np.float)
 
@@ -221,20 +393,42 @@ class Spectrum(object):
         self.workingthread = MeasurementThread(self.getspecthread)
         self.workingthread.specSignal.connect(self.specCallback)
 
-    def take_dark(self):
-        self.start_process(self._mean_spectrum)
+    @pyqtSlot(np.ndarray)
+    def finishedDarkCallback(self, spec):
+        self.dark = spec
 
-    def take_lamp(self):
-        self.start_process(self._mean_spectrum)
+    @pyqtSlot(np.ndarray)
+    def finishedLampCallback(self, spec):
+        self.lamp = spec
 
-    def take_mean(self):
+    @pyqtSlot(np.ndarray)
+    def finishedMeanCallback(self, spec):
+        self.mean = spec
+
+    @pyqtSlot(np.ndarray)
+    def finishedBGCallback(self, spec):
+        self.bg = spec
+
+    def startMeanThread(self):
         self.workingthread = MeanThread(self.getspecthread,self.settings.number_of_samples)
         self.workingthread.specSignal.connect(self.specCallback)
         self.workingthread.progressSignal.connect(self.progressCallback)
 
+    def take_dark(self):
+        self.startMeanThread()
+        self.workingthread.finishSignal.connect(self.finishedDarkCallback)
+
+    def take_lamp(self):
+        self.startMeanThread()
+        self.workingthread.finishSignal.connect(self.finishedLampCallback)
+
+    def take_mean(self):
+        self.startMeanThread()
+        self.workingthread.finishSignal.connect(self.finishedMeanCallback)
+
     def take_bg(self):
-        self.worker_mode = "bg"
-        self.start_process(self._mean_spectrum)
+        self.startMeanThread()
+        self.workingthread.finishSignal.connect(self.finishedBGCallback)
 
     def take_lockin(self):
         self.worker_mode = "lockin"
@@ -244,8 +438,20 @@ class Spectrum(object):
         self.start_process(self._lockin_spectrum)
 
     def search_max(self):
-        self.worker_mode = "search"
-        self.start_process(self._search_max_int)
+        self.stage.query_pos()
+        x,y,z = self.stage.last_pos()
+        pos = np.matrix([[x,y]])
+        print(pos)
+        #SearchThread(self, getspecthread, settings, scanning_points, stage, parent=None):
+        self.workingthread = SearchThread(self.getspecthread,self.settings,pos,self.stage)
+        self.workingthread.specSignal.connect(self.specCallback)
+        self.workingthread.progressSignal.connect(self.progressCallback)
+        self.workingthread.finishSignal.connect(self.finishedSearchCallback)
+
+    @pyqtSlot(np.ndarray)
+    def finishedSearchCallback(self, pos):
+        self._positions = pos
+        print(pos)
 
     def take_series(self, path):
         self.series_path = path
@@ -305,7 +511,7 @@ class Spectrum(object):
             if self.worker_mode is "lockin":
                 self.lockin = self.calc_lockin()
                 self._spec = self.lockin
-                self.status.showMessage('Lock-In Spectrum acquired',5000)
+                self.status.setText('Lock-In Spectrum acquired')
             elif self.worker_mode is "lamp":
                 self.lamp = self._spec
                 self.status.showMessage('Lamp Spectrum taken',5000)
@@ -454,7 +660,6 @@ class Spectrum(object):
 
         return True
 
-
     def _lockin_spectrum(self, connection):
         f = self.settings.f
         self.stage.query_pos()
@@ -477,98 +682,6 @@ class Spectrum(object):
         print("time taken: %s s" % (self._millis(starttime) / 1000))
         self.stage.moveabs(x=self._startx, y=self._starty, z=self._startz)
         connection.send([True, 1., spec, ref, self.settings.number_of_samples - 1])
-        return True
-
-    def _mean_spectrum(self, connection):
-        spec = np.zeros(1024, dtype=np.float)
-        for i in range(self.settings.number_of_samples):
-            spec = (spec + self._spectrometer.intensities(correct_nonlinearity=True))  # / 2
-            progress_fraction = float(i + 1) / self.settings.number_of_samples
-            connection.send([False, progress_fraction, spec / (i + 1)])
-            if not self.running.is_set():
-                return True
-        connection.send([True, 1., spec / self.settings.number_of_samples])
-        return True
-
-    def _live_spectrum(self, connection):
-        while self.running.is_set():
-            spec = self._spectrometer.intensities(correct_nonlinearity=True)
-            connection.send([False, 0., spec])
-        return True
-
-    def _search_max_int(self, connection):
-
-        def update_connection(progress):
-            connection.send([False, progress, None])
-            if not self.running.is_set():
-                return False
-            return True
-
-        self._spectrometer.integration_time_micros(self.settings.search_integration_time * 1000)
-
-        spec = self.smooth(self._spectrometer.intensities(correct_nonlinearity=True))
-        minval = np.min(spec)
-        maxval = np.max(spec)
-
-        d = np.linspace(-self.settings.rasterwidth, self.settings.rasterwidth, self.settings.rasterdim)
-
-        repetitions = 6
-
-        for j in range(repetitions):
-            self.stage.query_pos()
-            origin = self.stage.last_pos()
-            measured = np.zeros(self.settings.rasterdim)
-            if j is 4:
-                d /= 2
-            if j % 2:
-                pos = d + origin[0]
-            else:
-                pos = d + origin[1]
-
-            for i in range(len(pos)):
-                if j % 2:
-                    self.stage.moveabs(x=pos[i])
-                else:
-                    self.stage.moveabs(y=pos[i])
-                spec = self.smooth(self._spectrometer.intensities(correct_nonlinearity=True))
-                measured[i] = np.max(spec)
-            maxind = np.argmax(measured)
-
-            initial_guess = (maxval - minval, pos[maxind], self.settings.sigma, minval)
-
-            if not update_connection(j / (repetitions + 1)):
-                self.stage.moveabs(x=origin[0], y=origin[1])
-                break
-
-            plt.figure()
-            plt.plot(pos, measured)
-            plt.savefig("search_max/search" + str(j) + ".png")
-            plt.close()
-
-            try:
-                popt, pcov = opt.curve_fit(self.gauss, pos[2:(len(pos) - 1)], measured[2:(len(pos) - 1)],
-                                           p0=initial_guess)
-                if popt[0] < 20:
-                    RuntimeError("Peak is to small")
-            except RuntimeError as e:
-                print(e)
-                print("Could not determine particle position")
-                if j % 2:
-                    self.stage.moveabs(x=origin[0] + d[maxind])
-                else:
-                    self.stage.moveabs(y=origin[1] + d[maxind])
-                    # self.stage.moveabs(x=origin[0],y=origin[1])
-                    # return True
-            else:
-                if j % 2:
-                    self.stage.moveabs(x=float(popt[1]))
-                else:
-                    self.stage.moveabs(y=float(popt[1]))
-                    # print(popt)
-
-        self._spectrometer.integration_time_micros(self.settings.integration_time / 1000)
-        self._spectrometer.intensities(correct_nonlinearity=True)
-        connection.send([True, 1.0, None])
         return True
 
     def save_data(self, prefix):
@@ -631,47 +744,3 @@ class Spectrum(object):
                + str(datetime.now().day).zfill(2) + '_' + str(datetime.now().hour).zfill(2) + \
                str(datetime.now().minute).zfill(2) + str(datetime.now().second).zfill(2) + '.csv'
 
-    # modified from: http://stackoverflow.com/questions/21566379/fitting-a-2d-gaussian-function-using-scipy-optimize-curve-fit-valueerror-and-m#comment33999040_21566831
-    @staticmethod
-    def gauss2D(pos, amplitude, xo, yo, fwhm, offset):
-        sigma = fwhm / 2.3548
-        xo = float(xo)
-        yo = float(yo)
-        g = offset + amplitude * np.exp(
-            -( np.power(pos[0] - xo, 2.) + np.power(pos[1] - yo, 2.) ) / (2 * np.power(sigma, 2.)))
-        return g.ravel()
-
-    @staticmethod
-    def gauss(x, amplitude, xo, fwhm, offset):
-        sigma = fwhm / 2.3548
-        xo = float(xo)
-        g = offset + amplitude * np.exp(-np.power(x - xo, 2.) / (2 * np.power(sigma, 2.)))
-        return g.ravel()
-
-
-    @staticmethod
-    def smooth(x):
-        """
-        modified from: http://wiki.scipy.org/Cookbook/SignalSmooth
-        """
-        window_len = 151
-
-        s = np.r_[x[window_len - 1:0:-1], x, x[-1:-window_len:-1]]
-
-        window = 'hanning'
-        # window='flat'
-
-        if window == 'flat':  # moving average
-            w = np.ones(window_len, 'd')
-        else:
-            w = eval('np.' + window + '(window_len)')
-
-        y = np.convolve(w / w.sum(), s, mode='valid')
-        y = y[(window_len / 2):-(window_len / 2)]
-        return y
-
-    @staticmethod
-    def _millis(starttime):
-        dt = datetime.now() - starttime
-        ms = (dt.days * 24 * 60 * 60 + dt.seconds) * 1000 + dt.microseconds / 1000.0
-        return ms
