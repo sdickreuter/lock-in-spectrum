@@ -98,7 +98,6 @@ class Spectrum(object):
 
     def stop_process(self):
         self.workingthread.stop()
-        self.workingthread.wait()
         self.workingthread = None
         # self.enable_buttons()
 
@@ -158,17 +157,22 @@ class Spectrum(object):
         self.start_process(self._lockin_spectrum)
 
     def search_max(self):
+        self.workingthread = SearchThread(self.getspecthread, self.settings, self.stage)
+        self.workingthread.specSignal.connect(self.specCallback)
+        self.workingthread.progressSignal.connect(self.progressCallback)
+        self.workingthread.finishSignal.connect(self.finishedSearchCallback)
+
+    def scan_search_max(self):
         self.stage.query_pos()
         x, y, z = self.stage.last_pos()
         pos = np.matrix([[x, y]])
-        self.workingthread = SearchThread(self.getspecthread, self.settings, pos, self.stage)
+        self.workingthread = ScanSearchThread(self.getspecthread, self.settings, pos, self.stage)
         self.workingthread.specSignal.connect(self.specCallback)
         self.workingthread.progressSignal.connect(self.progressCallback)
         self.workingthread.finishSignal.connect(self.finishedSearchCallback)
 
     @pyqtSlot(np.ndarray)
     def finishedSearchCallback(self, pos):
-        self._positions = pos
         print(pos)
         self.enable_buttons()
         self.status.setText('Search finished')

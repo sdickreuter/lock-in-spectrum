@@ -36,7 +36,7 @@ class Settings_Dialog(QDialog):
         self.ui.search_int_time_spin.setValue(self.settings.search_integration_time)
         self.ui.rasterdim_spin.setValue(self.settings.rasterdim)
         self.ui.rasterwidth_spin.setValue(self.settings.rasterwidth)
-        self.ui.sigma_spin.setValue(self.settings.number_of_samples)
+        self.ui.sigma_spin.setValue(self.settings.sigma)
         self.ui.min_wl_spin.setValue(self.settings.min_wl)
         self.ui.max_wl_spin.setValue(self.settings.max_wl)
         self.hide()

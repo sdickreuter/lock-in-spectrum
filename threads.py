@@ -67,12 +67,7 @@ class GetSpectrumThread(QThread):
         self.condition = QWaitCondition()
 
     def __del__(self):
-        self.mutex.lock()
-        self.abort = True
-        self.condition.wakeOne()
-        self.mutex.unlock()
-
-        self.wait()
+        self.stop()
 
     def getSpectrum(self):
         #    #locker = QMutexLocker(self.mutex)
@@ -84,6 +79,13 @@ class GetSpectrumThread(QThread):
         spec = self.spectrometer.intensities()
         self.mutex.unlock()
         self.dynamicSpecSignal.emit(spec)
+
+    def stop(self):
+        self.mutex.lock()
+        self.abort = True
+        self.condition.wakeOne()
+        self.mutex.unlock()
+        self.wait()
 
 
 class MeasurementThread(QThread):
@@ -103,6 +105,7 @@ class MeasurementThread(QThread):
         self.mutex = QMutex()
         self.getspecthread.dynamicSpecSignal.connect(self.specCallback)
         self.start(QThread.HighPriority)
+        self.spec = None
 
     def __del__(self):
         self.mutex.lock()
@@ -119,8 +122,73 @@ class MeasurementThread(QThread):
         self.wait()
 
     def stop(self):
+        #self.mutex.lock()
+        self.abort = True
+        #self.condition.wakeOne()
+        #self.mutex.unlock()
+        #self.wait()
+
+    def work(self):
+        self.specSignal.emit(self.spec)
+
+    def run(self):
+        while True:
+            if self.abort:
+                return
+            self.getspecthread.getSpectrum()
+            self.mutex.lock()
+            self.waitCondition.wait(self.mutex)
+            self.mutex.unlock()
+            try:
+                self.work()
+            except:
+                (type, value, traceback) = sys.exc_info()
+                sys.excepthook(type, value, traceback)
+
+    @pyqtSlot(np.ndarray)
+    def specCallback(self, spec):
+        self.waitCondition.wakeOne()
+        self.spec = spec
+
+class MeasurementThread(QThread):
+    specSignal = pyqtSignal(np.ndarray)
+    progressSignal = pyqtSignal(float)
+    finishSignal = pyqtSignal(np.ndarray)
+    waitCondition = QWaitCondition()
+    abort = False
+
+    def __init__(self, getspecthread, parent=None):
+        if getattr(self.__class__, '_has_instance', False):
+            RuntimeError('Cannot create another instance')
+        self.__class__._has_instance = True
+
+        super(MeasurementThread, self).__init__(parent)
+        self.getspecthread = getspecthread
+        self.mutex = QMutex()
+        self.getspecthread.dynamicSpecSignal.connect(self.specCallback)
+        self.start(QThread.HighPriority)
+        self.spec = None
+
+    def __del__(self):
+        self.mutex.lock()
+        self.__class__.has_instance = False
+        self.getspecthread.dynamicSpecSignal.disconnect(self.specCallback)
+        try:
+            self.progressSignal.disconnect()
+            self.finishSignal.disconnect()
+        except TypeError:
+            pass
         self.abort = True
         self.waitCondition.wakeOne()
+        self.mutex.unlock()
+        self.wait()
+
+    def stop(self):
+        #self.mutex.lock()
+        self.abort = True
+        #self.condition.wakeOne()
+        #self.mutex.unlock()
+        #self.wait()
 
     def work(self):
         self.specSignal.emit(self.spec)
@@ -168,14 +236,10 @@ class MeanThread(MeasurementThread):
 
 
 class SearchThread(MeasurementThread):
-    def __init__(self, getspecthread, settings, scanning_points, stage, parent=None):
+    def __init__(self, getspecthread, settings, stage, parent=None):
         try:
-            self.scanning_points = scanning_points
             self.settings = settings
             self.stage = stage
-            self.i = 0
-            self.n = scanning_points.shape[0]
-            self.positions = np.zeros((self.n, 2))
             super(SearchThread, self).__init__(getspecthread)
             self.spectrometer = self.getspecthread.spectrometer
         except:
@@ -193,31 +257,17 @@ class SearchThread(MeasurementThread):
                 sys.excepthook(type, value, traceback)
 
     def work(self):
-        self.mutex.lock()
-        self.stage.moveabs(x=self.scanning_points[self.i, 0], y=self.scanning_points[self.i, 1])
-        self.mutex.unlock()
         self.search()
         self.mutex.lock()
         x, y, z = self.stage.last_pos()
-        self.positions[self.i, 0] = x
-        self.positions[self.i, 1] = y
-        progressFraction = float(self.i + 1) / self.n
-        self.progressSignal.emit(progressFraction * 100)
-        self.i += 1
-        if self.i >= self.n:
-            self.abort = True
-            plt.plot(self.positions[:, 0], self.positions[:, 1], "bx")
-            plt.plot(self.scanning_points[:, 0], self.scanning_points[:, 1], "r.")
-            plt.savefig("search_max/grid.png")
-            plt.close()
-            self.finishSignal.emit(self.positions)
-            self.spec = self.getspec()
-            self.specSignal.emit(self.spec)
+        self.finishSignal.emit(np.array([x,y]))
+        self.specSignal.emit(self.spec)
         self.mutex.unlock()
+        self.stop()
 
     def getspec(self):
-        self.getspecthread.getSpectrum()
         self.mutex.lock()
+        self.getspecthread.getSpectrum()
         self.waitCondition.wait(self.mutex)
         self.mutex.unlock()
         return self.spec
@@ -253,6 +303,9 @@ class SearchThread(MeasurementThread):
                     self.stage.moveabs(x=pos[k])
                 else:
                     self.stage.moveabs(y=pos[k])
+                if self.abort:
+                    self.stage.moveabs(x=origin[0],y=origin[1])
+                    return False
                 self.mutex.unlock()
                 spec = smooth(self.getspec())
                 self.specSignal.emit(spec)
@@ -296,11 +349,83 @@ class SearchThread(MeasurementThread):
 
 
 
-class ScanMeanThread(MeanThread):
-    def __init__(self, getspecthread, settings, scanning_points, parent=None):
-        self.points = scanning_points
-        self.settings = settings
-        super(ScanMeanThread, self).__init__(getspecthread, settings.number_of_samples)
+class ScanSearchThread(MeasurementThread):
+    def __init__(self, getspecthread, settings, scanning_points, stage, parent=None):
+        try:
+            self.scanning_points = scanning_points
+            self.settings = settings
+            self.stage = stage
+            self.i = 0
+            self.n = scanning_points.shape[0]
+            self.positions = np.zeros((self.n, 2))
+            super(ScanSearchThread, self).__init__(getspecthread)
+        except:
+            (type, value, traceback) = sys.exc_info()
+            sys.excepthook(type, value, traceback)
+
+    def run(self):
+        while True:
+            if self.abort:
+                return
+            try:
+                self.work()
+            except:
+                (type, value, traceback) = sys.exc_info()
+                sys.excepthook(type, value, traceback)
 
     def work(self):
-        super(ScanMeanThread, self).work()
+        self.mutex.lock()
+        self.stage.moveabs(x=self.scanning_points[self.i, 0], y=self.scanning_points[self.i, 1])
+        self.mutex.unlock()
+        self.searchthread = SearchThread(self.getspecthread,self.settings,self.stage,self)
+        self.searchthread.finishSignal.connect(self.searchfinished)
+        self.searchthread.specSignal.connect(self.specslot)
+        self.searchthread.search()
+        self.mutex.lock()
+        print('search started')
+        self.waitCondition.wait(self.mutex)
+        print('done waiting')
+        self.searchthread = None
+        x, y, z = self.stage.last_pos()
+        self.positions[self.i, 0] = x
+        self.positions[self.i, 1] = y
+        progressFraction = float(self.i + 1) / self.n
+        self.progressSignal.emit(progressFraction * 100)
+        self.i += 1
+        if self.i >= self.n:
+            self.abort = True
+            plt.plot(self.positions[:, 0], self.positions[:, 1], "bx")
+            plt.plot(self.scanning_points[:, 0], self.scanning_points[:, 1], "r.")
+            plt.savefig("search_max/grid.png")
+            plt.close()
+            self.finishSignal.emit(self.positions)
+            #self.spec = self.getspec()
+            #self.specSignal.emit(self.spec)
+        self.mutex.unlock()
+
+    @pyqtSlot(np.ndarray)
+    def searchfinished(self, spec):
+        self.waitCondition.wakeOne()
+
+    @pyqtSlot(np.ndarray)
+    def specslot(self, spec):
+        self.specSignal.emit(spec)
+
+    @pyqtSlot(np.ndarray)
+    def specCallback(self, spec):
+        self.spec = spec
+
+
+class SearchScanMeanThread(SearchThread):
+    def __init__(self, getspecthread, settings, scanning_points, stage, parent=None):
+        super(SearchScanMeanThread, self).__init__(getspecthread, settings, scanning_points, stage, parent)
+
+    def work(self):
+        super(SearchScanMeanThread, self).work()
+        self.meanthread = MeanThread(self.getspecthread,self.settings.number_of_samples,self)
+        self.meanthread.specSignal.connect(self.specCallback)
+        self.meanthread.progressSignal.connect(self.progressCallback)
+
+    def stop(self):
+        super(SearchScanMeanThread, self).stop()
+        self.meanthread.stop()

@@ -285,10 +285,6 @@ class SCNR(QMainWindow):
             self.disable_buttons()
 
     @pyqtSlot()
-    def on_searchgrid_clicked(self):
-        pass
-
-    @pyqtSlot()
     def on_stop_clicked(self):
         self.ui.status.setText('Stopped')
         self.spectrum.stop_process()
@@ -318,7 +314,11 @@ class SCNR(QMainWindow):
         self.spectrum.take_live()
         self.disable_buttons()
 
-
+    @pyqtSlot()
+    def on_searchgrid_clicked(self):
+        self.ui.status.setText("Searching Max.")
+        self.spectrum.scan_search_max()
+        self.disable_buttons()
     @pyqtSlot()
     def on_search_clicked(self):
         self.ui.status.setText("Searching Max.")
@@ -479,7 +479,7 @@ class SCNR(QMainWindow):
         spec = self.spectrum.get_spec(self.ui.CheckBox_correct.isChecked())
         self.axes.plot(self._wl, spec)
         self.Canvas.draw()
-        #self.show_pos()
+        self.show_pos()
         return True
 
 
