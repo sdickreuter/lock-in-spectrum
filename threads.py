@@ -122,11 +122,7 @@ class MeasurementThread(QThread):
         self.wait()
 
     def stop(self):
-        #self.mutex.lock()
         self.abort = True
-        #self.condition.wakeOne()
-        #self.mutex.unlock()
-        #self.wait()
 
     def work(self):
         self.specSignal.emit(self.spec)
@@ -136,9 +132,6 @@ class MeasurementThread(QThread):
             if self.abort:
                 return
             self.getspecthread.getSpectrum()
-            self.mutex.lock()
-            self.waitCondition.wait(self.mutex)
-            self.mutex.unlock()
             try:
                 self.work()
             except:
@@ -147,51 +140,11 @@ class MeasurementThread(QThread):
 
     @pyqtSlot(np.ndarray)
     def specCallback(self, spec):
-        self.waitCondition.wakeOne()
         self.spec = spec
 
-class MeasurementThread(QThread):
-    specSignal = pyqtSignal(np.ndarray)
-    progressSignal = pyqtSignal(float)
-    finishSignal = pyqtSignal(np.ndarray)
-    waitCondition = QWaitCondition()
-    abort = False
-
+class LiveThread(MeasurementThread):
     def __init__(self, getspecthread, parent=None):
-        if getattr(self.__class__, '_has_instance', False):
-            RuntimeError('Cannot create another instance')
-        self.__class__._has_instance = True
-
-        super(MeasurementThread, self).__init__(parent)
-        self.getspecthread = getspecthread
-        self.mutex = QMutex()
-        self.getspecthread.dynamicSpecSignal.connect(self.specCallback)
-        self.start(QThread.HighPriority)
-        self.spec = None
-
-    def __del__(self):
-        self.mutex.lock()
-        self.__class__.has_instance = False
-        self.getspecthread.dynamicSpecSignal.disconnect(self.specCallback)
-        try:
-            self.progressSignal.disconnect()
-            self.finishSignal.disconnect()
-        except TypeError:
-            pass
-        self.abort = True
-        self.waitCondition.wakeOne()
-        self.mutex.unlock()
-        self.wait()
-
-    def stop(self):
-        #self.mutex.lock()
-        self.abort = True
-        #self.condition.wakeOne()
-        #self.mutex.unlock()
-        #self.wait()
-
-    def work(self):
-        self.specSignal.emit(self.spec)
+        super(LiveThread, self).__init__(getspecthread, parent)
 
     def run(self):
         while True:
@@ -213,7 +166,7 @@ class MeasurementThread(QThread):
         self.spec = spec
 
 
-class MeanThread(MeasurementThread):
+class MeanThread(LiveThread):
     def __init__(self, getspecthread, number_of_samples, parent=None):
         self.number_of_samples = number_of_samples
         self.mean = np.zeros(1024, dtype=np.float)
@@ -235,7 +188,7 @@ class MeanThread(MeasurementThread):
         self.mutex.unlock()
 
 
-class SearchThread(MeasurementThread):
+class SearchThread(LiveThread):
     def __init__(self, getspecthread, settings, stage, parent=None):
         try:
             self.settings = settings

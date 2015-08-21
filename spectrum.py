@@ -102,7 +102,7 @@ class Spectrum(object):
         # self.enable_buttons()
 
     def take_live(self):
-        self.workingthread = MeasurementThread(self.getspecthread)
+        self.workingthread = LiveThread(self.getspecthread)
         self.workingthread.specSignal.connect(self.specCallback)
 
     @pyqtSlot(np.ndarray)
