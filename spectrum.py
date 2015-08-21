@@ -104,29 +104,35 @@ class Spectrum(object):
     def take_live(self):
         self.workingthread = LiveThread(self.getspecthread)
         self.workingthread.specSignal.connect(self.specCallback)
+        self.workingthread.start(QThread.HighPriority)
 
     @pyqtSlot(np.ndarray)
     def finishedDarkCallback(self, spec):
         self.dark = spec
         self.enable_buttons()
         self.status.setText('Dark Spectrum acquired')
+        self.workingthread = None
 
     @pyqtSlot(np.ndarray)
     def finishedLampCallback(self, spec):
         self.lamp = spec
         self.enable_buttons()
         self.status.setText('Lamp Spectrum acquired')
+        self.workingthread = None
 
     @pyqtSlot(np.ndarray)
     def finishedMeanCallback(self, spec):
         self.mean = spec
         self.enable_buttons()
         self.status.setText('Mean Spectrum acquired')
+        self.workingthread = None
 
     @pyqtSlot(np.ndarray)
     def finishedBGCallback(self, spec):
         self.bg = spec
         self.enable_buttons()
+        self.status.setText('Background Spectrum acquired')
+        self.workingthread = None
 
     def startMeanThread(self):
         self.workingthread = MeanThread(self.getspecthread, self.settings.number_of_samples)
@@ -136,18 +142,23 @@ class Spectrum(object):
     def take_dark(self):
         self.startMeanThread()
         self.workingthread.finishSignal.connect(self.finishedDarkCallback)
+        self.workingthread.start(QThread.HighPriority)
+
 
     def take_lamp(self):
         self.startMeanThread()
         self.workingthread.finishSignal.connect(self.finishedLampCallback)
+        self.workingthread.start(QThread.HighPriority)
 
     def take_mean(self):
         self.startMeanThread()
         self.workingthread.finishSignal.connect(self.finishedMeanCallback)
+        self.workingthread.start(QThread.HighPriority)
 
     def take_bg(self):
         self.startMeanThread()
         self.workingthread.finishSignal.connect(self.finishedBGCallback)
+        self.workingthread.start(QThread.HighPriority)
 
     def take_lockin(self):
         self.worker_mode = "lockin"
@@ -161,6 +172,7 @@ class Spectrum(object):
         self.workingthread.specSignal.connect(self.specCallback)
         self.workingthread.progressSignal.connect(self.progressCallback)
         self.workingthread.finishSignal.connect(self.finishedSearchCallback)
+        self.workingthread.start(QThread.HighPriority)
 
     def scan_search_max(self):
         self.stage.query_pos()
@@ -170,12 +182,15 @@ class Spectrum(object):
         self.workingthread.specSignal.connect(self.specCallback)
         self.workingthread.progressSignal.connect(self.progressCallback)
         self.workingthread.finishSignal.connect(self.finishedSearchCallback)
+        self.workingthread.start(QThread.HighPriority)
 
     @pyqtSlot(np.ndarray)
     def finishedSearchCallback(self, pos):
         print(pos)
         self.enable_buttons()
         self.status.setText('Search finished')
+        self.workingthread = None
+
 
     def take_series(self, path):
         self.series_path = path

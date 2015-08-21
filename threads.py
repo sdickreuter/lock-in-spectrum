@@ -64,7 +64,7 @@ class GetSpectrumThread(QThread):
         super(GetSpectrumThread, self).__init__(parent)
         self.spectrometer = spectrometer
         self.mutex = QMutex()
-        self.condition = QWaitCondition()
+        #self.condition = QWaitCondition()
 
     def __del__(self):
         self.stop()
@@ -83,7 +83,7 @@ class GetSpectrumThread(QThread):
     def stop(self):
         self.mutex.lock()
         self.abort = True
-        self.condition.wakeOne()
+        #self.condition.wakeOne()
         self.mutex.unlock()
         self.wait()
 
@@ -92,7 +92,6 @@ class MeasurementThread(QThread):
     specSignal = pyqtSignal(np.ndarray)
     progressSignal = pyqtSignal(float)
     finishSignal = pyqtSignal(np.ndarray)
-    waitCondition = QWaitCondition()
     abort = False
 
     def __init__(self, getspecthread, parent=None):
@@ -103,9 +102,8 @@ class MeasurementThread(QThread):
         super(MeasurementThread, self).__init__(parent)
         self.getspecthread = getspecthread
         self.mutex = QMutex()
+        self.waitCondition = QWaitCondition()
         self.getspecthread.dynamicSpecSignal.connect(self.specCallback)
-        self.start(QThread.HighPriority)
-        self.spec = None
 
     def __del__(self):
         self.mutex.lock()
@@ -131,8 +129,8 @@ class MeasurementThread(QThread):
         while True:
             if self.abort:
                 return
-            self.getspecthread.getSpectrum()
             try:
+                self.getspecthread.getSpectrum()
                 self.work()
             except:
                 (type, value, traceback) = sys.exc_info()
@@ -162,8 +160,8 @@ class LiveThread(MeasurementThread):
 
     @pyqtSlot(np.ndarray)
     def specCallback(self, spec):
-        self.waitCondition.wakeOne()
         self.spec = spec
+        self.waitCondition.wakeOne()
 
 
 class MeanThread(LiveThread):
@@ -213,10 +211,10 @@ class SearchThread(LiveThread):
         self.search()
         self.mutex.lock()
         x, y, z = self.stage.last_pos()
-        self.finishSignal.emit(np.array([x,y]))
         self.specSignal.emit(self.spec)
+        self.finishSignal.emit(np.array([x,y]))
+        self.abort = True
         self.mutex.unlock()
-        self.stop()
 
     def getspec(self):
         self.mutex.lock()
@@ -263,6 +261,7 @@ class SearchThread(LiveThread):
                 spec = smooth(self.getspec())
                 self.specSignal.emit(spec)
                 measured[k] = np.max(spec)
+                print(k)
             maxind = np.argmax(measured)
 
             self.mutex.lock()
@@ -301,7 +300,6 @@ class SearchThread(LiveThread):
         # self.specSignal.emit(spec)
 
 
-
 class ScanSearchThread(MeasurementThread):
     def __init__(self, getspecthread, settings, scanning_points, stage, parent=None):
         try:
@@ -312,13 +310,23 @@ class ScanSearchThread(MeasurementThread):
             self.n = scanning_points.shape[0]
             self.positions = np.zeros((self.n, 2))
             super(ScanSearchThread, self).__init__(getspecthread)
+            self.searchthread = SearchThread(self.getspecthread,self.settings,self.stage,self)
+            self.searchthread.finishSignal.connect(self.searchfinished)
+            self.searchthread.specSignal.connect(self.specslot)
         except:
             (type, value, traceback) = sys.exc_info()
             sys.excepthook(type, value, traceback)
 
+    def stop(self):
+        self.mutex.lock()
+        self.abort = True
+        self.searchthread.stop()
+        self.mutex.unlock()
+
     def run(self):
         while True:
             if self.abort:
+                self.searchthread = None
                 return
             try:
                 self.work()
@@ -327,13 +335,8 @@ class ScanSearchThread(MeasurementThread):
                 sys.excepthook(type, value, traceback)
 
     def work(self):
-        self.mutex.lock()
         self.stage.moveabs(x=self.scanning_points[self.i, 0], y=self.scanning_points[self.i, 1])
-        self.mutex.unlock()
-        self.searchthread = SearchThread(self.getspecthread,self.settings,self.stage,self)
-        self.searchthread.finishSignal.connect(self.searchfinished)
-        self.searchthread.specSignal.connect(self.specslot)
-        self.searchthread.search()
+        self.searchthread.start(QThread.HighPriority)
         self.mutex.lock()
         print('search started')
         self.waitCondition.wait(self.mutex)
@@ -352,6 +355,7 @@ class ScanSearchThread(MeasurementThread):
             plt.savefig("search_max/grid.png")
             plt.close()
             self.finishSignal.emit(self.positions)
+            self.searchthread = None
             #self.spec = self.getspec()
             #self.specSignal.emit(self.spec)
         self.mutex.unlock()
@@ -359,14 +363,11 @@ class ScanSearchThread(MeasurementThread):
     @pyqtSlot(np.ndarray)
     def searchfinished(self, spec):
         self.waitCondition.wakeOne()
+        print(spec)
 
     @pyqtSlot(np.ndarray)
     def specslot(self, spec):
         self.specSignal.emit(spec)
-
-    @pyqtSlot(np.ndarray)
-    def specCallback(self, spec):
-        self.spec = spec
 
 
 class SearchScanMeanThread(SearchThread):

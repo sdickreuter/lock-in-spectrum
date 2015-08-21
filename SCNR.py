@@ -319,6 +319,7 @@ class SCNR(QMainWindow):
         self.ui.status.setText("Searching Max.")
         self.spectrum.scan_search_max()
         self.disable_buttons()
+
     @pyqtSlot()
     def on_search_clicked(self):
         self.ui.status.setText("Searching Max.")
