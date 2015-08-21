@@ -11,7 +11,7 @@ from spectrum import Spectrum
 from settings import Settings
 from PyQt5 import uic
 from PyQt5.QtCore import pyqtSlot, QTimer, QSocketNotifier, QAbstractTableModel, Qt, QVariant, QModelIndex
-from PyQt5.QtWidgets import QApplication, QMainWindow, QSizePolicy, QVBoxLayout, QHeaderView
+from PyQt5.QtWidgets import QApplication, QMainWindow, QSizePolicy, QVBoxLayout, QFileDialog
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import numpy as np
@@ -384,7 +384,7 @@ class SCNR(QMainWindow):
             self.spectrum.dark = buf
 
     @pyqtSlot()
-    def on_loadlamp_clicked(self, widget):
+    def on_loadlamp_clicked(self):
         buf = self._load_spectrum_from_file()
         if not buf is None:
             self.spectrum.lamp = buf
@@ -392,25 +392,17 @@ class SCNR(QMainWindow):
     # ##---------------- END button connect functions ----------
 
     def _load_spectrum_from_file(self):
-        dialog = Gtk.FileChooserDialog("Please choose a file", self.window,
-                                       Gtk.FileChooserAction.OPEN,
-                                       (Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
-                                        Gtk.STOCK_OPEN, Gtk.ResponseType.OK))
+        save_dir = QFileDialog.getOpenFileName(self, "Load Spectrum from CSV", os.path.expanduser('~'), 'CSV Files (*.csv)')
 
-        data = None
-        filter_text = Gtk.FileFilter()
-        filter_text.set_name("CSV Spectrum files")
-        filter_text.add_pattern("*.csv")
-        dialog.add_filter(filter_text)
-        dialog.set_current_folder(os.path.dirname(os.path.abspath(__file__)))
-        response = dialog.run()
-        if response == Gtk.ResponseType.OK:
-            data = pandas.DataFrame(pandas.read_csv(dialog.get_filename()))
-            data = data['intensity']
-        elif response == Gtk.ResponseType.CANCEL:
-            data = None
-        dialog.destroy()
-        return data
+        print(save_dir)
+        #if response == Gtk.ResponseType.OK:
+        #    data = pandas.DataFrame(pandas.read_csv(dialog.get_filename()))
+        #    data = data['intensity']
+        #elif response == Gtk.ResponseType.CANCEL:
+        #    data = None
+        #dialog.destroy()
+        #return data
+
 
     # ##---------------- Stage Control Button Connect functions ----------
 
