@@ -21,26 +21,29 @@ from ui.SCNR_main import Ui_MainWindow
 
 
 class NumpyModel(QAbstractTableModel):
-    def __init__(self, narray, parent=None):
+    def __init__(self, nmatrix, parent=None):
         QAbstractTableModel.__init__(self, parent)
-        self._array = narray
+        self._matrix = nmatrix
 
     def update(self, narray):
-        self._array = narray
-        self.dataChanged.emit()
+        self._matrix = narray.copy()
+        self.layoutChanged.emit()
+
+    def getMatrix(self):
+        return self._matrix.copy()
 
     def rowCount(self, parent=None):
-        return self._array.shape[0]
+        return self._matrix.shape[0]
 
     def columnCount(self, parent=None):
-        return self._array.shape[1]
+        return self._matrix.shape[1]
 
     def data(self, index, role=Qt.DisplayRole):
         if index.isValid():
-            if role == Qt.DisplayRole:
+            if role == Qt.DisplayRole or role == Qt.EditRole :
                 row = index.row()
                 col = index.column()
-                return QVariant("%.5f"%self._array[row, col])
+                return QVariant("%.5f"%self._matrix[row, col])
         return QVariant()
 
     def setData(self, index, value, role = Qt.EditRole):
@@ -49,7 +52,7 @@ class NumpyModel(QAbstractTableModel):
                 val = float(value)
             except:
                 return False
-            self._array[index.row(),index.column()] = val
+            self._matrix[index.row(),index.column()] = val
             self.dataChanged.emit(index, index, ())
             return True
         return False
@@ -61,9 +64,16 @@ class NumpyModel(QAbstractTableModel):
         #    return Qt.ItemIsEnabled
 
     def headerData(self, col, orientation, role):
-        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
+        if role != Qt.DisplayRole:
             return QVariant()
-        return QVariant(['x','y'])
+
+        if orientation == Qt.Horizontal:
+            if col == 0:
+                return 'x'
+            if col == 1:
+                return 'y'
+        return QVariant()
+
 
 
 class SCNR(QMainWindow):
@@ -75,14 +85,14 @@ class SCNR(QMainWindow):
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
 
-        self.positions = np.matrix([ [10.0,0.0], [0.0,10.0], [10.0,10.0]])
+        self.positions = np.matrix([ [0.0,0.0], [0.0,10.0], [10.0,0.0]])
         self.posModel = NumpyModel(self.positions)
         self.ui.posTable.setModel(self.posModel)
-        #self.ui.posTable.horizontalHeader().show()
-        #self.ui.posTable.horizontalHeader()
-        #self.ui.posTable.horizontalHeader().setResizeMode(QHeaderView.Stretch)
-        #self.ui.posTable.show()
-        #self.ui.posTable.setH(("x","y"))
+        self.vh = self.ui.posTable.verticalHeader()
+        self.vh.setVisible(False)
+        self.hh = self.ui.posTable.horizontalHeader()
+        self.hh.setModel(self.posModel)
+        self.hh.setVisible(True)
 
         self.fig = Figure()
         self.axes = self.fig.add_subplot(111)
@@ -190,6 +200,72 @@ class SCNR(QMainWindow):
                 self.stage.moverel(dy=self.y_step)
         return True
 
+    # ## ----------- scan Listview connect functions
+
+    @pyqtSlot()
+    def on_addpos_clicked(self):
+        self.stage.query_pos()
+        x,y,z = self.stage.last_pos()
+        positions = self.posModel.getMatrix()
+        positions = np.append(positions,np.matrix([x,y]), axis = 0)
+        self.posModel.update(positions)
+
+    @pyqtSlot()
+    def on_spangrid_clicked(self):
+        xl, yl, ok = dialogs.SpanGrid_Dialog.getXY()
+        positions = self.posModel.getMatrix()
+        if (positions.shape[0] >= 3) & ((xl is not 0) | (yl is not 0)):
+            a = np.ravel(positions[0,:])
+            b = np.ravel(positions[1,:])
+            c = np.ravel(positions[2,:])
+            grid = np.zeros((xl*yl,2))
+            if abs(b[0]) > abs(c[0]):
+                grid_vec_1 = [b[0] - a[0], b[1] - a[1]]
+                grid_vec_2 = [c[0] - a[0], c[1] - a[1]]
+            else:
+                grid_vec_2 = [b[0] - a[0], b[1] - a[1]]
+                grid_vec_1 = [c[0] - a[0], c[1] - a[1]]
+
+            print(grid_vec_1)
+            print(grid_vec_2)
+            i = 0
+            for x in range(xl):
+                for y in range(yl):
+                    vec_x = a[0] + grid_vec_1[0] * x + grid_vec_2[0] * y
+                    vec_y = a[1] + grid_vec_1[1] * x + grid_vec_2[1] * y
+                    grid[i,0] = vec_x
+                    grid[i,1] = vec_y
+                    i += 1
+
+            self.posModel.update(grid)
+
+    @pyqtSlot()
+    def on_scan_add(self):
+        positions = self.posModel.getMatrix()
+        if positions.shape[1] == 2:
+            positions = np.append(positions,np.matrix([0.0,0.0]), axis = 0)
+        else:
+            positions = np.matrix([0.0,0.0])
+        self.posModel.update(positions)
+
+
+    @pyqtSlot()
+    def on_scan_remove(self):
+        indices = self.ui.posTable.selectionModel().selectedIndexes()
+        rows = np.array([],dtype=int)
+        for index in indices:
+            rows = np.append(rows,index.row())
+        positions = self.posModel.getMatrix()
+        positions = np.delete(positions,rows,axis=0)
+        self.posModel.update(positions)
+
+    @pyqtSlot()
+    def on_scan_clear(self):
+        self.posModel.update(np.matrix([[]]))
+
+
+    # ## ----------- END scan Listview connect functions
+
     # ##---------------- button connect functions ----------
 
     @pyqtSlot()
@@ -207,44 +283,6 @@ class SCNR(QMainWindow):
             self.spectrum.make_scan(self.scan_store, path, self.button_searchonoff.get_active(),
                                     self.button_lockinonoff.get_active())
             self.disable_buttons()
-
-    @pyqtSlot()
-    def on_addpos_clicked(self):
-        self.stage.query_pos()
-        pos = self.stage.last_pos()
-        self.ui.posTable.model()
-        for m, item in enumerate(self.data[key]):
-                newitem = QTableWidgetItem(item)
-                self.setItem(m, n, newitem)
-
-
-    @pyqtSlot()
-    def on_spangrid_clicked(self):
-        x, y, ok = dialogs.SpanGrid_Dialog.getXY()
-        print((x,y,ok))
-        # iterator = self.scan_store.get_iter_first()
-        # grid = self.spangrid_dialog.rundialog()
-        # if (len(self.scan_store) >= 3) & ((grid[0] is not 0) | (grid[1] is not 0)):
-        #     a = self.scan_store[iterator][:]
-        #     iterator = self.scan_store.iter_next(iterator)
-        #     b = self.scan_store[iterator][:]
-        #     iterator = self.scan_store.iter_next(iterator)
-        #     c = self.scan_store[iterator][:]
-        #
-        #     if abs(b[0]) > abs(c[0]):
-        #         grid_vec_1 = [b[0] - a[0], b[1] - a[1]]
-        #         grid_vec_2 = [c[0] - a[0], c[1] - a[1]]
-        #     else:
-        #         grid_vec_2 = [b[0] - a[0], b[1] - a[1]]
-        #         grid_vec_1 = [c[0] - a[0], c[1] - a[1]]
-        #
-        #     self.scan_store.clear()
-        #
-        #     for x in range(int(grid[0])):
-        #         for y in range(int(grid[1])):
-        #             vec_x = a[0] + grid_vec_1[0] * x + grid_vec_2[0] * y
-        #             vec_y = a[1] + grid_vec_1[1] * x + grid_vec_2[1] * y
-        #             self.scan_store.append([vec_x, vec_y])
 
     @pyqtSlot()
     def on_searchgrid_clicked(self):
@@ -372,32 +410,6 @@ class SCNR(QMainWindow):
             data = None
         dialog.destroy()
         return data
-
-    # ## ----------- scan Listview connect functions
-
-    def on_scan_xedited(self, path, number):
-        self.scan_store[path][0] = float(number.replace(',', '.'))
-        # self.plotpoints()
-
-    def on_scan_yedited(self, path, number):
-        self.scan_store[path][1] = float(number.replace(',', '.'))
-        # self.plotpoints()
-
-    def on_scan_add(self):
-        self.scan_store.append()
-
-    def on_scan_remove(self):
-        select = self.scan_view.get_selection()
-        model, treeiter = select.get_selected()
-        if treeiter is not None:
-            self.scan_store.remove(treeiter)
-
-    def on_scan_clear(self):
-        self.scan_store.clear()
-
-
-    # ## ----------- END scan Listview connect functions
-
 
     # ##---------------- Stage Control Button Connect functions ----------
 
