@@ -394,15 +394,13 @@ class SCNR(QMainWindow):
     def _load_spectrum_from_file(self):
         save_dir = QFileDialog.getOpenFileName(self, "Load Spectrum from CSV", os.path.expanduser('~'), 'CSV Files (*.csv)')
 
-        print(save_dir)
-        #if response == Gtk.ResponseType.OK:
-        #    data = pandas.DataFrame(pandas.read_csv(dialog.get_filename()))
-        #    data = data['intensity']
-        #elif response == Gtk.ResponseType.CANCEL:
-        #    data = None
-        #dialog.destroy()
-        #return data
-
+        if len(save_dir[0])>1:
+            save_dir = save_dir[0]
+            print(save_dir)
+            data = pandas.DataFrame(pandas.read_csv(save_dir,skiprows=7))
+            data = data['counts']
+            return np.array(data)
+        return None
 
     # ##---------------- Stage Control Button Connect functions ----------
 
