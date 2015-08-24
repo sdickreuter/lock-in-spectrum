@@ -24,6 +24,9 @@
    <layout class="QGridLayout" name="gridLayout_2">
     <item row="0" column="2">
      <widget class="QPushButton" name="Button_stop">
+      <property name="enabled">
+       <bool>false</bool>
+      </property>
       <property name="sizePolicy">
        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
         <horstretch>0</horstretch>
@@ -286,7 +289,7 @@
        <enum>QTabWidget::Rounded</enum>
       </property>
       <property name="currentIndex">
-       <number>1</number>
+       <number>0</number>
       </property>
       <property name="usesScrollButtons">
        <bool>true</bool>
@@ -564,6 +567,13 @@
            <widget class="QCheckBox" name="checkBox_lockin">
             <property name="text">
              <string>with Lock-In</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="checkBox_search">
+            <property name="text">
+             <string>with Search</string>
             </property>
            </widget>
           </item>
@@ -1189,7 +1199,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>792</x>
-     <y>253</y>
+     <y>279</y>
     </hint>
     <hint type="destinationlabel">
      <x>5</x>
@@ -1205,7 +1215,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>863</x>
-     <y>269</y>
+     <y>295</y>
     </hint>
     <hint type="destinationlabel">
      <x>0</x>
@@ -1221,11 +1231,27 @@
    <hints>
     <hint type="sourcelabel">
      <x>929</x>
-     <y>267</y>
+     <y>293</y>
     </hint>
     <hint type="destinationlabel">
      <x>6</x>
      <y>333</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>Button_scan</sender>
+   <signal>clicked()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>on_start_scan_clicked()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>839</x>
+     <y>575</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>6</x>
+     <y>471</y>
     </hint>
    </hints>
   </connection>
@@ -1261,5 +1287,6 @@
   <slot>on_scan_add()</slot>
   <slot>on_scan_remove()</slot>
   <slot>on_scan_clear()</slot>
+  <slot>on_start_scan_clicked()</slot>
  </slots>
 </ui>

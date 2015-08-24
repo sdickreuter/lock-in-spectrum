@@ -11,7 +11,7 @@ from spectrum import Spectrum
 from settings import Settings
 from PyQt5 import uic
 from PyQt5.QtCore import pyqtSlot, QTimer, QSocketNotifier, QAbstractTableModel, Qt, QVariant, QModelIndex
-from PyQt5.QtWidgets import QApplication, QMainWindow, QSizePolicy, QVBoxLayout, QFileDialog
+from PyQt5.QtWidgets import QApplication, QMainWindow, QSizePolicy, QVBoxLayout, QFileDialog, QInputDialog
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import numpy as np
@@ -141,8 +141,9 @@ class SCNR(QMainWindow):
         spec = self.spectrum.get_spec()  # get an initial spectrum for display
         self._wl = self.spectrum.get_wl()  # get the wavelengths
         self.update_plot(None)
-        self.spectrum.getspecthread.dynamicSpecSignal.connect(self.update_plot)
-
+        #self.spectrum.getspecthread.dynamicSpecSignal.connect(self.update_plot)
+        self.spectrum.specSignal.connect(self.update_plot)
+        self.spectrum.updatePositions.connect(self.update_positions)
         #timer = QTimer(self)
         #timer.timeout.connect(self.update_plot)
         #timer.start(50)
@@ -263,26 +264,31 @@ class SCNR(QMainWindow):
     def on_scan_clear(self):
         self.posModel.update(np.matrix([[]]))
 
+    @pyqtSlot(np.ndarray)
+    def update_positions(self, pos):
+        self.posModel.update(pos)
 
     # ## ----------- END scan Listview connect functions
 
     # ##---------------- button connect functions ----------
 
     @pyqtSlot()
-    def on_scan_start_clicked(self):
-        prefix = self.prefix_dialog.rundialog()
+    def on_start_scan_clicked(self):
+        prefix, ok = QInputDialog.getText(self, 'Save Folder',
+            'Enter Folder to save spectra to:')
 
-        if prefix is not None:
+        if ok:
             try:
                 # os.path.exists(prefix)
                 os.mkdir(self.savedir+prefix)
             except:
                 print("Error creating directory ./" + prefix)
             path = self.savedir + prefix + '/'
-            self.status.setText('Scanning')
-            self.spectrum.make_scan(self.scan_store, path, self.button_searchonoff.get_active(),
-                                    self.button_lockinonoff.get_active())
+            self.ui.status.setText("Scanning ...")
+            #self.spectrum.make_scan(self.scan_store, path, self.button_searchonoff.get_active(), self.button_lockinonoff.get_active())
+            self.spectrum.make_scan(self.posModel.getMatrix(), path, self.ui.checkBox_lockin.isChecked(), self.ui.checkBox_search.isChecked())
             self.disable_buttons()
+
 
     @pyqtSlot()
     def on_stop_clicked(self):
@@ -317,7 +323,7 @@ class SCNR(QMainWindow):
     @pyqtSlot()
     def on_searchgrid_clicked(self):
         self.ui.status.setText("Searching Max.")
-        self.spectrum.scan_search_max()
+        self.spectrum.scan_search_max(self.posModel.getMatrix())
         self.disable_buttons()
 
     @pyqtSlot()
@@ -329,7 +335,16 @@ class SCNR(QMainWindow):
     @pyqtSlot()
     def on_save_clicked(self):
         self.ui.status.setText("Saving Data ...")
-        self.save_data()
+        prefix, ok = QInputDialog.getText(self, 'Save Folder',
+            'Enter Folder to save spectra to:')
+        if ok:
+            try:
+                # os.path.exists(prefix)
+                os.mkdir(self.savedir+prefix)
+            except:
+                print("Error creating directory ./" + prefix)
+            path = self.savedir + prefix + '/'
+            self.spectrum.save_data(path)
 
     @pyqtSlot()
     def on_settings_clicked(self):
@@ -472,9 +487,6 @@ class SCNR(QMainWindow):
         self.Canvas.draw()
         self.show_pos()
         return True
-
-
-
 
 
 

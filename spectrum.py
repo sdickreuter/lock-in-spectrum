@@ -6,11 +6,16 @@ import math
 import oceanoptics
 import pandas
 from progress import *
+from PyQt5.QtCore import pyqtSlot, QThread, pyqtSignal, QObject
 from threads import *
+import numpy as np
 
+class Spectrum(QObject):
+    specSignal = pyqtSignal(np.ndarray)
+    updatePositions = pyqtSignal(np.ndarray)
 
-class Spectrum(object):
     def __init__(self, stage, settings, status, progressbar, enable_buttons, disable_buttons):
+        super(Spectrum, self).__init__(None)
         self.settings = settings
         self.stage = stage
         self.status = status
@@ -32,7 +37,7 @@ class Spectrum(object):
         self._spec = np.zeros(1024, dtype=np.float)
         self._spec = self._spectrometer.intensities(correct_nonlinearity=True)
 
-        self.getspecthread = GetSpectrumThread(self._spectrometer)
+        #self.getspecthread = GetSpectrumThread(self._spectrometer)
         self.workingthread = None
 
     def __del__(self):
@@ -63,6 +68,7 @@ class Spectrum(object):
     @pyqtSlot(np.ndarray)
     def specCallback(self, spec):
         self._spec = spec
+        self.specSignal.emit(spec)
 
     def get_wl(self):
         return self._wl
@@ -102,9 +108,10 @@ class Spectrum(object):
         # self.enable_buttons()
 
     def take_live(self):
-        self.workingthread = LiveThread(self.getspecthread)
+        #self.workingthread = LiveThread(self.getspecthread)
+        self.workingthread = MeasurementThread(self._spectrometer)
         self.workingthread.specSignal.connect(self.specCallback)
-        self.workingthread.start(QThread.HighPriority)
+        self.workingthread.start()
 
     @pyqtSlot(np.ndarray)
     def finishedDarkCallback(self, spec):
@@ -135,30 +142,29 @@ class Spectrum(object):
         self.workingthread = None
 
     def startMeanThread(self):
-        self.workingthread = MeanThread(self.getspecthread, self.settings.number_of_samples)
+        self.workingthread = MeanThread(self._spectrometer, self.settings.number_of_samples)
         self.workingthread.specSignal.connect(self.specCallback)
         self.workingthread.progressSignal.connect(self.progressCallback)
 
     def take_dark(self):
         self.startMeanThread()
         self.workingthread.finishSignal.connect(self.finishedDarkCallback)
-        self.workingthread.start(QThread.HighPriority)
-
+        self.workingthread.start()
 
     def take_lamp(self):
         self.startMeanThread()
         self.workingthread.finishSignal.connect(self.finishedLampCallback)
-        self.workingthread.start(QThread.HighPriority)
+        self.workingthread.start()
 
     def take_mean(self):
         self.startMeanThread()
         self.workingthread.finishSignal.connect(self.finishedMeanCallback)
-        self.workingthread.start(QThread.HighPriority)
+        self.workingthread.start()
 
     def take_bg(self):
         self.startMeanThread()
         self.workingthread.finishSignal.connect(self.finishedBGCallback)
-        self.workingthread.start(QThread.HighPriority)
+        self.workingthread.start()
 
     def take_lockin(self):
         self.worker_mode = "lockin"
@@ -168,29 +174,59 @@ class Spectrum(object):
         self.start_process(self._lockin_spectrum)
 
     def search_max(self):
-        self.workingthread = SearchThread(self.getspecthread, self.settings, self.stage)
+        self.workingthread = SearchThread(self._spectrometer, self.settings, self.stage)
         self.workingthread.specSignal.connect(self.specCallback)
         self.workingthread.progressSignal.connect(self.progressCallback)
-        self.workingthread.finishSignal.connect(self.finishedSearchCallback)
-        self.workingthread.start(QThread.HighPriority)
+        self.workingthread.finishSignal.connect(self.finishedSearch)
+        self.workingthread.start()
 
-    def scan_search_max(self):
-        self.stage.query_pos()
-        x, y, z = self.stage.last_pos()
-        pos = np.matrix([[x, y]])
-        self.workingthread = ScanSearchThread(self.getspecthread, self.settings, pos, self.stage)
+    def scan_search_max(self, pos):
+        #self.stage.query_pos()
+        #x, y, z = self.stage.last_pos()
+        #pos = np.matrix([[x, y]])
+        self.workingthread = ScanSearchThread(self._spectrometer, self.settings, pos, self.stage)
         self.workingthread.specSignal.connect(self.specCallback)
         self.workingthread.progressSignal.connect(self.progressCallback)
-        self.workingthread.finishSignal.connect(self.finishedSearchCallback)
-        self.workingthread.start(QThread.HighPriority)
+        self.workingthread.finishSignal.connect(self.finishedScanSearch)
+        self.workingthread.start()
 
     @pyqtSlot(np.ndarray)
-    def finishedSearchCallback(self, pos):
-        print(pos)
+    def finishedSearch(self, pos):
+        #print(pos)
         self.enable_buttons()
         self.status.setText('Search finished')
         self.workingthread = None
 
+    @pyqtSlot(np.ndarray)
+    def finishedScanSearch(self, pos):
+        #print(pos)
+        self.enable_buttons()
+        self.status.setText('Scan Search finished')
+        self.workingthread = None
+        self.updatePositions.emit(pos)
+
+    def make_scan(self, positions, savedir,with_lockin, with_search):
+        self.save_path = savedir
+        self.save_data(savedir)
+        if with_lockin:
+            return True
+        elif with_search:
+            self.workingthread = ScanSearchMeanThread(self._spectrometer, self.settings, positions, self.stage)
+        else:
+            self.workingthread = ScanMeanThread(self._spectrometer, self.settings, positions, self.stage)
+
+        self.workingthread.finishSignal.connect(self.finishedScanMean)
+        self.workingthread.saveSignal.connect(self.save_spectrum)
+        self.workingthread.specSignal.connect(self.specCallback)
+        self.workingthread.progressSignal.connect(self.progressCallback)
+        self.workingthread.start()
+
+    @pyqtSlot(np.ndarray)
+    def finishedScanMean(self, pos):
+        #print(pos)
+        self.enable_buttons()
+        self.status.setText('Scan Mean finished')
+        self.workingthread = None
 
     def take_series(self, path):
         self.series_path = path
@@ -339,26 +375,27 @@ class Spectrum(object):
         return True
 
     def save_data(self, prefix):
-        filename = self._gen_filename()
-        if not self._data is None:
-            cols = ('t', 'ref') + tuple(map(str, np.round(self._wl, 1)))
-            data = pandas.DataFrame(self._data, columns=cols)
-            data.to_csv(prefix + 'spectrum_' + filename, header=True, index=False)
+        self.save_path = prefix
+        #filename = self._gen_filename()
+        #if not self._data is None:
+        #    cols = ('t', 'ref') + tuple(map(str, np.round(self._wl, 1)))
+        #    data = pandas.DataFrame(self._data, columns=cols)
+        #    data.to_csv(prefix + 'spectrum_' + filename, header=True, index=False)
         if not self.dark is None:
-            self.save_spectrum(self.dark, prefix + 'dark_' + filename)
+            self.save_spectrum(self.dark, 'dark.csv', None, False)
         if not self.lamp is None:
-            self.save_spectrum(self.lamp, prefix + 'lamp_' + filename)
-        if not self.normal is None:
-            self.save_spectrum(self.normal, prefix + 'normal_' + filename)
+            self.save_spectrum(self.lamp, 'lamp.csv', None, False)
+        if not self.mean is None:
+            self.save_spectrum(self.mean, 'normal.csv', None, False)
         if not self.bg is None:
-            self.save_spectrum(self.bg, prefix + 'background_' + filename)
+            self.save_spectrum(self.bg, 'background.csv', None, False)
         if not self.lockin is None:
-            self.save_spectrum(self.lockin, prefix + 'lockin_' + filename, lockin=True)
+            self.save_spectrum(self.lockin, 'lockin.csv', None, True)
 
-    def save_spectrum(self, spec, filename, pos=None, lockin=False):
+    @pyqtSlot(np.ndarray, str, np.ndarray, bool)
+    def save_spectrum(self, spec, filename, pos, lockin):
         data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1), spec.reshape(spec.shape[0], 1), 1)
-
-        f = open(filename, 'w')
+        f = open(self.save_path+filename, 'w')
         f.write(str(datetime.now().day).zfill(2) + "." + str(datetime.now().month).zfill(2) + "." + str(
             datetime.now().year) + "\r\n")
         f.write(str(datetime.now().hour).zfill(2) + ":" + str(datetime.now().minute).zfill(2) + ":" + str(
