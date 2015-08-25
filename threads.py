@@ -7,7 +7,6 @@ import scipy.optimize as opt
 import matplotlib.pyplot as plt
 from PyQt5.QtCore import pyqtSlot, QThread, QMutex, QWaitCondition, pyqtSignal, QObject
 import progress
-import datetime
 
 # modified from: http://stackoverflow.com/questions/21566379/fitting-a-2d-gaussian-function-using-scipy-optimize-curve-fit-valueerror-and-m#comment33999040_21566831
 def gauss2D(pos, amplitude, xo, yo, fwhm, offset):

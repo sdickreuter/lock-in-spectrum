@@ -1,6 +1,5 @@
 __author__ = 'sei'
 
-from datetime import datetime
 import math
 # import seabreeze.spectrometers as sb
 import oceanoptics
@@ -8,6 +7,8 @@ import pandas
 from PyQt5.QtCore import pyqtSlot, QThread, pyqtSignal, QObject
 from threads import *
 import numpy as np
+from datetime import datetime
+
 
 class Spectrum(QObject):
     specSignal = pyqtSignal(np.ndarray)
