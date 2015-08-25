@@ -6,7 +6,8 @@ import numpy as np
 import scipy.optimize as opt
 import matplotlib.pyplot as plt
 from PyQt5.QtCore import pyqtSlot, QThread, QMutex, QWaitCondition, pyqtSignal, QObject
-
+import progress
+import datetime
 
 # modified from: http://stackoverflow.com/questions/21566379/fitting-a-2d-gaussian-function-using-scipy-optimize-curve-fit-valueerror-and-m#comment33999040_21566831
 def gauss2D(pos, amplitude, xo, yo, fwhm, offset):
@@ -46,14 +47,9 @@ def smooth(x):
     return y
 
 
-# def _millis(starttime):
-#    dt = datetime.now() - starttime
-#    ms = (dt.days * 24 * 60 * 60 + dt.seconds) * 1000 + dt.microseconds / 1000.0
-#    return ms
-
 class MeasurementThread(QObject):
     specSignal = pyqtSignal(np.ndarray)
-    progressSignal = pyqtSignal(float)
+    progressSignal = pyqtSignal(float, str)
     finishSignal = pyqtSignal(np.ndarray)
 
     def __init__(self, spectrometer, parent=None):
@@ -104,12 +100,14 @@ class MeasurementThread(QObject):
 
 
 class MeanThread(MeasurementThread):
+
     def __init__(self, spectrometer, number_of_samples, parent=None):
         self.number_of_samples = number_of_samples
         self.init()
         super(MeanThread, self).__init__(spectrometer)
 
     def init(self):
+        self.progress = progress.Progress(max=self.number_of_samples)
         self.mean = np.zeros(1024, dtype=np.float)
         self.i = 0
         self.abort = False
@@ -117,8 +115,9 @@ class MeanThread(MeasurementThread):
     def work(self):
         self.mean = (self.mean + self.spec)  # / 2
         self.specSignal.emit(self.mean / (self.i + 1))
+        self.progress.next()
         progressFraction = float(self.i + 1) / self.number_of_samples
-        self.progressSignal.emit(progressFraction * 100)
+        self.progressSignal.emit(self.progress.percent, str(self.progress.eta_td))
         self.i += 1
         if self.i >= self.number_of_samples:
             self.abort = True
@@ -169,6 +168,7 @@ class SearchThread(MeasurementThread):
         d = np.linspace(-self.settings.rasterwidth, self.settings.rasterwidth, self.settings.rasterdim)
 
         repetitions = 4
+        self.progress = progress.Progress(max=repetitions)
         for j in range(repetitions):
             self.stage.query_pos()
             origin = self.stage.last_pos()
@@ -233,7 +233,8 @@ class SearchThread(MeasurementThread):
             plt.savefig("search_max/search" + str(j) + ".png")
             plt.close()
             self.stage.moveabs(x=dx, y=dy)
-            self.progressSignal.emit((j+1)/repetitions *100)
+            self.progress.next()
+            self.progressSignal.emit(self.progress.percent, str(self.progress.eta_td))
         # self._spectrometer.integration_time_micros(self.settings.integration_time / 1000)
         #self.stage.query_pos()
         # spec = self.getspec()
@@ -250,6 +251,7 @@ class ScanThread(MeasurementThread):
             self.i = 0
             self.n = scanning_points.shape[0]
             self.positions = np.zeros((self.n, 2))
+            self.progress = progress.Progress(max=self.n)
             super(ScanThread, self).__init__(spectrometer)
         except:
             (type, value, traceback) = sys.exc_info()
@@ -276,7 +278,8 @@ class ScanThread(MeasurementThread):
         self.positions[self.i, 0] = x
         self.positions[self.i, 1] = y
         progressFraction = float(self.i + 1) / self.n
-        self.progressSignal.emit(progressFraction * 100)
+        self.progress.next()
+        self.progressSignal.emit(self.progress.percent, str(self.progress.eta_td))
         self.i += 1
         if self.i >= self.n:
             self.stop()

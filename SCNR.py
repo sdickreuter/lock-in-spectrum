@@ -1,3 +1,5 @@
+import datetime
+
 __author__ = 'sei'
 
 import random
@@ -299,10 +301,6 @@ class SCNR(QMainWindow):
     @pyqtSlot()
     def on_reset_clicked(self):
         self.spectrum.reset()
-        self.spectrum.dark = None
-        self.spectrum.lamp = None
-        self.spectrum.lockin = None
-        self.spectrum.mean = None
 
     @pyqtSlot()
     def on_lockin_clicked(self):
@@ -487,8 +485,6 @@ class SCNR(QMainWindow):
         self.Canvas.draw()
         self.show_pos()
         return True
-
-
 
 
 if __name__ == '__main__':
