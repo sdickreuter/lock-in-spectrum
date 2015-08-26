@@ -25,7 +25,7 @@ class GamepadThread(QObject):
             self.abort = False
             self.thread = QThread()
             try:
-                self.pad = pygamepad.Gamepad(True)
+                self.pad = pygamepad.Gamepad()
             except:
                 print("Could not initialize Gamepad")
                 self.pad = None

@@ -101,8 +101,8 @@ class SCNR(QMainWindow):
         self.fig = Figure()
         self.axes = self.fig.add_subplot(111)
         self.axes.hold(False)
-        self.axes.autoscale(False)
-        self.axes.set_xlim([self.settings.min_wl, self.settings.max_wl])
+        #self.axes.autoscale(False)
+        #self.axes.set_xlim([self.settings.min_wl, self.settings.max_wl])
 
 
         self.Canvas = FigureCanvas(self.fig)
@@ -126,14 +126,13 @@ class SCNR(QMainWindow):
         self.step_distance = 1  # in um
 
         try:
-            pass
-            #self.stage = PIStage.E545(self.settings.stage_ip,self.settings.stage_port)
+            #pass
+            self.stage = PIStage.E545(self.settings.stage_ip,self.settings.stage_port)
         except:
             self.stage = None
             self.stage = PIStage.Dummy()
             print("Could not initialize PIStage, using Dummy instead")
 
-        self.stage = PIStage.Dummy()
         self.spectrum = Spectrum(self.stage, self.settings, self.ui.status, self.ui.progressBar, self.enable_buttons,
                                  self.disable_buttons)  # logger class which coordinates the spectrometer and the stage
 
@@ -151,7 +150,8 @@ class SCNR(QMainWindow):
         self.padthread.XSignal.connect(self.on_addpos_clicked)
         self.padthread.YSignal.connect(self.on_stepup_clicked)
         self.padthread.ASignal.connect(self.on_stepdown_clicked)
-        self.padthread.analogSignal.connect(self.move)
+        self.padthread.analogSignal.connect(self._pad_make_step)
+        self.padthread.start()
         self.pad_active = True
 
     def disable_buttons(self):
@@ -196,6 +196,7 @@ class SCNR(QMainWindow):
                     self.stage.moverel(dx=x_step)
             elif abs(y_step) > 0.001:
                 self.stage.moverel(dy=y_step)
+            self.update_positions()
 
     # ## ----------- scan Listview connect functions
 
@@ -474,8 +475,9 @@ class SCNR(QMainWindow):
     @pyqtSlot(np.ndarray)
     def update_plot(self):
         spec = self.spectrum.get_spec(self.ui.CheckBox_correct.isChecked())
-        self.axes.set_xlim([self.settings.min_wl, self.settings.max_wl])
-        self.axes.plot(self._wl, spec, scalex=False)
+        mask = (self._wl >= self.settings.min_wl) & (self._wl <= self.settings.max_wl)
+        self.axes.plot(self._wl[mask], spec[mask])
+        #self.axes.plot(self._wl, spec)
         self.Canvas.draw()
         self.show_pos()
         return True

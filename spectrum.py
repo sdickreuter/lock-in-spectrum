@@ -1,8 +1,8 @@
 __author__ = 'sei'
 
 import math
-# import seabreeze.spectrometers as sb
-import oceanoptics
+import seabreeze.spectrometers as sb
+#import oceanoptics
 import pandas
 from PyQt5.QtCore import pyqtSlot, QThread, pyqtSignal, QObject
 from threads import *
@@ -38,7 +38,6 @@ class Spectrum(QObject):
         self._spec = self._spectrometer.intensities(correct_nonlinearity=True)
         self._wl = self._spectrometer.wavelengths()
 
-        #self.getspecthread = GetSpectrumThread(self._spectrometer)
         self.workingthread = None
 
     def __del__(self):
@@ -46,21 +45,21 @@ class Spectrum(QObject):
 
     def _init_spectrometer(self):
 
-        #    try:
-        #        devices = sb.list_devices()
-        #        self._spectrometer = sb.Spectrometer(devices[0])
-        #        self._spectrometer.tec_set_temperature_C(-17)
-        #        self._spectrometer.tec_set_enable(True)
-        #        print(self._spectrometer.tec_get_temperature_C())
-        #        self._spectrometer.integration_time_micros(100000)
-        #        print("Spectrometer " + str(self._spectrometer.serial_number) + " initialized and working")
-        #    except:
-        #        print("Error opening Spectrometer, using Dummy instead")
+       try:
+           devices = sb.list_devices()
+           self._spectrometer = sb.Spectrometer(devices[0])
+           self._spectrometer.tec_set_temperature_C(-17)
+           self._spectrometer.tec_set_enable(True)
+           print(self._spectrometer.tec_get_temperature_C())
+           self._spectrometer.integration_time_micros(100000)
+           print("Spectrometer " + str(self._spectrometer.serial_number) + " initialized and working")
+       except:
+           print("Error opening Spectrometer, using Dummy instead")
         # self._spectrometer = oceanoptics.Dummy()
-        self._spectrometer = oceanoptics.ParticleDummy(self.stage)
-        self._spectrometer._set_integration_time(100)
-        sp = self._spectrometer.spectrum()
-        self._wl = np.array(sp[0], dtype=np.float)
+        #self._spectrometer = oceanoptics.ParticleDummy(self.stage)
+        #self._spectrometer._set_integration_time(100)
+        #sp = self._spectrometer.spectrum()
+        #self._wl = np.array(sp[0], dtype=np.float)
 
     @pyqtSlot(float, str)
     def progressCallback(self, progress,eta):
