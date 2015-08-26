@@ -142,16 +142,15 @@ class SCNR(QMainWindow):
         #self.spectrum.getspecthread.dynamicSpecSignal.connect(self.update_plot)
         self.spectrum.specSignal.connect(self.update_plot)
         self.spectrum.updatePositions.connect(self.update_positions)
-        #timer = QTimer(self)
-        #timer.timeout.connect(self.update_plot)
-        #timer.start(50)
         self.padthread = GamepadThread()
         self.padthread.BSignal.connect(self.on_search_clicked)
         self.padthread.XSignal.connect(self.on_addpos_clicked)
         self.padthread.YSignal.connect(self.on_stepup_clicked)
         self.padthread.ASignal.connect(self.on_stepdown_clicked)
-        self.padthread.analogSignal.connect(self._pad_make_step)
         self.padthread.start()
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.check_pad_analog)
+        self.timer.start(100)
         self.pad_active = True
 
     def disable_buttons(self):
@@ -161,7 +160,7 @@ class SCNR(QMainWindow):
         self.ui.Button_stepup.setDisabled(True)
         self.ui.Button_stepdown.setDisabled(True)
         self.ui.Button_stop.setDisabled(False)
-        self.pad_active = False
+        #self.pad_active = False
 
 
     def enable_buttons(self):
@@ -174,8 +173,9 @@ class SCNR(QMainWindow):
         self.pad_active = True
 
 
-    @pyqtSlot(int, int)
-    def _pad_make_step(self, ax,ay):
+    @pyqtSlot()
+    def check_pad_analog(self):
+        ax, ay = self.padthread.check_Analog()
         if self.pad_active:
             x_step = float((ax - 128))
             if abs(x_step) > 8:
@@ -196,7 +196,7 @@ class SCNR(QMainWindow):
                     self.stage.moverel(dx=x_step)
             elif abs(y_step) > 0.001:
                 self.stage.moverel(dy=y_step)
-            self.update_positions()
+            self.show_pos()
 
     # ## ----------- scan Listview connect functions
 
