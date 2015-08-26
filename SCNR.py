@@ -8,16 +8,16 @@ import matplotlib
 matplotlib.use("Qt5Agg")
 import pandas
 import PIStage
-from pygamepad import Gamepad
 from spectrum import Spectrum
 from settings import Settings
-from PyQt5 import uic
 from PyQt5.QtCore import pyqtSlot, QTimer, QSocketNotifier, QAbstractTableModel, Qt, QVariant, QModelIndex
 from PyQt5.QtWidgets import QApplication, QMainWindow, QSizePolicy, QVBoxLayout, QFileDialog, QInputDialog
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import numpy as np
 import dialogs
+from threads import GamepadThread
+#from PyQt5 import uic
 #Ui_MainWindow = uic.loadUiType("ui/SCNR_main.ui")[0]
 from ui.SCNR_main import Ui_MainWindow
 
@@ -124,12 +124,6 @@ class SCNR(QMainWindow):
         self.x_step = .0
         self.y_step = .0
         self.step_distance = 1  # in um
-        self.pad = None
-        try:
-            pass
-            #self.pad = Gamepad(True)
-        except:
-            print("Could not initialize Gamepad")
 
         try:
             pass
@@ -152,7 +146,13 @@ class SCNR(QMainWindow):
         #timer = QTimer(self)
         #timer.timeout.connect(self.update_plot)
         #timer.start(50)
-
+        self.padthread = GamepadThread()
+        self.padthread.BSignal.connect(self.on_search_clicked)
+        self.padthread.XSignal.connect(self.on_addpos_clicked)
+        self.padthread.YSignal.connect(self.on_stepup_clicked)
+        self.padthread.ASignal.connect(self.on_stepdown_clicked)
+        self.padthread.anologSignal.connect(self.move)
+        self.pad_active = True
 
     def disable_buttons(self):
         self.ui.tabWidget.setDisabled(True)
@@ -161,6 +161,8 @@ class SCNR(QMainWindow):
         self.ui.Button_stepup.setDisabled(True)
         self.ui.Button_stepdown.setDisabled(True)
         self.ui.Button_stop.setDisabled(False)
+        self.pad_active = False
+
 
     def enable_buttons(self):
         self.ui.tabWidget.setDisabled(False)
@@ -169,42 +171,31 @@ class SCNR(QMainWindow):
         self.ui.Button_stepup.setDisabled(False)
         self.ui.Button_stepdown.setDisabled(False)
         self.ui.Button_stop.setDisabled(True)
+        self.pad_active = True
 
-    def _on_pad_change(self, io, condition):
-        a, b, x, y, ax, ay = self.pad.receiver.recv()
-        if a:
-            self.on_stepdown_clicked(None)
-        if b:
-            self.on_add_position_clicked(None)
-        if x:
-            self.on_search_clicked(None)
-        if y:
-            self.on_stepup_clicked(None)
 
-        self.x_step = float((ax - 128))
-        if abs(self.x_step) > 8:
-            self.x_step = self.x_step / 128 * self.settings.stepsize
-        else:
-            self.x_step = 0.0
+    @pyqtSlot(int, int)
+    def _pad_make_step(self, ax,ay):
+        if self.pad_active:
+            x_step = float((ax - 128))
+            if abs(x_step) > 8:
+                x_step = x_step / 128 * self.settings.stepsize
+            else:
+                x_step = 0.0
 
-        self.y_step = float((ay - 128))
-        if abs(self.y_step) > 8:
-            self.y_step = self.y_step / 128 * self.settings.stepsize
-        else:
-            self.y_step = 0.0
-        # print('x_step: {0:3.2f} um   y_step: {1:3.2f} um'.format( self.x_step, self.y_step))
-        return True
+            y_step = float((ay - 128))
+            if abs(y_step) > 8:
+                y_step = y_step / 128 * self.settings.stepsize
+            else:
+                y_step = 0.0
 
-    def _pad_make_step(self):
-        if self.pad is not None:
-            if abs(self.x_step) > 0.0001:
-                if abs(self.y_step) > 0.0001:
-                    self.stage.moverel(dx=self.x_step, dy=self.y_step)
+            if abs(x_step) > 0.0001:
+                if abs(y_step) > 0.0001:
+                    self.stage.moverel(dx=x_step, dy=y_step)
                 else:
-                    self.stage.moverel(dx=self.x_step)
-            elif abs(self.y_step) > 0.001:
-                self.stage.moverel(dy=self.y_step)
-        return True
+                    self.stage.moverel(dx=x_step)
+            elif abs(y_step) > 0.001:
+                self.stage.moverel(dy=y_step)
 
     # ## ----------- scan Listview connect functions
 
