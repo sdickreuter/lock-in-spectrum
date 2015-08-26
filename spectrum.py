@@ -36,6 +36,7 @@ class Spectrum(QObject):
 
         self._spec = np.zeros(1024, dtype=np.float)
         self._spec = self._spectrometer.intensities(correct_nonlinearity=True)
+        self._wl = self._spectrometer.wavelengths()
 
         #self.getspecthread = GetSpectrumThread(self._spectrometer)
         self.workingthread = None

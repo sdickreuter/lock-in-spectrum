@@ -96,9 +96,14 @@ class SCNR(QMainWindow):
         self.hh.setModel(self.posModel)
         self.hh.setVisible(True)
 
+        self.settings = Settings()
+
         self.fig = Figure()
         self.axes = self.fig.add_subplot(111)
         self.axes.hold(False)
+        self.axes.autoscale(False)
+        self.axes.set_xlim([self.settings.min_wl, self.settings.max_wl])
+
 
         self.Canvas = FigureCanvas(self.fig)
         self.Canvas.setParent(self.ui.plotwidget)
@@ -113,8 +118,6 @@ class SCNR(QMainWindow):
 
         self.savedir = "./Spectra/"
         self.path = "./"
-
-        self.settings = Settings()
 
         self.settings_dialog = dialogs.Settings_Dialog(self.settings)
 
@@ -142,7 +145,7 @@ class SCNR(QMainWindow):
 
         spec = self.spectrum.get_spec()  # get an initial spectrum for display
         self._wl = self.spectrum.get_wl()  # get the wavelengths
-        self.update_plot(None)
+        #self.update_plot(None)
         #self.spectrum.getspecthread.dynamicSpecSignal.connect(self.update_plot)
         self.spectrum.specSignal.connect(self.update_plot)
         self.spectrum.updatePositions.connect(self.update_positions)
@@ -347,7 +350,6 @@ class SCNR(QMainWindow):
     @pyqtSlot()
     def on_settings_clicked(self):
         self.settings_dialog.show()
-        self.axes.set_xlim([self.settings.min_wl, self.settings.max_wl])
         #self.spectrum.reset()
 
     @pyqtSlot()
@@ -479,9 +481,10 @@ class SCNR(QMainWindow):
         self.show_pos()
 
     @pyqtSlot(np.ndarray)
-    def update_plot(self, spec):
+    def update_plot(self):
         spec = self.spectrum.get_spec(self.ui.CheckBox_correct.isChecked())
-        self.axes.plot(self._wl, spec)
+        self.axes.set_xlim([self.settings.min_wl, self.settings.max_wl])
+        self.axes.plot(self._wl, spec, scalex=False)
         self.Canvas.draw()
         self.show_pos()
         return True
