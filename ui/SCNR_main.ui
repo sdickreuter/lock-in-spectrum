@@ -55,8 +55,6 @@
         <height>2000</height>
        </size>
       </property>
-      <zorder>scrollArea_2</zorder>
-      <zorder>Button_stop</zorder>
      </widget>
     </item>
     <item row="0" column="1">
@@ -97,7 +95,7 @@
         <property name="minimumSize">
          <size>
           <width>250</width>
-          <height>200</height>
+          <height>245</height>
          </size>
         </property>
         <property name="maximumSize">
@@ -175,7 +173,7 @@
               <rect>
                <x>0</x>
                <y>0</y>
-               <width>274</width>
+               <width>256</width>
                <height>558</height>
               </rect>
              </property>
@@ -408,7 +406,7 @@
               <rect>
                <x>0</x>
                <y>0</y>
-               <width>274</width>
+               <width>256</width>
                <height>558</height>
               </rect>
              </property>
@@ -793,14 +791,6 @@
           <string>z-</string>
          </property>
         </widget>
-        <zorder>Button_xup</zorder>
-        <zorder>Button_xdown</zorder>
-        <zorder>Button_yup</zorder>
-        <zorder>Button_ydown</zorder>
-        <zorder>Button_zup</zorder>
-        <zorder>Button_zdown</zorder>
-        <zorder>tabWidget</zorder>
-        <zorder>scrollArea</zorder>
        </widget>
       </item>
       <item>

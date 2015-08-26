@@ -17,9 +17,9 @@ from matplotlib.figure import Figure
 import numpy as np
 import dialogs
 from threads import GamepadThread
-#from PyQt5 import uic
-#Ui_MainWindow = uic.loadUiType("ui/SCNR_main.ui")[0]
-from ui.SCNR_main import Ui_MainWindow
+from PyQt5 import uic
+Ui_MainWindow = uic.loadUiType("ui/SCNR_main.ui")[0]
+#from ui.SCNR_main import Ui_MainWindow
 
 
 class NumpyModel(QAbstractTableModel):
