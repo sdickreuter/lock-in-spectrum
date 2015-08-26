@@ -10,7 +10,7 @@ import progress
 import pygamepad
 
 class GamepadThread(QObject):
-    anologSignal = pyqtSignal(int, int)
+    analogSignal = pyqtSignal(int, int)
     ASignal = pyqtSignal()
     BSignal = pyqtSignal()
     XSignal = pyqtSignal()
@@ -21,7 +21,7 @@ class GamepadThread(QObject):
             RuntimeError('Cannot create another instance')
         self.__class__._has_instance = True
         try:
-            super(MeasurementThread, self).__init__(parent)
+            super(GamepadThread, self).__init__(parent)
             self.abort = False
             self.thread = QThread()
             try:
@@ -47,9 +47,11 @@ class GamepadThread(QObject):
     def __del__(self):
         self.__class__.has_instance = False
         try:
-            self.specSignal.disconnect()
-            self.progressSignal.disconnect()
-            self.finishSignal.disconnect()
+            self.analogSignal.disconnect()
+            self.ASignal.disconnect()
+            self.BSignal.disconnect()
+            self.XSignal.disconnect()
+            self.YSignal.disconnect()
         except TypeError:
             pass
         self.abort = True
@@ -57,7 +59,7 @@ class GamepadThread(QObject):
     def work(self):
         self.pad._read_gamepad()
         if self.pad.changed:
-            self.anologSignal.emit(self.pad.get_analogL_x(),self.pad.get_analogL_y())
+            self.analogSignal.emit(self.pad.get_analogL_x(),self.pad.get_analogL_y())
             if self.pad.A_was_released():
                 self.ASignal.emit()
             if self.pad.B_was_released():

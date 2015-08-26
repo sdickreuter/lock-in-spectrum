@@ -151,7 +151,7 @@ class SCNR(QMainWindow):
         self.padthread.XSignal.connect(self.on_addpos_clicked)
         self.padthread.YSignal.connect(self.on_stepup_clicked)
         self.padthread.ASignal.connect(self.on_stepdown_clicked)
-        self.padthread.anologSignal.connect(self.move)
+        self.padthread.analogSignal.connect(self.move)
         self.pad_active = True
 
     def disable_buttons(self):
