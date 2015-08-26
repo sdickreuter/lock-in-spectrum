@@ -17,255 +17,15 @@
    <iconset>
     <normaloff>../icons/icon.svg</normaloff>../icons/icon.svg</iconset>
   </property>
+  <property name="layoutDirection">
+   <enum>Qt::LeftToRight</enum>
+  </property>
   <property name="autoFillBackground">
    <bool>false</bool>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QGridLayout" name="gridLayout_2">
-    <item row="0" column="2">
-     <widget class="QPushButton" name="Button_stop">
-      <property name="enabled">
-       <bool>false</bool>
-      </property>
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-      <property name="text">
-       <string>Stop</string>
-      </property>
-     </widget>
-    </item>
-    <item row="5" column="2">
-     <widget class="QLabel" name="label_3">
-      <property name="text">
-       <string>Stage Control</string>
-      </property>
-      <property name="alignment">
-       <set>Qt::AlignCenter</set>
-      </property>
-     </widget>
-    </item>
-    <item row="3" column="2">
-     <widget class="QCheckBox" name="CheckBox_correct">
-      <property name="layoutDirection">
-       <enum>Qt::LeftToRight</enum>
-      </property>
-      <property name="text">
-       <string>Correct Spectrum</string>
-      </property>
-     </widget>
-    </item>
-    <item row="12" column="2">
-     <spacer name="verticalSpacer">
-      <property name="orientation">
-       <enum>Qt::Vertical</enum>
-      </property>
-      <property name="sizeHint" stdset="0">
-       <size>
-        <width>20</width>
-        <height>40</height>
-       </size>
-      </property>
-     </spacer>
-    </item>
-    <item row="8" column="2">
-     <layout class="QGridLayout" name="stepsize_layout">
-      <item row="0" column="0">
-       <widget class="QPushButton" name="Button_stepup">
-        <property name="text">
-         <string>+</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="2">
-       <widget class="QPushButton" name="Button_stepdown">
-        <property name="text">
-         <string>-</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="1">
-       <widget class="QLabel" name="label_stepsize">
-        <property name="text">
-         <string>1.0</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignCenter</set>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </item>
-    <item row="4" column="2">
-     <widget class="QPushButton" name="Button_searchmax">
-      <property name="focusPolicy">
-       <enum>Qt::StrongFocus</enum>
-      </property>
-      <property name="text">
-       <string>Search Max</string>
-      </property>
-     </widget>
-    </item>
-    <item row="7" column="2">
-     <widget class="QLabel" name="label_step_size">
-      <property name="text">
-       <string>Set Step Size [um]</string>
-      </property>
-      <property name="alignment">
-       <set>Qt::AlignCenter</set>
-      </property>
-     </widget>
-    </item>
-    <item row="0" column="0" rowspan="13">
-     <widget class="QWidget" name="plotwidget" native="true">
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-      <property name="minimumSize">
-       <size>
-        <width>400</width>
-        <height>400</height>
-       </size>
-      </property>
-     </widget>
-    </item>
-    <item row="6" column="2">
-     <widget class="QFrame" name="stage_frame">
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Preferred" vsizetype="MinimumExpanding">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-      <property name="minimumSize">
-       <size>
-        <width>0</width>
-        <height>90</height>
-       </size>
-      </property>
-      <property name="frameShape">
-       <enum>QFrame::NoFrame</enum>
-      </property>
-      <property name="frameShadow">
-       <enum>QFrame::Raised</enum>
-      </property>
-      <widget class="QPushButton" name="Button_xup">
-       <property name="geometry">
-        <rect>
-         <x>10</x>
-         <y>30</y>
-         <width>50</width>
-         <height>30</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>x+</string>
-       </property>
-      </widget>
-      <widget class="QPushButton" name="Button_xdown">
-       <property name="geometry">
-        <rect>
-         <x>110</x>
-         <y>30</y>
-         <width>50</width>
-         <height>30</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>x-</string>
-       </property>
-      </widget>
-      <widget class="QPushButton" name="Button_yup">
-       <property name="geometry">
-        <rect>
-         <x>60</x>
-         <y>0</y>
-         <width>50</width>
-         <height>30</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>y+</string>
-       </property>
-      </widget>
-      <widget class="QPushButton" name="Button_ydown">
-       <property name="geometry">
-        <rect>
-         <x>60</x>
-         <y>60</y>
-         <width>50</width>
-         <height>30</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>y-</string>
-       </property>
-      </widget>
-      <widget class="QPushButton" name="Button_zup">
-       <property name="geometry">
-        <rect>
-         <x>190</x>
-         <y>0</y>
-         <width>50</width>
-         <height>30</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>z+</string>
-       </property>
-      </widget>
-      <widget class="QPushButton" name="Button_zdown">
-       <property name="geometry">
-        <rect>
-         <x>190</x>
-         <y>60</y>
-         <width>50</width>
-         <height>30</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>z-</string>
-       </property>
-      </widget>
-     </widget>
-    </item>
-    <item row="9" column="2">
-     <widget class="QLabel" name="label_x">
-      <property name="text">
-       <string>X: 10.0</string>
-      </property>
-      <property name="alignment">
-       <set>Qt::AlignCenter</set>
-      </property>
-     </widget>
-    </item>
-    <item row="11" column="2">
-     <widget class="QLabel" name="label_z">
-      <property name="text">
-       <string>Z: 10.0</string>
-      </property>
-      <property name="alignment">
-       <set>Qt::AlignCenter</set>
-      </property>
-     </widget>
-    </item>
-    <item row="10" column="2">
-     <widget class="QLabel" name="label_y">
-      <property name="text">
-       <string>Y: 10.0</string>
-      </property>
-      <property name="alignment">
-       <set>Qt::AlignCenter</set>
-      </property>
-     </widget>
-    </item>
-    <item row="13" column="0">
+   <layout class="QGridLayout" name="gridLayout">
+    <item row="2" column="0">
      <widget class="QProgressBar" name="progressBar">
       <property name="value">
        <number>0</number>
@@ -275,471 +35,863 @@
       </property>
      </widget>
     </item>
-    <item row="1" column="2">
-     <widget class="QWidget" name="widget_3" native="true"/>
-    </item>
-    <item row="2" column="2">
-     <widget class="QTabWidget" name="tabWidget">
-      <property name="enabled">
-       <bool>true</bool>
-      </property>
+    <item row="0" column="0">
+     <widget class="QWidget" name="plotwidget" native="true">
       <property name="sizePolicy">
-       <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
         <horstretch>0</horstretch>
         <verstretch>0</verstretch>
        </sizepolicy>
       </property>
       <property name="minimumSize">
        <size>
-        <width>250</width>
-        <height>550</height>
+        <width>300</width>
+        <height>300</height>
        </size>
       </property>
-      <property name="tabShape">
-       <enum>QTabWidget::Rounded</enum>
+      <property name="maximumSize">
+       <size>
+        <width>2000</width>
+        <height>2000</height>
+       </size>
       </property>
-      <property name="currentIndex">
-       <number>0</number>
+      <zorder>scrollArea_2</zorder>
+      <zorder>Button_stop</zorder>
+     </widget>
+    </item>
+    <item row="0" column="1">
+     <layout class="QVBoxLayout" name="verticalLayout_6">
+      <property name="topMargin">
+       <number>5</number>
       </property>
-      <property name="usesScrollButtons">
-       <bool>true</bool>
+      <property name="bottomMargin">
+       <number>5</number>
       </property>
-      <property name="documentMode">
-       <bool>false</bool>
-      </property>
-      <property name="tabBarAutoHide">
-       <bool>false</bool>
-      </property>
-      <widget class="QWidget" name="tab">
-       <property name="minimumSize">
-        <size>
-         <width>0</width>
-         <height>527</height>
-        </size>
-       </property>
-       <attribute name="title">
-        <string>Spectra</string>
-       </attribute>
-       <widget class="QWidget" name="spectra_widget" native="true">
-        <property name="geometry">
-         <rect>
-          <x>0</x>
-          <y>0</y>
-          <width>241</width>
-          <height>511</height>
-         </rect>
+      <item>
+       <widget class="QPushButton" name="Button_stop">
+        <property name="enabled">
+         <bool>false</bool>
         </property>
-        <widget class="QWidget" name="formLayoutWidget">
-         <property name="geometry">
-          <rect>
-           <x>0</x>
-           <y>0</y>
-           <width>241</width>
-           <height>511</height>
-          </rect>
-         </property>
-         <layout class="QVBoxLayout" name="verticalLayout">
-          <property name="leftMargin">
-           <number>5</number>
-          </property>
-          <property name="topMargin">
-           <number>5</number>
-          </property>
-          <property name="rightMargin">
-           <number>0</number>
-          </property>
-          <item>
-           <widget class="QPushButton" name="Button_live">
-            <property name="text">
-             <string>Liveview</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="Line" name="line">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QLabel" name="label">
-            <property name="text">
-             <string>Lock-In Spectrum</string>
-            </property>
-            <property name="alignment">
-             <set>Qt::AlignCenter</set>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="Button_aquire">
-            <property name="enabled">
-             <bool>true</bool>
-            </property>
-            <property name="text">
-             <string>Aquire Spectrum</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="Button_direction">
-            <property name="enabled">
-             <bool>true</bool>
-            </property>
-            <property name="text">
-             <string>Set Direction</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="Line" name="line_4">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="Button_dark">
-            <property name="text">
-             <string>Take Dark Spectrum</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="Button_lamp">
-            <property name="text">
-             <string>Take Lamp Spectrum</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="Button_regular">
-            <property name="text">
-             <string>Take Regular Spectrum</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="Button_background">
-            <property name="text">
-             <string>Take Background Spectrum</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="Line" name="line_2">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QLabel" name="label_2">
-            <property name="text">
-             <string>Miscellaneous</string>
-            </property>
-            <property name="alignment">
-             <set>Qt::AlignCenter</set>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="Button_series">
-            <property name="text">
-             <string>Take Time Series</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="Button_save">
-            <property name="text">
-             <string>Save Data</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="Button_settings">
-            <property name="text">
-             <string>Settings</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="Button_reset">
-            <property name="text">
-             <string>Reset</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="Button_loaddark">
-            <property name="text">
-             <string>Load Dark Spectrum</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="Button_loadlamp">
-            <property name="text">
-             <string>Load Lamp Spectrum</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </widget>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="text">
+         <string>Stop</string>
+        </property>
        </widget>
-      </widget>
-      <widget class="QWidget" name="tab_2">
-       <attribute name="title">
-        <string>Scanning</string>
-       </attribute>
-       <widget class="QWidget" name="scanning_widget" native="true">
+      </item>
+      <item>
+       <widget class="QTabWidget" name="tabWidget">
         <property name="enabled">
          <bool>true</bool>
         </property>
-        <property name="geometry">
-         <rect>
-          <x>0</x>
-          <y>0</y>
-          <width>241</width>
-          <height>511</height>
-         </rect>
-        </property>
         <property name="sizePolicy">
-         <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+         <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
           <horstretch>0</horstretch>
           <verstretch>0</verstretch>
          </sizepolicy>
         </property>
         <property name="minimumSize">
          <size>
-          <width>100</width>
-          <height>0</height>
+          <width>250</width>
+          <height>200</height>
          </size>
         </property>
-        <widget class="QWidget" name="gridLayoutWidget_3">
-         <property name="geometry">
-          <rect>
-           <x>0</x>
-           <y>0</y>
-           <width>241</width>
-           <height>504</height>
-          </rect>
+        <property name="maximumSize">
+         <size>
+          <width>16777215</width>
+          <height>900</height>
+         </size>
+        </property>
+        <property name="tabShape">
+         <enum>QTabWidget::Rounded</enum>
+        </property>
+        <property name="currentIndex">
+         <number>0</number>
+        </property>
+        <property name="usesScrollButtons">
+         <bool>true</bool>
+        </property>
+        <property name="documentMode">
+         <bool>false</bool>
+        </property>
+        <property name="tabBarAutoHide">
+         <bool>false</bool>
+        </property>
+        <widget class="QWidget" name="tab">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>527</height>
+          </size>
          </property>
-         <layout class="QVBoxLayout" name="verticalLayout_2">
+         <property name="layoutDirection">
+          <enum>Qt::LeftToRight</enum>
+         </property>
+         <attribute name="title">
+          <string>Spectra</string>
+         </attribute>
+         <layout class="QVBoxLayout" name="verticalLayout_3">
           <property name="sizeConstraint">
-           <enum>QLayout::SetDefaultConstraint</enum>
-          </property>
-          <property name="leftMargin">
-           <number>5</number>
-          </property>
-          <property name="topMargin">
-           <number>5</number>
-          </property>
-          <property name="bottomMargin">
-           <number>5</number>
+           <enum>QLayout::SetMinAndMaxSize</enum>
           </property>
           <item>
-           <widget class="QPushButton" name="Button_addpos">
+           <widget class="QScrollArea" name="scrollArea_2">
             <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="text">
-             <string>Add Position to List</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="Button_spangrid">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="text">
-             <string>Span Grid</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="Button_searchgrid">
-            <property name="text">
-             <string>Search Max Grid</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QCheckBox" name="checkBox_lockin">
-            <property name="text">
-             <string>with Lock-In</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QCheckBox" name="checkBox_search">
-            <property name="text">
-             <string>with Search</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="Line" name="line_3">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QLabel" name="label_5">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="text">
-             <string>Scanning Positions</string>
-            </property>
-            <property name="alignment">
-             <set>Qt::AlignCenter</set>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QFrame" name="frame">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+             <sizepolicy hsizetype="Preferred" vsizetype="MinimumExpanding">
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
             </property>
             <property name="minimumSize">
              <size>
-              <width>0</width>
-              <height>35</height>
+              <width>100</width>
+              <height>200</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>450</width>
+              <height>800</height>
              </size>
             </property>
             <property name="frameShape">
              <enum>QFrame::NoFrame</enum>
             </property>
-            <property name="frameShadow">
-             <enum>QFrame::Raised</enum>
+            <property name="lineWidth">
+             <number>0</number>
             </property>
-            <widget class="QToolButton" name="Button_add">
-             <property name="geometry">
-              <rect>
-               <x>30</x>
-               <y>0</y>
-               <width>30</width>
-               <height>32</height>
-              </rect>
-             </property>
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-             <property name="text">
-              <string/>
-             </property>
-             <property name="icon">
-              <iconset>
-               <normaloff>icons/list-add.png</normaloff>
-               <normalon>icons/list-add.png</normalon>icons/list-add.png</iconset>
-             </property>
-             <property name="checkable">
-              <bool>false</bool>
-             </property>
-            </widget>
-            <widget class="QToolButton" name="Button_remove">
-             <property name="geometry">
-              <rect>
-               <x>100</x>
-               <y>0</y>
-               <width>30</width>
-               <height>32</height>
-              </rect>
-             </property>
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-             <property name="text">
-              <string>-</string>
-             </property>
-             <property name="icon">
-              <iconset>
-               <normaloff>icons/list-remove.png</normaloff>
-               <normalon>icons/list-remove.png</normalon>icons/list-remove.png</iconset>
-             </property>
-            </widget>
-            <widget class="QToolButton" name="Button_clear">
-             <property name="geometry">
-              <rect>
-               <x>170</x>
-               <y>0</y>
-               <width>30</width>
-               <height>32</height>
-              </rect>
-             </property>
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-             <property name="text">
-              <string>clear</string>
-             </property>
-             <property name="icon">
-              <iconset>
-               <normaloff>icons/edit-delete.png</normaloff>
-               <normalon>icons/edit-delete.png</normalon>icons/edit-delete.png</iconset>
-             </property>
-            </widget>
-           </widget>
-          </item>
-          <item>
-           <widget class="QTableView" name="posTable">
-            <property name="verticalScrollBarPolicy">
-             <enum>Qt::ScrollBarAlwaysOn</enum>
-            </property>
-            <property name="alternatingRowColors">
+            <property name="widgetResizable">
              <bool>true</bool>
             </property>
-            <attribute name="horizontalHeaderVisible">
-             <bool>false</bool>
-            </attribute>
+            <property name="alignment">
+             <set>Qt::AlignHCenter|Qt::AlignTop</set>
+            </property>
+            <widget class="QWidget" name="scrollAreaWidgetContents_2">
+             <property name="geometry">
+              <rect>
+               <x>0</x>
+               <y>0</y>
+               <width>274</width>
+               <height>558</height>
+              </rect>
+             </property>
+             <layout class="QVBoxLayout" name="verticalLayout">
+              <property name="spacing">
+               <number>2</number>
+              </property>
+              <property name="leftMargin">
+               <number>0</number>
+              </property>
+              <property name="topMargin">
+               <number>0</number>
+              </property>
+              <property name="rightMargin">
+               <number>0</number>
+              </property>
+              <property name="bottomMargin">
+               <number>0</number>
+              </property>
+              <item>
+               <widget class="QPushButton" name="Button_live">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="text">
+                 <string>Liveview</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="Line" name="line">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="label">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="minimumSize">
+                 <size>
+                  <width>50</width>
+                  <height>15</height>
+                 </size>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>300</width>
+                  <height>20</height>
+                 </size>
+                </property>
+                <property name="text">
+                 <string>Lock-In Spectrum</string>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignCenter</set>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="Button_aquire">
+                <property name="enabled">
+                 <bool>true</bool>
+                </property>
+                <property name="text">
+                 <string>Aquire Spectrum</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="Button_direction">
+                <property name="enabled">
+                 <bool>true</bool>
+                </property>
+                <property name="text">
+                 <string>Set Direction</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="Line" name="line_4">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="Button_dark">
+                <property name="text">
+                 <string>Take Dark Spectrum</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="Button_lamp">
+                <property name="text">
+                 <string>Take Lamp Spectrum</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="Button_regular">
+                <property name="text">
+                 <string>Take Regular Spectrum</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="Button_background">
+                <property name="text">
+                 <string>Take Background Spectrum</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="Line" name="line_2">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="label_2">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="minimumSize">
+                 <size>
+                  <width>0</width>
+                  <height>15</height>
+                 </size>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>16777215</width>
+                  <height>20</height>
+                 </size>
+                </property>
+                <property name="text">
+                 <string>Miscellaneous</string>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignCenter</set>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="Button_series">
+                <property name="text">
+                 <string>Take Time Series</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="Button_save">
+                <property name="text">
+                 <string>Save Data</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="Button_settings">
+                <property name="text">
+                 <string>Settings</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="Button_reset">
+                <property name="text">
+                 <string>Reset</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="Button_loaddark">
+                <property name="text">
+                 <string>Load Dark Spectrum</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="Button_loadlamp">
+                <property name="text">
+                 <string>Load Lamp Spectrum</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
            </widget>
           </item>
+         </layout>
+        </widget>
+        <widget class="QWidget" name="tab_2">
+         <attribute name="title">
+          <string>Scanning</string>
+         </attribute>
+         <layout class="QVBoxLayout" name="verticalLayout_4">
           <item>
-           <widget class="QPushButton" name="Button_scan">
+           <widget class="QScrollArea" name="scrollArea">
             <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+             <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
             </property>
-            <property name="text">
-             <string>Start Scan</string>
+            <property name="frameShape">
+             <enum>QFrame::NoFrame</enum>
             </property>
+            <property name="lineWidth">
+             <number>0</number>
+            </property>
+            <property name="widgetResizable">
+             <bool>true</bool>
+            </property>
+            <widget class="QWidget" name="scrollAreaWidgetContents_3">
+             <property name="geometry">
+              <rect>
+               <x>0</x>
+               <y>0</y>
+               <width>274</width>
+               <height>558</height>
+              </rect>
+             </property>
+             <layout class="QVBoxLayout" name="verticalLayout_5">
+              <property name="spacing">
+               <number>2</number>
+              </property>
+              <property name="leftMargin">
+               <number>0</number>
+              </property>
+              <property name="topMargin">
+               <number>0</number>
+              </property>
+              <property name="rightMargin">
+               <number>0</number>
+              </property>
+              <property name="bottomMargin">
+               <number>0</number>
+              </property>
+              <item>
+               <widget class="QPushButton" name="Button_addpos">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="text">
+                 <string>Add Position to List</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="Button_spangrid">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="text">
+                 <string>Span Grid</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="Button_searchgrid">
+                <property name="text">
+                 <string>Search Max Grid</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QCheckBox" name="checkBox_lockin">
+                <property name="text">
+                 <string>with Lock-In</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QCheckBox" name="checkBox_search">
+                <property name="text">
+                 <string>with Search</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="Line" name="line_3">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="label_5">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="text">
+                 <string>Scanning Positions</string>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignCenter</set>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QFrame" name="frame">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="minimumSize">
+                 <size>
+                  <width>0</width>
+                  <height>35</height>
+                 </size>
+                </property>
+                <property name="frameShape">
+                 <enum>QFrame::NoFrame</enum>
+                </property>
+                <property name="frameShadow">
+                 <enum>QFrame::Raised</enum>
+                </property>
+                <widget class="QToolButton" name="Button_add">
+                 <property name="geometry">
+                  <rect>
+                   <x>30</x>
+                   <y>0</y>
+                   <width>30</width>
+                   <height>32</height>
+                  </rect>
+                 </property>
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                   <horstretch>0</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
+                 </property>
+                 <property name="text">
+                  <string/>
+                 </property>
+                 <property name="icon">
+                  <iconset>
+                   <normaloff>icons/list-add.png</normaloff>
+                   <normalon>icons/list-add.png</normalon>icons/list-add.png</iconset>
+                 </property>
+                 <property name="checkable">
+                  <bool>false</bool>
+                 </property>
+                </widget>
+                <widget class="QToolButton" name="Button_remove">
+                 <property name="geometry">
+                  <rect>
+                   <x>100</x>
+                   <y>0</y>
+                   <width>30</width>
+                   <height>32</height>
+                  </rect>
+                 </property>
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                   <horstretch>0</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
+                 </property>
+                 <property name="text">
+                  <string>-</string>
+                 </property>
+                 <property name="icon">
+                  <iconset>
+                   <normaloff>icons/list-remove.png</normaloff>
+                   <normalon>icons/list-remove.png</normalon>icons/list-remove.png</iconset>
+                 </property>
+                </widget>
+                <widget class="QToolButton" name="Button_clear">
+                 <property name="geometry">
+                  <rect>
+                   <x>170</x>
+                   <y>0</y>
+                   <width>30</width>
+                   <height>32</height>
+                  </rect>
+                 </property>
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                   <horstretch>0</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
+                 </property>
+                 <property name="text">
+                  <string>clear</string>
+                 </property>
+                 <property name="icon">
+                  <iconset>
+                   <normaloff>icons/edit-delete.png</normaloff>
+                   <normalon>icons/edit-delete.png</normalon>icons/edit-delete.png</iconset>
+                 </property>
+                </widget>
+               </widget>
+              </item>
+              <item>
+               <widget class="QTableView" name="posTable">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Expanding" vsizetype="MinimumExpanding">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="minimumSize">
+                 <size>
+                  <width>0</width>
+                  <height>150</height>
+                 </size>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>16777215</width>
+                  <height>2000</height>
+                 </size>
+                </property>
+                <property name="verticalScrollBarPolicy">
+                 <enum>Qt::ScrollBarAlwaysOn</enum>
+                </property>
+                <property name="alternatingRowColors">
+                 <bool>true</bool>
+                </property>
+                <attribute name="horizontalHeaderVisible">
+                 <bool>false</bool>
+                </attribute>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="Button_scan">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="text">
+                 <string>Start Scan</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
            </widget>
           </item>
          </layout>
         </widget>
        </widget>
-      </widget>
-     </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="CheckBox_correct">
+        <property name="layoutDirection">
+         <enum>Qt::LeftToRight</enum>
+        </property>
+        <property name="text">
+         <string>Correct Spectrum</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="Button_searchmax">
+        <property name="focusPolicy">
+         <enum>Qt::StrongFocus</enum>
+        </property>
+        <property name="text">
+         <string>Search Max</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="label_3">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>15</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>16777215</width>
+          <height>15</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>Stage Control</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QFrame" name="stage_frame">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>90</height>
+         </size>
+        </property>
+        <property name="frameShape">
+         <enum>QFrame::NoFrame</enum>
+        </property>
+        <property name="frameShadow">
+         <enum>QFrame::Raised</enum>
+        </property>
+        <widget class="QPushButton" name="Button_xup">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>30</y>
+           <width>50</width>
+           <height>30</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>x+</string>
+         </property>
+        </widget>
+        <widget class="QPushButton" name="Button_xdown">
+         <property name="geometry">
+          <rect>
+           <x>110</x>
+           <y>30</y>
+           <width>50</width>
+           <height>30</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>x-</string>
+         </property>
+        </widget>
+        <widget class="QPushButton" name="Button_yup">
+         <property name="geometry">
+          <rect>
+           <x>60</x>
+           <y>0</y>
+           <width>50</width>
+           <height>30</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>y+</string>
+         </property>
+        </widget>
+        <widget class="QPushButton" name="Button_ydown">
+         <property name="geometry">
+          <rect>
+           <x>60</x>
+           <y>60</y>
+           <width>50</width>
+           <height>30</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>y-</string>
+         </property>
+        </widget>
+        <widget class="QPushButton" name="Button_zup">
+         <property name="geometry">
+          <rect>
+           <x>190</x>
+           <y>0</y>
+           <width>50</width>
+           <height>30</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>z+</string>
+         </property>
+        </widget>
+        <widget class="QPushButton" name="Button_zdown">
+         <property name="geometry">
+          <rect>
+           <x>190</x>
+           <y>60</y>
+           <width>50</width>
+           <height>30</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>z-</string>
+         </property>
+        </widget>
+        <zorder>Button_xup</zorder>
+        <zorder>Button_xdown</zorder>
+        <zorder>Button_yup</zorder>
+        <zorder>Button_ydown</zorder>
+        <zorder>Button_zup</zorder>
+        <zorder>Button_zdown</zorder>
+        <zorder>tabWidget</zorder>
+        <zorder>scrollArea</zorder>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="label_step_size">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>15</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>16777215</width>
+          <height>15</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>Set Step Size [um]</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <layout class="QGridLayout" name="stepsize_layout">
+        <item row="0" column="0">
+         <widget class="QPushButton" name="Button_stepup">
+          <property name="text">
+           <string>+</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="2">
+         <widget class="QPushButton" name="Button_stepdown">
+          <property name="text">
+           <string>-</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QLabel" name="label_stepsize">
+          <property name="text">
+           <string>1.0</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <widget class="QLabel" name="label_x">
+        <property name="text">
+         <string>X: 10.0</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="label_y">
+        <property name="text">
+         <string>Y: 10.0</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="label_z">
+        <property name="text">
+         <string>Z: 10.0</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+     </layout>
     </item>
-    <item row="13" column="2">
+    <item row="2" column="1">
      <widget class="QLabel" name="status">
       <property name="text">
        <string/>
@@ -750,28 +902,8 @@
   </widget>
  </widget>
  <tabstops>
-  <tabstop>tabWidget</tabstop>
-  <tabstop>Button_spangrid</tabstop>
-  <tabstop>Button_addpos</tabstop>
-  <tabstop>Button_dark</tabstop>
-  <tabstop>Button_lamp</tabstop>
-  <tabstop>Button_stop</tabstop>
-  <tabstop>Button_regular</tabstop>
-  <tabstop>Button_background</tabstop>
-  <tabstop>Button_series</tabstop>
-  <tabstop>Button_save</tabstop>
-  <tabstop>Button_settings</tabstop>
-  <tabstop>Button_reset</tabstop>
-  <tabstop>Button_loaddark</tabstop>
-  <tabstop>Button_direction</tabstop>
-  <tabstop>Button_loadlamp</tabstop>
-  <tabstop>CheckBox_correct</tabstop>
-  <tabstop>Button_searchmax</tabstop>
   <tabstop>Button_stepup</tabstop>
   <tabstop>Button_stepdown</tabstop>
-  <tabstop>Button_aquire</tabstop>
-  <tabstop>Button_live</tabstop>
-  <tabstop>checkBox_lockin</tabstop>
  </tabstops>
  <resources/>
  <connections>
