@@ -36,10 +36,10 @@ class Spectrum(QObject):
 
         self._spec = np.zeros(1024, dtype=np.float)
         self._spec = self._spectrometer.intensities(correct_nonlinearity=True)
-        self._spec = self._spec[0:1000]
+        self._spec = self._spec[0:1024]
 
         self._wl = self._spectrometer.wavelengths()
-        self._wl = self._wl[0:1000]
+        self._wl = self._wl[0:1024]
 
 
         self.workingthread = None
@@ -368,7 +368,7 @@ class Spectrum(QObject):
             ref = math.cos(2 * math.pi * i * f)
             self.move_stage(ref / 2)
             spec = self._spectrometer.intensities(correct_nonlinearity=True)
-            spec = spec[0:1000]
+            spec = spec[0:1024]
             progress_fraction = float(i + 1) / self.settings.number_of_samples
             connection.send([False, progress_fraction, spec, ref, i])
             if not self.running.is_set():

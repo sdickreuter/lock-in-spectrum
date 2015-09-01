@@ -1,16 +1,18 @@
 __author__ = 'sei'
 
-import math
-
 #from SCNR_settingsdialog import Ui_SettingsDialog
 #from SCNR_griddialog import Ui_SpanGridDialog
 from PyQt5.QtWidgets import QDialog
 from PyQt5 import uic
+from PyQt5.QtCore import pyqtSignal
 
 Ui_SettingsDialog = uic.loadUiType("ui/SCNR_settingsdialog.ui")[0]
 Ui_SpanGridDialog = uic.loadUiType("ui/SCNR_griddialog.ui")[0]
 
 class Settings_Dialog(QDialog):
+    updateSignal = pyqtSignal()
+
+
     def __init__(self,settings, parent = None):
         super(Settings_Dialog, self).__init__(parent)
         self.settings = settings
@@ -28,6 +30,7 @@ class Settings_Dialog(QDialog):
         self.settings.min_wl = self.ui.min_wl_spin.value()
         self.settings.max_wl = self.ui.max_wl_spin.value()
         self.settings.save()
+        self.updateSignal.emit()
         self.hide()
 
     def reject(self):

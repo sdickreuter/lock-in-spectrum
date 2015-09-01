@@ -185,7 +185,7 @@ class MeasurementThread(QObject):
         while not self.abort:
             try:
                 self.spec = self.spectrometer.intensities()
-                self.specspec = self.spec[0:1000]
+                self.spec = self.spec[0:1024]
                 self.work()
             except:
                 (type, value, traceback) = sys.exc_info()
@@ -245,13 +245,16 @@ class SearchThread(MeasurementThread):
         self.finishSignal.emit(np.array([x,y]))
         self.abort = True
 
+    def stop(self):
+        self.spectrometer.integration_time_micros(self.settings.integration_time * 1000)
+        super(SearchThread, self).stop()
 
     def search(self):
         # self.mutex.lock()
-        # self.spectrometer.integration_time_micros(self.settings.search_integration_time * 1000)
+        self.spectrometer.integration_time_micros(self.settings.search_integration_time * 1000)
         # self.mutex.unlock()
         spec = smooth(self.spectrometer.intensities())
-        spec = spec[0:1000]
+        spec = spec[0:1024]
 
         self.stage.query_pos()
         startpos = self.stage.last_pos()
@@ -283,7 +286,7 @@ class SearchThread(MeasurementThread):
                     self.stage.moveabs(x=startpos[0],y=startpos[1])
                     return False
                 spec = smooth(self.spectrometer.intensities())
-                spec = spec[0:1000]
+                spec = spec[0:1024]
                 spec = smooth(spec)
                 self.specSignal.emit(spec)
                 measured[k] = np.max(spec)
@@ -331,10 +334,11 @@ class SearchThread(MeasurementThread):
             self.stage.moveabs(x=dx, y=dy)
             self.progress.next()
             self.progressSignal.emit(self.progress.percent, str(self.progress.eta_td))
-        # self._spectrometer.integration_time_micros(self.settings.integration_time / 1000)
+        self.spectrometer.integration_time_micros(self.settings.integration_time * 1000)
         #self.stage.query_pos()
         # spec = self.getspec()
         # self.specSignal.emit(spec)
+
 
 
 class ScanThread(MeasurementThread):

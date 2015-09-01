@@ -119,8 +119,6 @@ class SCNR(QMainWindow):
         self.savedir = "./Spectra/"
         self.path = "./"
 
-        self.settings_dialog = dialogs.Settings_Dialog(self.settings)
-
         self.x_step = .0
         self.y_step = .0
         self.step_distance = 1  # in um
@@ -153,6 +151,11 @@ class SCNR(QMainWindow):
         self.timer.start(100)
         self.pad_active = True
 
+        self.settings_dialog = dialogs.Settings_Dialog(self.settings)
+        self.settings_dialog.updateSignal.connect(self.update_settings)
+        self.update_settings()
+
+
     def disable_buttons(self):
         self.ui.tabWidget.setDisabled(True)
         self.ui.stage_frame.setDisabled(True)
@@ -172,6 +175,9 @@ class SCNR(QMainWindow):
         self.ui.Button_stop.setDisabled(True)
         self.pad_active = True
 
+    @pyqtSlot()
+    def update_settings(self):
+        self.spectrum._spectrometer.integration_time_micros(self.settings.integration_time*1000)
 
     @pyqtSlot()
     def check_pad_analog(self):
@@ -205,7 +211,10 @@ class SCNR(QMainWindow):
         self.stage.query_pos()
         x,y,z = self.stage.last_pos()
         positions = self.posModel.getMatrix()
-        positions = np.append(positions,np.matrix([x,y]), axis = 0)
+        if positions.shape[1] == 2:
+            positions = np.append(positions,np.matrix([x,y]), axis = 0)
+        else:
+            positions = np.matrix([x,y])
         self.posModel.update(positions)
 
     @pyqtSlot()
@@ -342,6 +351,7 @@ class SCNR(QMainWindow):
     @pyqtSlot()
     def on_settings_clicked(self):
         self.settings_dialog.show()
+
         #self.spectrum.reset()
 
     @pyqtSlot()
@@ -399,13 +409,15 @@ class SCNR(QMainWindow):
     # ##---------------- END button connect functions ----------
 
     def _load_spectrum_from_file(self):
-        save_dir = QFileDialog.getOpenFileName(self, "Load Spectrum from CSV", os.path.expanduser('~'), 'CSV Files (*.csv)')
+        #save_dir = QFileDialog.getOpenFileName(self, "Load Spectrum from CSV", os.path.expanduser('~'), 'CSV Files (*.csv)')
+        save_dir = QFileDialog.getOpenFileName(self, "Load Spectrum from CSV", './spectra/', 'CSV Files (*.csv)')
 
         if len(save_dir[0])>1:
             save_dir = save_dir[0]
-            print(save_dir)
-            data = pandas.DataFrame(pandas.read_csv(save_dir,skiprows=7))
-            data = data['counts']
+            #data = pandas.DataFrame(pandas.read_csv(save_dir,skiprows=8))
+            #data = data['counts']
+            data = np.genfromtxt(save_dir, delimiter=',',skip_header=8)
+            data = data[:,1]
             return np.array(data)
         return None
 
