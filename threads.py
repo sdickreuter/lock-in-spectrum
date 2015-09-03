@@ -139,7 +139,7 @@ def smooth(y):
     slope, intercept, r_value, p_value, std_err = stats.linregress(x,y)
     y = y -  (slope*x + intercept)
     y = y - np.min(y)
-    y = y*gauss(x,1,500,300,0)
+    y = y*gauss(x,1,500,400,0)
     y = savgol_filter(y, 91, 1, mode='interp')
     #s = interpolate.InterpolatedUnivariateSpline(np.linspace(200,900,len(x)),x)
     #return s(np.linspace(200,900,len(x)))
@@ -308,7 +308,7 @@ class SearchThread(MeasurementThread):
                 popt, pcov = opt.curve_fit(gauss, pos[2:(len(pos) - 1)], measured[2:(len(pos) - 1)], p0=initial_guess)
                 perr = np.diag(pcov)
                 #print(perr)
-                if perr[0] > 500 or perr[1] > 1e-1 or perr[2] > 1e-1 :
+                if perr[0] > 500 or perr[1] > 1 or perr[2] > 1 :
                     print("Could not determine particle position: Variance too big")
                 elif popt[0] < 1e-1:
                     print("Could not determine particle position: Peak too small")
@@ -342,6 +342,7 @@ class SearchThread(MeasurementThread):
             self.progress.next()
             self.progressSignal.emit(self.progress.percent, str(self.progress.eta_td))
         self.spectrometer.integration_time_micros(self.settings.integration_time * 1000)
+        self.spectrometer.intensities()
         #self.stage.query_pos()
         # spec = self.getspec()
         # self.specSignal.emit(spec)
@@ -390,9 +391,9 @@ class ScanThread(MeasurementThread):
         self.i += 1
         if self.i >= self.n:
             self.stop()
-            plt.plot(self.scanning_points[:, 0], self.scanning_points[:, 1], "r.")
-            plt.plot(self.positions[:, 0], self.positions[:, 1], "bx")
-            plt.savefig("search_max/grid.png")
+            #plt.plot(self.scanning_points[:, 0], self.scanning_points[:, 1], "r.")
+            #plt.plot(self.positions[:, 0], self.positions[:, 1], "bx")
+            #plt.savefig("search_max/grid.png")
             plt.close()
             self.finishSignal.emit(self.positions)
             #self.spec = self.getspec()

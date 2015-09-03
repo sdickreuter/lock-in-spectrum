@@ -213,6 +213,7 @@ class Spectrum(QObject):
     def make_scan(self, positions, savedir,with_lockin, with_search):
         self.save_path = savedir
         self.save_data(savedir)
+        self.positions = positions
         if with_lockin:
             return True
         elif with_search:
@@ -229,6 +230,11 @@ class Spectrum(QObject):
     @pyqtSlot(np.ndarray)
     def finishedScanMean(self, pos):
         #print(pos)
+        grid, = plt.plot(self.positions[:, 0], self.positions[:, 1], "r.")
+        search, = plt.plot(pos[:, 0], pos[:, 1], "bx")
+        plt.legend([grid, search], ["Calculated Grid", "Searched Positions"])
+        plt.savefig(self.save_path+"grid.png")
+        plt.close()
         self.enable_buttons()
         self.status.setText('Scan Mean finished')
         self.workingthread = None
