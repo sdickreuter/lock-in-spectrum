@@ -103,7 +103,7 @@ def gauss(x, amplitude, xo, fwhm, offset):
 #     """
 #     modified from: http://wiki.scipy.org/Cookbook/SignalSmooth
 #     """
-#     window_len = 151
+#     window_len = 101
 #     s = np.r_[x[window_len - 1:0:-1], x, x[-1:-window_len:-1]]
 #     window = 'hanning'
 #     # window='flat'
@@ -113,6 +113,7 @@ def gauss(x, amplitude, xo, fwhm, offset):
 #         w = eval('np.' + window + '(window_len)')
 #     y = np.convolve(w / w.sum(), s, mode='valid')
 #     y = y[(window_len / 2):-(window_len / 2)]
+#     #y = y*gauss(x,1,550,1000,0)
 #     return y
 
 # def smooth(y):
@@ -129,12 +130,17 @@ def gauss(x, amplitude, xo, fwhm, offset):
 #     return y2
 
 def smooth(y):
+    y = savgol_filter(y, 201, 1, mode='interp')
+    #y[900:y.shape[0]] = y[900]
     x = np.linspace(0,len(y)-1,len(y))
+    #ind = np.linspace(0,50,dtype=np.int)
+    #ind = np.append(ind,np.linspace(980,1023,dtype=np.int))
+    #slope, intercept, r_value, p_value, std_err = stats.linregress(x[ind],y[ind])
     slope, intercept, r_value, p_value, std_err = stats.linregress(x,y)
-    y = y - (slope*x +intercept)
-    y = savgol_filter(y, 91, 2, mode='mirror')
+    y = y -  (slope*x + intercept)
     y = y - np.min(y)
-    y = y*gauss(x,1,len(y)/2,2000,0)
+    y = y*gauss(x,1,500,300,0)
+    y = savgol_filter(y, 91, 1, mode='interp')
     #s = interpolate.InterpolatedUnivariateSpline(np.linspace(200,900,len(x)),x)
     #return s(np.linspace(200,900,len(x)))
     return y
@@ -253,8 +259,9 @@ class SearchThread(MeasurementThread):
         # self.mutex.lock()
         self.spectrometer.integration_time_micros(self.settings.search_integration_time * 1000)
         # self.mutex.unlock()
-        spec = smooth(self.spectrometer.intensities())
+        spec = self.spectrometer.intensities()
         spec = spec[0:1024]
+        sepc = smooth(spec)
 
         self.stage.query_pos()
         startpos = self.stage.last_pos()
@@ -285,7 +292,7 @@ class SearchThread(MeasurementThread):
                 if self.abort:
                     self.stage.moveabs(x=startpos[0],y=startpos[1])
                     return False
-                spec = smooth(self.spectrometer.intensities())
+                spec = self.spectrometer.intensities()
                 spec = spec[0:1024]
                 spec = smooth(spec)
                 self.specSignal.emit(spec)
@@ -300,10 +307,10 @@ class SearchThread(MeasurementThread):
             try:
                 popt, pcov = opt.curve_fit(gauss, pos[2:(len(pos) - 1)], measured[2:(len(pos) - 1)], p0=initial_guess)
                 perr = np.diag(pcov)
-                print(perr)
+                #print(perr)
                 if perr[0] > 500 or perr[1] > 1e-1 or perr[2] > 1e-1 :
                     print("Could not determine particle position: Variance too big")
-                elif popt[0] < 1:
+                elif popt[0] < 1e-1:
                     print("Could not determine particle position: Peak too small")
                 elif popt[1] < (min(pos)-2) or popt[1] > (max(pos)+2):
                     print("Could not determine particle position: Peak outside bounds")
