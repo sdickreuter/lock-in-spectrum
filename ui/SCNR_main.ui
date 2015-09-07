@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>996</width>
-    <height>860</height>
+    <width>985</width>
+    <height>942</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -373,6 +373,13 @@
                 </property>
                </widget>
               </item>
+              <item>
+               <widget class="QPushButton" name="Button_loadbg">
+                <property name="text">
+                 <string>Load Background Spectrum</string>
+                </property>
+               </widget>
+              </item>
              </layout>
             </widget>
            </widget>
@@ -406,8 +413,8 @@
               <rect>
                <x>0</x>
                <y>0</y>
-               <width>256</width>
-               <height>426</height>
+               <width>140</width>
+               <height>369</height>
               </rect>
              </property>
              <layout class="QVBoxLayout" name="verticalLayout_5">
@@ -920,8 +927,8 @@
    <slot>on_lockin_clicked()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>956</x>
-     <y>180</y>
+     <x>963</x>
+     <y>175</y>
     </hint>
     <hint type="destinationlabel">
      <x>141</x>
@@ -936,8 +943,8 @@
    <slot>on_direction_clicked()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>870</x>
-     <y>215</y>
+     <x>963</x>
+     <y>206</y>
     </hint>
     <hint type="destinationlabel">
      <x>8</x>
@@ -968,8 +975,8 @@
    <slot>on_lamp_clicked()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>800</x>
-     <y>278</y>
+     <x>963</x>
+     <y>275</y>
     </hint>
     <hint type="destinationlabel">
      <x>6</x>
@@ -984,8 +991,8 @@
    <slot>on_mean_clicked()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>844</x>
-     <y>310</y>
+     <x>963</x>
+     <y>306</y>
     </hint>
     <hint type="destinationlabel">
      <x>2</x>
@@ -1000,8 +1007,8 @@
    <slot>on_bg_clicked()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>827</x>
-     <y>345</y>
+     <x>963</x>
+     <y>337</y>
     </hint>
     <hint type="destinationlabel">
      <x>3</x>
@@ -1016,8 +1023,8 @@
    <slot>on_series_clicked()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>852</x>
-     <y>421</y>
+     <x>963</x>
+     <y>399</y>
     </hint>
     <hint type="destinationlabel">
      <x>5</x>
@@ -1032,8 +1039,8 @@
    <slot>on_save_clicked()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>768</x>
-     <y>452</y>
+     <x>963</x>
+     <y>430</y>
     </hint>
     <hint type="destinationlabel">
      <x>4</x>
@@ -1048,8 +1055,8 @@
    <slot>on_settings_clicked()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>834</x>
-     <y>484</y>
+     <x>963</x>
+     <y>461</y>
     </hint>
     <hint type="destinationlabel">
      <x>6</x>
@@ -1064,8 +1071,8 @@
    <slot>on_reset_clicked()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>788</x>
-     <y>520</y>
+     <x>963</x>
+     <y>492</y>
     </hint>
     <hint type="destinationlabel">
      <x>4</x>
@@ -1080,8 +1087,8 @@
    <slot>on_loaddark_clicked()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>784</x>
-     <y>557</y>
+     <x>963</x>
+     <y>523</y>
     </hint>
     <hint type="destinationlabel">
      <x>5</x>
@@ -1096,8 +1103,8 @@
    <slot>on_loadlamp_clicked()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>777</x>
-     <y>583</y>
+     <x>963</x>
+     <y>554</y>
     </hint>
     <hint type="destinationlabel">
      <x>1</x>
@@ -1112,8 +1119,8 @@
    <slot>on_search_clicked()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>769</x>
-     <y>666</y>
+     <x>974</x>
+     <y>662</y>
     </hint>
     <hint type="destinationlabel">
      <x>3</x>
@@ -1144,12 +1151,12 @@
    <slot>on_xup_clicked()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>766</x>
-     <y>752</y>
+     <x>756</x>
+     <y>749</y>
     </hint>
     <hint type="destinationlabel">
      <x>772</x>
-     <y>950</y>
+     <y>941</y>
     </hint>
    </hints>
   </connection>
@@ -1160,12 +1167,12 @@
    <slot>on_xdown_clicked()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>873</x>
-     <y>748</y>
+     <x>856</x>
+     <y>749</y>
     </hint>
     <hint type="destinationlabel">
      <x>752</x>
-     <y>953</y>
+     <y>941</y>
     </hint>
    </hints>
   </connection>
@@ -1176,12 +1183,12 @@
    <slot>on_ydown_clicked()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>829</x>
+     <x>806</x>
      <y>779</y>
     </hint>
     <hint type="destinationlabel">
      <x>892</x>
-     <y>956</y>
+     <y>941</y>
     </hint>
    </hints>
   </connection>
@@ -1192,12 +1199,12 @@
    <slot>on_yup_clicked()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>829</x>
-     <y>721</y>
+     <x>806</x>
+     <y>719</y>
     </hint>
     <hint type="destinationlabel">
      <x>889</x>
-     <y>949</y>
+     <y>941</y>
     </hint>
    </hints>
   </connection>
@@ -1208,11 +1215,11 @@
    <slot>on_zup_clicked()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>949</x>
-     <y>722</y>
+     <x>936</x>
+     <y>719</y>
     </hint>
     <hint type="destinationlabel">
-     <x>994</x>
+     <x>984</x>
      <y>704</y>
     </hint>
    </hints>
@@ -1224,11 +1231,11 @@
    <slot>on_zdown_clicked()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>960</x>
-     <y>790</y>
+     <x>936</x>
+     <y>779</y>
     </hint>
     <hint type="destinationlabel">
-     <x>990</x>
+     <x>984</x>
      <y>757</y>
     </hint>
    </hints>
@@ -1244,7 +1251,7 @@
      <y>832</y>
     </hint>
     <hint type="destinationlabel">
-     <x>993</x>
+     <x>984</x>
      <y>911</y>
     </hint>
    </hints>
@@ -1256,11 +1263,11 @@
    <slot>on_stepdown_clicked()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>934</x>
-     <y>839</y>
+     <x>973</x>
+     <y>834</y>
     </hint>
     <hint type="destinationlabel">
-     <x>995</x>
+     <x>984</x>
      <y>880</y>
     </hint>
    </hints>
@@ -1272,8 +1279,8 @@
    <slot>on_searchgrid_clicked()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>928</x>
-     <y>172</y>
+     <x>847</x>
+     <y>169</y>
     </hint>
     <hint type="destinationlabel">
      <x>4</x>
@@ -1320,8 +1327,8 @@
    <slot>on_scan_add()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>792</x>
-     <y>279</y>
+     <x>767</x>
+     <y>269</y>
     </hint>
     <hint type="destinationlabel">
      <x>5</x>
@@ -1336,8 +1343,8 @@
    <slot>on_scan_remove()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>863</x>
-     <y>295</y>
+     <x>837</x>
+     <y>269</y>
     </hint>
     <hint type="destinationlabel">
      <x>0</x>
@@ -1352,8 +1359,8 @@
    <slot>on_scan_clear()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>929</x>
-     <y>293</y>
+     <x>907</x>
+     <y>269</y>
     </hint>
     <hint type="destinationlabel">
      <x>6</x>
@@ -1368,12 +1375,28 @@
    <slot>on_start_scan_clicked()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>839</x>
-     <y>575</y>
+     <x>847</x>
+     <y>453</y>
     </hint>
     <hint type="destinationlabel">
      <x>6</x>
      <y>471</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>Button_loadbg</sender>
+   <signal>clicked()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>on_loadbg_clicked()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>776</x>
+     <y>569</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>3</x>
+     <y>705</y>
     </hint>
    </hints>
   </connection>
@@ -1410,5 +1433,6 @@
   <slot>on_scan_remove()</slot>
   <slot>on_scan_clear()</slot>
   <slot>on_start_scan_clicked()</slot>
+  <slot>on_loadbg_clicked()</slot>
  </slots>
 </ui>

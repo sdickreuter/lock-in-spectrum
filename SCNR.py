@@ -406,6 +406,12 @@ class SCNR(QMainWindow):
         if not buf is None:
             self.spectrum.lamp = buf
 
+    @pyqtSlot()
+    def on_loadbg_clicked(self):
+        buf = self._load_spectrum_from_file()
+        if not buf is None:
+            self.spectrum.bg = buf
+
     # ##---------------- END button connect functions ----------
 
     def _load_spectrum_from_file(self):
