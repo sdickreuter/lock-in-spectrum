@@ -189,6 +189,8 @@ class Spectrum(QObject):
         #self.stage.query_pos()
         #x, y, z = self.stage.last_pos()
         #pos = np.matrix([[x, y]])
+        self.positions = pos
+        self.save_path = "search_max/"
         self.workingthread = ScanSearchThread(self._spectrometer, self.settings, pos, self.stage)
         self.workingthread.specSignal.connect(self.specCallback)
         self.workingthread.progressSignal.connect(self.progressCallback)
@@ -205,6 +207,11 @@ class Spectrum(QObject):
     @pyqtSlot(np.ndarray)
     def finishedScanSearch(self, pos):
         #print(pos)
+        grid, = plt.plot(self.positions[:, 0], self.positions[:, 1], "r.")
+        search, = plt.plot(pos[:, 0], pos[:, 1], "bx")
+        plt.legend([grid, search], ["Calculated Grid", "Searched Positions"])
+        plt.savefig(self.save_path+"grid.png")
+        plt.close()
         self.enable_buttons()
         self.status.setText('Scan Search finished')
         self.workingthread = None
