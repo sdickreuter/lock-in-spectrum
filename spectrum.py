@@ -183,7 +183,7 @@ class Spectrum(QObject):
         self.start_process(self._lockin_spectrum)
 
     def search_max(self):
-        self.workingthread = SearchThread(self._spectrometer, self.settings, self.stage, self.bg)
+        self.workingthread = SearchThread(self._spectrometer, self.settings, self.stage)
         self.workingthread.specSignal.connect(self.specCallback)
         self.workingthread.progressSignal.connect(self.progressCallback)
         self.workingthread.finishSignal.connect(self.finishedSearch)
@@ -195,7 +195,7 @@ class Spectrum(QObject):
         #pos = np.matrix([[x, y]])
         self.positions = pos
         self.save_path = "search_max/"
-        self.workingthread = ScanSearchThread(self._spectrometer, self.settings, pos, self.stage,self.bg)
+        self.workingthread = ScanSearchThread(self._spectrometer, self.settings, pos, self.stage)
         self.workingthread.specSignal.connect(self.specCallback)
         self.workingthread.progressSignal.connect(self.progressCallback)
         self.workingthread.finishSignal.connect(self.finishedScanSearch)
@@ -228,7 +228,7 @@ class Spectrum(QObject):
         if with_lockin:
             return True
         elif with_search:
-            self.workingthread = ScanSearchMeanThread(self._spectrometer, self.settings, positions, self.stage,self.bg)
+            self.workingthread = ScanSearchMeanThread(self._spectrometer, self.settings, positions, self.stage)
         else:
             self.workingthread = ScanMeanThread(self._spectrometer, self.settings, positions, self.stage)
 
