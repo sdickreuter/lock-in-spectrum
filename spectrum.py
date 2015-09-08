@@ -9,6 +9,9 @@ from threads import *
 import numpy as np
 from datetime import datetime
 
+line_beak={"win32":"\r\n", 'linux':"\n" }
+platform=sys.platform
+line_beak= line_beak[platform]
 
 class Spectrum(QObject):
     specSignal = pyqtSignal(np.ndarray)
@@ -416,29 +419,29 @@ class Spectrum(QObject):
         data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1), spec.reshape(spec.shape[0], 1), 1)
         f = open(self.save_path+filename, 'w')
         f.write(str(datetime.now().day).zfill(2) + "." + str(datetime.now().month).zfill(2) + "." + str(
-            datetime.now().year) + "\r\n")
+            datetime.now().year) + line_beak)
         f.write(str(datetime.now().hour).zfill(2) + ":" + str(datetime.now().minute).zfill(2) + ":" + str(
-            datetime.now().second).zfill(2) + ":" + str(datetime.now().microsecond).zfill(2) + "\r\n")
-        f.write("integration time [ms]" + "\r\n")
-        f.write(str(self.settings.integration_time) + "\r\n")
-        f.write("number of samples" + "\r\n")
-        f.write(str(self.settings.number_of_samples) + "\r\n")
+            datetime.now().second).zfill(2) + ":" + str(datetime.now().microsecond).zfill(2) + line_beak)
+        f.write("integration time [ms]" + line_beak)
+        f.write(str(self.settings.integration_time) + line_beak)
+        f.write("number of samples" + line_beak)
+        f.write(str(self.settings.number_of_samples) + line_beak)
         if lockin:
-            f.write("amplitude" + "\r\n")
-            f.write(str(self.settings.amplitude) + "\r\n")
-            f.write("frequency" + "\r\n")
-            f.write(str(self.settings.f) + "\r\n")
+            f.write("amplitude" + line_beak)
+            f.write(str(self.settings.amplitude) + line_beak)
+            f.write("frequency" + line_beak)
+            f.write(str(self.settings.f) + line_beak)
 
         if pos is not None:
-            f.write("x" + "\r\n")
-            f.write(str(pos[0]) + "\r\n")
-            f.write("y" + "\r\n")
-            f.write(str(pos[1]) + "\r\n")
+            f.write("x" + line_beak)
+            f.write(str(pos[0]) + line_beak)
+            f.write("y" + line_beak)
+            f.write(str(pos[1]) + line_beak)
 
-        f.write("\r\n")
-        f.write("wavelength,counts" + "\r\n")
+        f.write(line_beak)
+        f.write("wavelength,counts" + line_beak)
         for i in range(len(data)):
-            f.write(str(data[i][0]) + "," + str(data[i][1]) + "\r\n")
+            f.write(str(data[i][0]) + "," + str(data[i][1]) + line_beak)
 
         f.close()
 
