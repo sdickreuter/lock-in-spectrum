@@ -130,16 +130,20 @@ def gauss(x, amplitude, xo, fwhm, offset):
 #     return y2
 
 def smooth(y):
-    y = savgol_filter(y, 201, 1, mode='interp')
+    y = savgol_filter(y, 91, 1, mode='interp')
     #y[900:y.shape[0]] = y[900]
-    x = np.linspace(0,len(y)-1,len(y))
-    #ind = np.linspace(0,50,dtype=np.int)
-    #ind = np.append(ind,np.linspace(980,1023,dtype=np.int))
+    #x = np.linspace(0,len(y)-1,len(y))
+    #ind = np.linspace(0,20,dtype=np.int)
+    #ind = np.append(ind,np.linspace(1000,1023,dtype=np.int))
     #slope, intercept, r_value, p_value, std_err = stats.linregress(x[ind],y[ind])
-    slope, intercept, r_value, p_value, std_err = stats.linregress(x,y)
-    y = y -  (slope*x + intercept)
+    #slope, intercept, r_value, p_value, std_err = stats.linregress(x,y)
+    #ind1 = np.linspace(0,20,dtype=np.int)
+    #ind2 = np.linspace(1000,1023,dtype=np.int)
+    #slope = np.mean(y[0])-np.mean(y[1023])
+    #slope = slope / 1023
+    #y = y - slope*np.linspace(0,1023,1024)
     y = y - np.min(y)
-    y = y*gauss(x,1,500,400,0)
+    #y = y*gauss(x,1,550,1000,0)
     y = savgol_filter(y, 91, 1, mode='interp')
     #s = interpolate.InterpolatedUnivariateSpline(np.linspace(200,900,len(x)),x)
     #return s(np.linspace(200,900,len(x)))
@@ -224,10 +228,11 @@ class MeanThread(MeasurementThread):
 
 
 class SearchThread(MeasurementThread):
-    def __init__(self, spectrometer, settings, stage, parent=None):
+    def __init__(self, spectrometer, settings, stage, bg, parent=None):
         try:
             self.settings = settings
             self.stage = stage
+            self.bg = bg
             super(SearchThread, self).__init__(spectrometer)
         except:
             (type, value, traceback) = sys.exc_info()
@@ -262,7 +267,9 @@ class SearchThread(MeasurementThread):
         # self.mutex.unlock()
         spec = self.spectrometer.intensities()
         spec = spec[0:1024]
-        sepc = smooth(spec)
+        if not self.bg is None:
+            spec = spec - self.bg
+        spec = smooth(spec)
 
         self.stage.query_pos()
         startpos = self.stage.last_pos()
@@ -295,6 +302,8 @@ class SearchThread(MeasurementThread):
                     return False
                 spec = self.spectrometer.intensities()
                 spec = spec[0:1024]
+                if not self.bg is None:
+                    spec = spec - self.bg
                 spec = smooth(spec)
                 self.specSignal.emit(spec)
                 measured[k] = np.max(spec)
@@ -306,14 +315,14 @@ class SearchThread(MeasurementThread):
             popt = None
             fitted = False
             try:
-                popt, pcov = opt.curve_fit(gauss, pos[2:(len(pos) - 1)], measured[2:(len(pos) - 1)], p0=initial_guess)
+                popt, pcov = opt.curve_fit(gauss, pos[2:(len(pos))], measured[2:(len(pos))], p0=initial_guess)
                 perr = np.diag(pcov)
                 #print(perr)
                 if perr[0] > 500 or perr[1] > 1 or perr[2] > 1 :
                     print("Could not determine particle position: Variance too big")
                 elif popt[0] < 1e-1:
                     print("Could not determine particle position: Peak too small")
-                elif popt[1] < (min(pos)-2) or popt[1] > (max(pos)+2):
+                elif popt[1] < (min(pos)-0.2) or popt[1] > (max(pos)+0.2):
                     print("Could not determine particle position: Peak outside bounds")
                 else:
                     fitted = True
@@ -400,8 +409,8 @@ class ScanThread(MeasurementThread):
             #self.specSignal.emit(self.spec)
 
 class ScanSearchThread(ScanThread):
-    def __init__(self, spectrometer, settings, scanning_points, stage, parent=None):
-        super(ScanSearchThread, self).__init__(spectrometer,settings,scanning_points,stage)
+    def __init__(self, spectrometer, settings, scanning_points, stage, bg, parent=None):
+        super(ScanSearchThread, self).__init__(spectrometer,settings,scanning_points,stage,bg)
         self.searchthread = SearchThread(self.spectrometer,self.settings,self.stage,self)
         self.searchthread.specSignal.connect(self.specslot)
 
@@ -453,8 +462,8 @@ class ScanMeanThread(ScanThread):
         self.saveSignal.emit(spec, str(self.i).zfill(5) + ".csv", self.positions[self.i,:], False)
 
 class ScanSearchMeanThread(ScanMeanThread):
-    def __init__(self, spectrometer, settings, scanning_points, stage, parent=None):
-        super(ScanSearchMeanThread, self).__init__(spectrometer, settings, scanning_points, stage)
+    def __init__(self, spectrometer, settings, scanning_points, stage,bg, parent=None):
+        super(ScanSearchMeanThread, self).__init__(spectrometer, settings, scanning_points, stage, bg)
         self.searchthread = SearchThread(self.spectrometer,self.settings,self.stage,self)
         self.searchthread.specSignal.connect(self.specslot)
 
