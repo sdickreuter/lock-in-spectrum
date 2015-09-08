@@ -9,9 +9,10 @@ from threads import *
 import numpy as np
 from datetime import datetime
 
-line_beak={"win32":"\r\n", 'linux':"\n" }
-platform=sys.platform
-line_beak= line_beak[platform]
+#eol={"win32":"\n", 'linux':"\n" }
+#platform=sys.platform
+#eol= eol[platform]
+eol = "\n"
 
 class Spectrum(QObject):
     specSignal = pyqtSignal(np.ndarray)
@@ -212,7 +213,7 @@ class Spectrum(QObject):
         #print(pos)
         grid, = plt.plot(self.positions[:, 0], self.positions[:, 1], "r.")
         search, = plt.plot(pos[:, 0], pos[:, 1], "bx")
-        plt.legend([grid, search], ["Calculated Grid", "Searched Positions"])
+        plt.legend([grid, search], ["Calculated Grid", "Searched Positions"], bbox_to_anchor=(0., 1.02, 1., .102), loc=3,ncol=2, mode="expand", borderaxespad=0.)
         plt.savefig(self.save_path+"grid.png")
         plt.close()
         self.enable_buttons()
@@ -242,7 +243,7 @@ class Spectrum(QObject):
         #print(pos)
         grid, = plt.plot(self.positions[:, 0], self.positions[:, 1], "r.")
         search, = plt.plot(pos[:, 0], pos[:, 1], "bx")
-        plt.legend([grid, search], ["Calculated Grid", "Searched Positions"])
+        plt.legend([grid, search], ["Calculated Grid", "Searched Positions"], bbox_to_anchor=(0., 1.02, 1., .102), loc=3,ncol=2, mode="expand", borderaxespad=0.)
         plt.savefig(self.save_path+"grid.png")
         plt.close()
         self.enable_buttons()
@@ -419,29 +420,29 @@ class Spectrum(QObject):
         data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1), spec.reshape(spec.shape[0], 1), 1)
         f = open(self.save_path+filename, 'w')
         f.write(str(datetime.now().day).zfill(2) + "." + str(datetime.now().month).zfill(2) + "." + str(
-            datetime.now().year) + line_beak)
+            datetime.now().year) + eol)
         f.write(str(datetime.now().hour).zfill(2) + ":" + str(datetime.now().minute).zfill(2) + ":" + str(
-            datetime.now().second).zfill(2) + ":" + str(datetime.now().microsecond).zfill(2) + line_beak)
-        f.write("integration time [ms]" + line_beak)
-        f.write(str(self.settings.integration_time) + line_beak)
-        f.write("number of samples" + line_beak)
-        f.write(str(self.settings.number_of_samples) + line_beak)
+            datetime.now().second).zfill(2) + ":" + str(datetime.now().microsecond).zfill(2) + eol)
+        f.write("integration time [ms]" + eol)
+        f.write(str(self.settings.integration_time) + eol)
+        f.write("number of samples" + eol)
+        f.write(str(self.settings.number_of_samples) + eol)
         if lockin:
-            f.write("amplitude" + line_beak)
-            f.write(str(self.settings.amplitude) + line_beak)
-            f.write("frequency" + line_beak)
-            f.write(str(self.settings.f) + line_beak)
+            f.write("amplitude" + eol)
+            f.write(str(self.settings.amplitude) + eol)
+            f.write("frequency" + eol)
+            f.write(str(self.settings.f) + eol)
 
         if pos is not None:
-            f.write("x" + line_beak)
-            f.write(str(pos[0]) + line_beak)
-            f.write("y" + line_beak)
-            f.write(str(pos[1]) + line_beak)
+            f.write("x" + eol)
+            f.write(str(pos[0]) + eol)
+            f.write("y" + eol)
+            f.write(str(pos[1]) + eol)
 
-        f.write(line_beak)
-        f.write("wavelength,counts" + line_beak)
+        f.write(eol)
+        f.write("wavelength,counts" + eol)
         for i in range(len(data)):
-            f.write(str(data[i][0]) + "," + str(data[i][1]) + line_beak)
+            f.write(str(data[i][0]) + "," + str(data[i][1]) + eol)
 
         f.close()
 

@@ -248,6 +248,7 @@ class SearchThread(MeasurementThread):
         self.search()
         x, y, z = self.stage.last_pos()
         #self.specSignal.emit(self.spec)
+        self.spectrometer.intensities()
         self.finishSignal.emit(np.array([x,y]))
         self.abort = True
 
@@ -342,7 +343,6 @@ class SearchThread(MeasurementThread):
             self.progress.next()
             self.progressSignal.emit(self.progress.percent, str(self.progress.eta_td))
         self.spectrometer.integration_time_micros(self.settings.integration_time * 1000)
-        self.spectrometer.intensities()
         #self.stage.query_pos()
         # spec = self.getspec()
         # self.specSignal.emit(spec)
