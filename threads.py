@@ -129,26 +129,39 @@ def gauss(x, amplitude, xo, fwhm, offset):
 #     y2 = scipy.fftpack.irfft(w2)
 #     return y2
 
-def smooth(y):
-    y = savgol_filter(y, 137, 1, mode='interp')
-    #y = savgol_filter(y, 91, 1, mode='interp')
+def smooth(x,y):
+    buf = y.copy()
+    buf = savgol_filter(buf, 137, 1, mode='interp')
+    buf = savgol_filter(buf, 137, 1, mode='interp')
+    #y = savgol_filter(y, 31, 1, mode='interp')
     #y[900:y.shape[0]] = y[900]
-    x = np.linspace(0,len(y)-1,len(y))
-    #ind = np.linspace(0,20,dtype=np.int)
-    #ind = np.append(ind,np.linspace(1000,1023,dtype=np.int))
+    #ind = np.linspace(0,19,20,dtype=np.int)
+    #ind = np.append(ind,np.linspace(1003,1023,20,dtype=np.int))
     #slope, intercept, r_value, p_value, std_err = stats.linregress(x[ind],y[ind])
-    slope, intercept, r_value, p_value, std_err = stats.linregress(x,y)
-    y = y - (-slope*x)
-    #ind1 = np.linspace(0,20,dtype=np.int)
-    #ind2 = np.linspace(1000,1023,dtype=np.int)
-    #slope = np.mean(y[1023])-np.mean(y[0])
-    #slope = slope / 1023
-    #y = y - slope*np.linspace(0,1023,1024)
-    y = y - np.min(y)
-    #y = y*gauss(x,1,550,1000,0)
+    #print((slope, intercept))
+    #slope, intercept, r_value, p_value, std_err = stats.linregress(x,y)
+    #y = y - (-slope*x+intercept)
+    #slope = (buf[1023] - buf[200]) / (x[1023] -x[200])
+    #intercept = buf[200] - slope*x[200]
+    #res = buf - (slope*x  + intercept)
+
+    ind1 = np.linspace(300,319,20,dtype=np.int)
+    ind2 = np.linspace(1003,1023,10,dtype=np.int)
+    slope = (np.mean(buf[ind2]) - np.mean(buf[ind1])) / (np.mean(x[ind2]) - np.mean(x[ind1]))
+    intercept = np.mean(buf[ind1]) - slope*np.mean(x[ind1])
+    #print((np.mean(y[ind1]),np.mean(x[ind1])))
+    #print((slope, intercept))
+    l = slope*x + intercept
+    buf = np.subtract(buf,l)
+    #slope = -(np.mean(y[ind2]) - np.mean(y[ind1])) / (np.mean(x[ind2]) - np.mean(x[ind1]))
+    #intercept = np.mean(y[ind1]) - slope*np.mean(x[ind1])
+    #l = slope*x + intercept
+    #y = l # np.subtract(y,l)
+    #y = y - np.min(y)
+    buf = buf*gauss(x,1,600,500,0)
     #s = interpolate.InterpolatedUnivariateSpline(np.linspace(200,900,len(x)),x)
     #return s(np.linspace(200,900,len(x)))
-    return y
+    return buf
 
 class MeasurementThread(QObject):
     specSignal = pyqtSignal(np.ndarray)
@@ -234,6 +247,8 @@ class SearchThread(MeasurementThread):
             self.settings = settings
             self.stage = stage
             super(SearchThread, self).__init__(spectrometer)
+            self.wl = self.spectrometer.wavelengths()
+            self.wl = self.wl[0:1024]
         except:
             (type, value, traceback) = sys.exc_info()
             sys.excepthook(type, value, traceback)
@@ -267,7 +282,7 @@ class SearchThread(MeasurementThread):
         # self.mutex.unlock()
         spec = self.spectrometer.intensities()
         spec = spec[0:1024]
-        spec = smooth(spec)
+        spec = smooth(self.wl,spec)
 
         self.stage.query_pos()
         startpos = self.stage.last_pos()
@@ -300,7 +315,7 @@ class SearchThread(MeasurementThread):
                     return False
                 spec = self.spectrometer.intensities()
                 spec = spec[0:1024]
-                spec = smooth(spec)
+                spec = smooth(self.wl,spec)
                 self.specSignal.emit(spec)
                 #initial_guess = (np.max(spec), 600, 200, 0)
                 #try:
@@ -310,7 +325,7 @@ class SearchThread(MeasurementThread):
                 #    measured[k] = popt[0]
                 #except RuntimeError as e:
                 #    print(e)
-                measured[k] = np.max(spec)-np.min(spec)
+                measured[k] = np.max(spec[400:800])
 
             maxind = np.argmax(measured[2:(len(pos))])
 
