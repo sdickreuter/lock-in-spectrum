@@ -339,11 +339,11 @@ class SearchThread(MeasurementThread):
                 #popt, pcov = opt.curve_fit(gauss, pos, measured, p0=initial_guess)
                 perr = np.diag(pcov)
                 #print(perr)
-                if perr[0] > 500 or perr[1] > 1 or perr[2] > 1 :
+                if perr[0] > 10000 or perr[1] > 1 or perr[2] > 1 :
                     print("Could not determine particle position: Variance too big")
                 elif popt[0] < 1e-1:
                     print("Could not determine particle position: Peak too small")
-                elif popt[1] < (min(pos)) or popt[1] > (max(pos)):
+                elif popt[1] < (min(pos)-0.5) or popt[1] > (max(pos)+0.5):
                     print("Could not determine particle position: Peak outside bounds")
                 else:
                     fitted = True

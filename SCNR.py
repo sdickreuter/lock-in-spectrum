@@ -154,6 +154,7 @@ class SCNR(QMainWindow):
         self.settings_dialog = dialogs.Settings_Dialog(self.settings)
         self.settings_dialog.updateSignal.connect(self.update_settings)
         self.update_settings()
+        self.ui.label_stepsize.setText(str(self.settings.stepsize))
 
 
     def disable_buttons(self):
