@@ -273,7 +273,7 @@ class SearchThread(MeasurementThread):
         self.abort = True
 
     def stop(self):
-        self.spectrometer.integration_time_micros(self.settings.integration_time * 1000)
+        #self.spectrometer.integration_time_micros(self.settings.integration_time * 1000)
         super(SearchThread, self).stop()
 
     def search(self):
@@ -370,6 +370,7 @@ class SearchThread(MeasurementThread):
             self.progress.next()
             self.progressSignal.emit(self.progress.percent, str(self.progress.eta_td))
         self.spectrometer.integration_time_micros(self.settings.integration_time * 1000)
+        self.spectrometer.intensities()
         #self.stage.query_pos()
         # spec = self.getspec()
         # self.specSignal.emit(spec)
@@ -458,8 +459,8 @@ class ScanMeanThread(ScanThread):
         self.meanthread.specSignal.connect(self.specslot)
 
     def stop(self):
-        super(ScanMeanThread, self).stop()
         self.meanthread.stop()
+        super(ScanMeanThread, self).stop()
 
     def __del__(self):
         self.meanthread.finishSignal.disconnect(self.meanfinished)
@@ -486,8 +487,8 @@ class ScanSearchMeanThread(ScanMeanThread):
         self.searchthread.specSignal.connect(self.specslot)
 
     def stop(self):
-        super(ScanMeanThread, self).stop()
         self.searchthread.stop()
+        super(ScanMeanThread, self).stop()
 
     def __del__(self):
         self.searchthread.specSignal.disconnect()
