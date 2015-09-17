@@ -56,7 +56,7 @@ class Spectrum(QObject):
        try:
            devices = sb.list_devices()
            self._spectrometer = sb.Spectrometer(devices[0])
-           self._spectrometer.tec_set_temperature_C(-17)
+           self._spectrometer.tec_set_temperature_C(-15)
            self._spectrometer.tec_set_enable(True)
            print(self._spectrometer.tec_get_temperature_C())
            self._spectrometer.integration_time_micros(100000)
