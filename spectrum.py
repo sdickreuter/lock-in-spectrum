@@ -58,8 +58,8 @@ class Spectrum(QObject):
            self._spectrometer = sb.Spectrometer(devices[0])
            self._spectrometer.tec_set_temperature_C(-15)
            self._spectrometer.tec_set_enable(True)
-           print(self._spectrometer.tec_get_temperature_C())
            self._spectrometer.integration_time_micros(100000)
+           print(self._spectrometer.tec_get_temperature_C())
            print("Spectrometer " + str(self._spectrometer.serial_number) + " initialized and working")
        except:
            print("Error opening Spectrometer, using Dummy instead")

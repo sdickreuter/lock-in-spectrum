@@ -176,7 +176,7 @@ class MeasurementThread(QObject):
             super(MeasurementThread, self).__init__(parent)
             self.spectrometer = spectrometer
             self.abort = False
-            self.thread = QThread()
+            self.thread = QThread(parent)
             self.moveToThread(self.thread)
             self.thread.started.connect(self.process)
             self.thread.finished.connect(self.stop)
@@ -434,8 +434,8 @@ class ScanSearchThread(ScanThread):
         self.searchthread.specSignal.connect(self.specslot)
 
     def stop(self):
-        super(ScanSearchThread, self).stop()
         self.searchthread.stop()
+        super(ScanSearchThread, self).stop()
 
     def __del__(self):
         self.searchthread.specSignal.disconnect(self.specslot)
