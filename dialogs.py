@@ -57,7 +57,7 @@ class SpanGrid_Dialog(QDialog):
     def getXY(parent = None):
         dialog = SpanGrid_Dialog(parent)
         result = dialog.exec_()
-        return (dialog.ui.x_spin.value(), dialog.ui.x_spin.value(), result == QDialog.Accepted)
+        return (dialog.ui.x_spin.value(), dialog.ui.y_spin.value(), result == QDialog.Accepted)
 
 
 #
