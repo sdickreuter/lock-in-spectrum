@@ -18,6 +18,8 @@ import numpy as np
 import dialogs
 from threads import GamepadThread
 from PyQt5 import uic
+#from sys import path
+#Ui_MainWindow = uic.loadUiType("ui"+path.sep+"SCNR_main.ui")[0]
 Ui_MainWindow = uic.loadUiType("ui/SCNR_main.ui")[0]
 #from ui.SCNR_main import Ui_MainWindow
 
@@ -116,6 +118,9 @@ class SCNR(QMainWindow):
 
         self.ui.status.setText("Ready")
 
+        #self.savedir = "."+path.sep+"Spectra"+path.sep
+        #self.path = "."+path.sep
+
         self.savedir = "./Spectra/"
         self.path = "./"
 
@@ -134,7 +139,7 @@ class SCNR(QMainWindow):
         self.spectrum = Spectrum(self.stage, self.settings, self.ui.status, self.ui.progressBar, self.enable_buttons,
                                  self.disable_buttons)  # logger class which coordinates the spectrometer and the stage
 
-        spec = self.spectrum.get_spec()  # get an initial spectrum for display
+        self.spec = self.spectrum.get_spec()  # get an initial spectrum for display
         self._wl = self.spectrum.get_wl()  # get the wavelengths
         #self.update_plot(None)
         #self.spectrum.getspecthread.dynamicSpecSignal.connect(self.update_plot)
@@ -289,8 +294,10 @@ class SCNR(QMainWindow):
                 # os.path.exists(prefix)
                 os.mkdir(self.savedir+prefix)
             except:
+                #print("Error creating directory ."+path.sep + prefix)
                 print("Error creating directory ./" + prefix)
-            path = self.savedir + prefix + '/'
+            #path = self.savedir + prefix + path.sep
+            path = self.savedir + prefix + "/"
             self.ui.status.setText("Scanning ...")
             #self.spectrum.make_scan(self.scan_store, path, self.button_searchonoff.get_active(), self.button_lockinonoff.get_active())
             self.spectrum.make_scan(self.posModel.getMatrix(), path, self.ui.checkBox_lockin.isChecked(), self.ui.checkBox_search.isChecked())
@@ -345,9 +352,22 @@ class SCNR(QMainWindow):
                 # os.path.exists(prefix)
                 os.mkdir(self.savedir+prefix)
             except:
+                #print("Error creating directory ."+path.sep + prefix)
                 print("Error creating directory ./" + prefix)
-            path = self.savedir + prefix + '/'
+            #path = self.savedir + prefix + path.sep
+            path = self.savedir + prefix + "/"
             self.spectrum.save_data(path)
+
+    @pyqtSlot()
+    def on_saveas_clicked(self):
+        self.ui.status.setText("Saving Data ...")
+        save_as = QFileDialog.getOpenFileName(self, "Save currently shown Spectrum as", './spectra/CSV Files (*.csv)')
+        #prefix, ok = QInputDialog.getText(self, 'Save Folder', 'Enter Folder to save spectra to:')
+        try:
+            self.spectrum.save_spectrum(self.spec, save_as, None, False)
+        except:
+            print("Error Saving file " + save_as)
+
 
     @pyqtSlot()
     def on_settings_clicked(self):
@@ -388,8 +408,10 @@ class SCNR(QMainWindow):
                 # os.path.exists(prefix)
                 os.mkdir(self.savedir+prefix)
             except:
+                #print("Error creating directory ."+path.sep + prefix)
                 print("Error creating directory ./" + prefix)
-            path = self.savedir + prefix + '/'
+            #path = self.savedir + prefix + path.sep
+            path = self.savedir + prefix + "/"
         else:
             self.ui.status.setText("Error")
         self.spectrum.take_series(path)
@@ -417,7 +439,8 @@ class SCNR(QMainWindow):
 
     def _load_spectrum_from_file(self):
         #save_dir = QFileDialog.getOpenFileName(self, "Load Spectrum from CSV", os.path.expanduser('~'), 'CSV Files (*.csv)')
-        save_dir = QFileDialog.getOpenFileName(self, "Load Spectrum from CSV", './spectra/', 'CSV Files (*.csv)')
+        #save_dir = QFileDialog.getOpenFileName(self, "Load Spectrum from CSV", '.'+path.sep+'spectra'+path.sep, 'CSV Files (*.csv)')
+        save_dir = QFileDialog.getOpenFileName(self, "Load Spectrum from CSV", './spectra/CSV Files (*.csv)')
 
         if len(save_dir[0])>1:
             save_dir = save_dir[0]
@@ -493,9 +516,9 @@ class SCNR(QMainWindow):
 
     @pyqtSlot(np.ndarray)
     def update_plot(self):
-        spec = self.spectrum.get_spec(self.ui.CheckBox_correct.isChecked())
+        self.spec = self.spectrum.get_spec(self.ui.CheckBox_correct.isChecked())
         mask = (self._wl >= self.settings.min_wl) & (self._wl <= self.settings.max_wl)
-        self.axes.plot(self._wl[mask], spec[mask])
+        self.axes.plot(self._wl[mask], self.spec[mask])
         #self.axes.plot(self._wl, spec)
         self.Canvas.draw()
         self.show_pos()

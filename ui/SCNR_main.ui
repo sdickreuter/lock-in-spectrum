@@ -346,6 +346,13 @@
                </widget>
               </item>
               <item>
+               <widget class="QPushButton" name="Button_saveas">
+                <property name="text">
+                 <string>Save as</string>
+                </property>
+               </widget>
+              </item>
+              <item>
                <widget class="QPushButton" name="Button_settings">
                 <property name="text">
                  <string>Settings</string>
@@ -413,8 +420,8 @@
               <rect>
                <x>0</x>
                <y>0</y>
-               <width>140</width>
-               <height>369</height>
+               <width>256</width>
+               <height>508</height>
               </rect>
              </property>
              <layout class="QVBoxLayout" name="verticalLayout_5">
@@ -928,7 +935,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>963</x>
-     <y>175</y>
+     <y>167</y>
     </hint>
     <hint type="destinationlabel">
      <x>141</x>
@@ -944,7 +951,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>963</x>
-     <y>206</y>
+     <y>196</y>
     </hint>
     <hint type="destinationlabel">
      <x>8</x>
@@ -959,8 +966,8 @@
    <slot>on_dark_clicked()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>775</x>
-     <y>242</y>
+     <x>963</x>
+     <y>230</y>
     </hint>
     <hint type="destinationlabel">
      <x>5</x>
@@ -976,7 +983,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>963</x>
-     <y>275</y>
+     <y>259</y>
     </hint>
     <hint type="destinationlabel">
      <x>6</x>
@@ -992,7 +999,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>963</x>
-     <y>306</y>
+     <y>288</y>
     </hint>
     <hint type="destinationlabel">
      <x>2</x>
@@ -1008,7 +1015,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>963</x>
-     <y>337</y>
+     <y>317</y>
     </hint>
     <hint type="destinationlabel">
      <x>3</x>
@@ -1024,7 +1031,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>963</x>
-     <y>399</y>
+     <y>373</y>
     </hint>
     <hint type="destinationlabel">
      <x>5</x>
@@ -1040,7 +1047,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>963</x>
-     <y>430</y>
+     <y>402</y>
     </hint>
     <hint type="destinationlabel">
      <x>4</x>
@@ -1056,7 +1063,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>963</x>
-     <y>461</y>
+     <y>460</y>
     </hint>
     <hint type="destinationlabel">
      <x>6</x>
@@ -1072,7 +1079,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>963</x>
-     <y>492</y>
+     <y>489</y>
     </hint>
     <hint type="destinationlabel">
      <x>4</x>
@@ -1088,7 +1095,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>963</x>
-     <y>523</y>
+     <y>518</y>
     </hint>
     <hint type="destinationlabel">
      <x>5</x>
@@ -1104,7 +1111,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>963</x>
-     <y>554</y>
+     <y>547</y>
     </hint>
     <hint type="destinationlabel">
      <x>1</x>
@@ -1400,6 +1407,22 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>Button_saveas</sender>
+   <signal>clicked()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>on_saveas_clicked()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>884</x>
+     <y>419</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>0</x>
+     <y>448</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>on_live_clicked()</slot>
@@ -1434,5 +1457,6 @@
   <slot>on_scan_clear()</slot>
   <slot>on_start_scan_clicked()</slot>
   <slot>on_loadbg_clicked()</slot>
+  <slot>on_saveas_clicked()</slot>
  </slots>
 </ui>
