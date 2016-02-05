@@ -361,12 +361,13 @@ class SCNR(QMainWindow):
     @pyqtSlot()
     def on_saveas_clicked(self):
         self.ui.status.setText("Saving Data ...")
-        save_as = QFileDialog.getOpenFileName(self, "Save currently shown Spectrum as", './spectra/CSV Files (*.csv)')
+        save_as = QFileDialog.getSaveFileName(self, "Save currently shown Spectrum as", './spectra/','CSV Files (*.csv)')
+        print(save_as[0])
         #prefix, ok = QInputDialog.getText(self, 'Save Folder', 'Enter Folder to save spectra to:')
         try:
-            self.spectrum.save_spectrum(self.spec, save_as, None, False)
+            self.spectrum.save_spectrum(self.spec, save_as[0], None, False)
         except:
-            print("Error Saving file " + save_as)
+            print("Error Saving file " + save_as[0])
 
 
     @pyqtSlot()

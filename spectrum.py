@@ -405,20 +405,20 @@ class Spectrum(QObject):
         #    data = pandas.DataFrame(self._data, columns=cols)
         #    data.to_csv(prefix + 'spectrum_' + filename, header=True, index=False)
         if not self.dark is None:
-            self.save_spectrum(self.dark, 'dark.csv', None, False)
+            self.save_spectrum(self.dark, self.save_path+'dark.csv', None, False)
         if not self.lamp is None:
-            self.save_spectrum(self.lamp, 'lamp.csv', None, False)
+            self.save_spectrum(self.lamp, self.save_path+'lamp.csv', None, False)
         if not self.mean is None:
-            self.save_spectrum(self.mean, 'normal.csv', None, False)
+            self.save_spectrum(self.mean, self.save_path+'normal.csv', None, False)
         if not self.bg is None:
-            self.save_spectrum(self.bg, 'background.csv', None, False)
+            self.save_spectrum(self.bg, self.save_path+'background.csv', None, False)
         if not self.lockin is None:
-            self.save_spectrum(self.lockin, 'lockin.csv', None, True)
+            self.save_spectrum(self.lockin, self.save_path+'lockin.csv', None, True)
 
     @pyqtSlot(np.ndarray, str, np.ndarray, bool)
     def save_spectrum(self, spec, filename, pos, lockin):
         data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1), spec.reshape(spec.shape[0], 1), 1)
-        f = open(self.save_path+filename, 'w')
+        f = open(filename, 'w')
         f.write(str(datetime.now().day).zfill(2) + "." + str(datetime.now().month).zfill(2) + "." + str(
             datetime.now().year) + eol)
         f.write(str(datetime.now().hour).zfill(2) + ":" + str(datetime.now().minute).zfill(2) + ":" + str(
