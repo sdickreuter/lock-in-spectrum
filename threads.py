@@ -450,7 +450,7 @@ class ScanSearchThread(ScanThread):
 
 
 class ScanMeanThread(ScanThread):
-    saveSignal = pyqtSignal(np.ndarray, str, np.ndarray, bool)
+    saveSignal = pyqtSignal(np.ndarray, str, np.ndarray, bool, bool)
 
     def __init__(self, spectrometer, settings, scanning_points, stage, parent=None):
         super(ScanMeanThread, self).__init__(spectrometer, settings, scanning_points, stage)
@@ -478,7 +478,7 @@ class ScanMeanThread(ScanThread):
 
     @pyqtSlot(np.ndarray)
     def meanfinished(self, spec):
-        self.saveSignal.emit(spec, str(self.i).zfill(5) + ".csv", self.positions[self.i,:], False)
+        self.saveSignal.emit(spec, str(self.i).zfill(5) + ".csv", self.positions[self.i,:], False,False)
 
 class ScanSearchMeanThread(ScanMeanThread):
     def __init__(self, spectrometer, settings, scanning_points, stage, parent=None):

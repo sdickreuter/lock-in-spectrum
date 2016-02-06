@@ -257,120 +257,120 @@ class Spectrum(QObject):
         self.series_count = 0
         self.start_process(self._live_spectrum)
 
-    def _callback_scan(self):
-
-        def start():
-            self.scanner_point = self.scanner_points[self.scanner_index]
-            self.stage.moveabs(x=self.scanner_point[0], y=self.scanner_point[1])
-            # self.reset()
-            if self.scanner_search:
-                self.scanner_mode = "search"
-                self.start_process(self._search_max_int)
-            elif self.scanner_lockin:
-                self.scanner_mode = "lockin"
-                self.start_process(self._lockin_spectrum)
-            else:
-                self.scanner_mode = "mean"
-                self.start_process(self._mean_spectrum)
-
-        def finish():
-            self.running.clear()
-            map = np.ones((len(self.x), 4), dtype=np.float)
-            map[:, 0] = self.x
-            map[:, 1] = self.y
-            map[:, 2] = self.map
-            map[:, 3] = self.peakpos
-            map = pandas.DataFrame(map, columns=('x', 'y', 'int', 'peak'))
-            filename = self.scanner_path + 'map.csv'
-            map.to_csv(filename, header=True, index=False)
-            if not self.dark is None:
-                self.save_spectrum(self.dark, self.scanner_path + "dark.csv")
-            if not self.lamp is None:
-                self.save_spectrum(self.lamp, self.scanner_path + "lamp.csv")
-            if not self.bg is None:
-                self.save_spectrum(self.bg, self.scanner_path + "background.csv")
-            self.status.set_text("Scan complete")
-            self.scanner_index += 1
-
-        if self.scanner_mode is "start":
-            start()
-
-        if self.scanner_mode is "search":
-            finished, self._progress_fraction, spec = self.conn_for_main.recv()
-            if spec is not None:
-                self._spec = spec
-            if finished:
-                self.worker.join(0.5)
-                if self.scanner_lockin:
-                    self.scanner_mode = "lockin"
-                    self.start_process(self._lockin_spectrum)
-                else:
-                    self.scanner_mode = "mean"
-                    self.start_process(self._mean_spectrum)
-
-        if self.scanner_mode is "lockin":
-            finished, self._progress_fraction, spec, ref, i = self.conn_for_main.recv()
-            self._data[i, 0] = i
-            self._data[i, 1] = ref
-            self._data[i, 2:] = spec
-            self._spec = spec
-            if finished:
-                self.worker.join(0.5)
-                self.lockin = self.calc_lockin()
-                self._spec = self.lockin
-                smooth = self.smooth(self._spec)
-                maxind = np.argmax(smooth)
-                self.map.append(smooth[maxind])
-                self.peakpos.append(self._wl[maxind])
-                self.x.append(self.scanner_point[0])
-                self.y.append(self.scanner_point[1])
-                self.save_spectrum(self.lockin, self.scanner_path + str(self.scanner_index).zfill(5) + ".csv",
-                                   self.scanner_point)
-                self.scanner_index += 1
-                self.progress.next()
-                if self.scanner_index >= len(self.scanner_points):
-                    finish()
-                else:
-                    start()
-
-        if self.scanner_mode is "mean":
-            finished, self._progress_fraction, spec = self.conn_for_main.recv()
-            self._spec = spec
-            if finished:
-                self.worker.join(0.5)
-                self.normal = spec
-                self._spec = spec
-                smooth = self.smooth(self._spec)
-                maxind = np.argmax(smooth)
-                self.map.append(smooth[maxind])
-                self.peakpos.append(self._wl[maxind])
-
-                if self.scanner_search:
-                    pos = self.stage.last_pos()
-                    self.x.append(pos[0])
-                    self.y.append(pos[1])
-                else:
-                    self.x.append(self.scanner_point[0])
-                    self.y.append(self.scanner_point[1])
-                self.save_spectrum(self.normal, self.scanner_path + str(self.scanner_index).zfill(5) + ".csv",
-                                   self.scanner_point)
-                self.scanner_index += 1
-                self.progress.next()
-                if self.scanner_index >= len(self.scanner_points):
-                    finish()
-                else:
-                    start()
-
-        if not self.running.is_set():
-            self.worker.join(0.5)
-            self.enable_buttons()
-            self.worker_mode = None
-            self.scanner_mode = None
-
-        self.status.showMessage("ETA: " + str(self.progress.eta_td))
-        self.progressbar.setValue(self.scanner_index / (len(self.scanner_points)) * 100)
-
-        return True
+    # def _callback_scan(self):
+    #
+    #     def start():
+    #         self.scanner_point = self.scanner_points[self.scanner_index]
+    #         self.stage.moveabs(x=self.scanner_point[0], y=self.scanner_point[1])
+    #         # self.reset()
+    #         if self.scanner_search:
+    #             self.scanner_mode = "search"
+    #             self.start_process(self._search_max_int)
+    #         elif self.scanner_lockin:
+    #             self.scanner_mode = "lockin"
+    #             self.start_process(self._lockin_spectrum)
+    #         else:
+    #             self.scanner_mode = "mean"
+    #             self.start_process(self._mean_spectrum)
+    #
+    #     def finish():
+    #         self.running.clear()
+    #         map = np.ones((len(self.x), 4), dtype=np.float)
+    #         map[:, 0] = self.x
+    #         map[:, 1] = self.y
+    #         map[:, 2] = self.map
+    #         map[:, 3] = self.peakpos
+    #         map = pandas.DataFrame(map, columns=('x', 'y', 'int', 'peak'))
+    #         filename = self.scanner_path + 'map.csv'
+    #         map.to_csv(filename, header=True, index=False)
+    #         if not self.dark is None:
+    #             self.save_spectrum(self.dark, self.scanner_path + "dark.csv")
+    #         if not self.lamp is None:
+    #             self.save_spectrum(self.lamp, self.scanner_path + "lamp.csv")
+    #         if not self.bg is None:
+    #             self.save_spectrum(self.bg, self.scanner_path + "background.csv")
+    #         self.status.set_text("Scan complete")
+    #         self.scanner_index += 1
+    #
+    #     if self.scanner_mode is "start":
+    #         start()
+    #
+    #     if self.scanner_mode is "search":
+    #         finished, self._progress_fraction, spec = self.conn_for_main.recv()
+    #         if spec is not None:
+    #             self._spec = spec
+    #         if finished:
+    #             self.worker.join(0.5)
+    #             if self.scanner_lockin:
+    #                 self.scanner_mode = "lockin"
+    #                 self.start_process(self._lockin_spectrum)
+    #             else:
+    #                 self.scanner_mode = "mean"
+    #                 self.start_process(self._mean_spectrum)
+    #
+    #     if self.scanner_mode is "lockin":
+    #         finished, self._progress_fraction, spec, ref, i = self.conn_for_main.recv()
+    #         self._data[i, 0] = i
+    #         self._data[i, 1] = ref
+    #         self._data[i, 2:] = spec
+    #         self._spec = spec
+    #         if finished:
+    #             self.worker.join(0.5)
+    #             self.lockin = self.calc_lockin()
+    #             self._spec = self.lockin
+    #             smooth = self.smooth(self._spec)
+    #             maxind = np.argmax(smooth)
+    #             self.map.append(smooth[maxind])
+    #             self.peakpos.append(self._wl[maxind])
+    #             self.x.append(self.scanner_point[0])
+    #             self.y.append(self.scanner_point[1])
+    #             self.save_spectrum(self.lockin, self.scanner_path + str(self.scanner_index).zfill(5) + ".csv",
+    #                                self.scanner_point)
+    #             self.scanner_index += 1
+    #             self.progress.next()
+    #             if self.scanner_index >= len(self.scanner_points):
+    #                 finish()
+    #             else:
+    #                 start()
+    #
+    #     if self.scanner_mode is "mean":
+    #         finished, self._progress_fraction, spec = self.conn_for_main.recv()
+    #         self._spec = spec
+    #         if finished:
+    #             self.worker.join(0.5)
+    #             self.normal = spec
+    #             self._spec = spec
+    #             smooth = self.smooth(self._spec)
+    #             maxind = np.argmax(smooth)
+    #             self.map.append(smooth[maxind])
+    #             self.peakpos.append(self._wl[maxind])
+    #
+    #             if self.scanner_search:
+    #                 pos = self.stage.last_pos()
+    #                 self.x.append(pos[0])
+    #                 self.y.append(pos[1])
+    #             else:
+    #                 self.x.append(self.scanner_point[0])
+    #                 self.y.append(self.scanner_point[1])
+    #             self.save_spectrum(self.normal, self.scanner_path + str(self.scanner_index).zfill(5) + ".csv",
+    #                                self.scanner_point)
+    #             self.scanner_index += 1
+    #             self.progress.next()
+    #             if self.scanner_index >= len(self.scanner_points):
+    #                 finish()
+    #             else:
+    #                 start()
+    #
+    #     if not self.running.is_set():
+    #         self.worker.join(0.5)
+    #         self.enable_buttons()
+    #         self.worker_mode = None
+    #         self.scanner_mode = None
+    #
+    #     self.status.showMessage("ETA: " + str(self.progress.eta_td))
+    #     self.progressbar.setValue(self.scanner_index / (len(self.scanner_points)) * 100)
+    #
+    #     return True
 
     def _lockin_spectrum(self, connection):
         f = self.settings.f
@@ -415,10 +415,14 @@ class Spectrum(QObject):
         if not self.lockin is None:
             self.save_spectrum(self.lockin, self.save_path+'lockin.csv', None, True)
 
-    @pyqtSlot(np.ndarray, str, np.ndarray, bool)
-    def save_spectrum(self, spec, filename, pos, lockin):
+    @pyqtSlot(np.ndarray, str, np.ndarray, bool, bool)
+    def save_spectrum(self, spec, filename, pos, lockin, fullPath):
         data = np.append(np.round(self._wl, 1).reshape(self._wl.shape[0], 1), spec.reshape(spec.shape[0], 1), 1)
-        f = open(filename, 'w')
+        if fullPath:
+            f = open(filename, 'w')
+        else:
+            f = open(self.save_path + filename, 'w')
+
         f.write(str(datetime.now().day).zfill(2) + "." + str(datetime.now().month).zfill(2) + "." + str(
             datetime.now().year) + eol)
         f.write(str(datetime.now().hour).zfill(2) + ":" + str(datetime.now().minute).zfill(2) + ":" + str(
