@@ -62,7 +62,9 @@ class Spectrum(QObject):
            print(self._spectrometer.tec_get_temperature_C())
            print("Spectrometer " + str(self._spectrometer.serial_number) + " initialized and working")
        except:
-           print("Error opening Spectrometer, using Dummy instead")
+           #print("Error opening Spectrometer, using Dummy instead")
+           print("Error accessing Spectrometer")
+
         # self._spectrometer = oceanoptics.Dummy()
         #self._spectrometer = oceanoptics.ParticleDummy(self.stage)
         #self._spectrometer._set_integration_time(100)
@@ -372,30 +374,30 @@ class Spectrum(QObject):
     #
     #     return True
 
-    def _lockin_spectrum(self, connection):
-        f = self.settings.f
-        self.stage.query_pos()
-        pos = self.stage.last_pos()
-        self._startx = pos[0]
-        self._starty = pos[1]
-        self._startz = pos[2]
-        starttime = datetime.now()
-
-        for i in range(self.settings.number_of_samples):
-            ref = math.cos(2 * math.pi * i * f)
-            self.move_stage(ref / 2)
-            spec = self._spectrometer.intensities(correct_nonlinearity=True)
-            spec = spec[0:1024]
-            progress_fraction = float(i + 1) / self.settings.number_of_samples
-            connection.send([False, progress_fraction, spec, ref, i])
-            if not self.running.is_set():
-                return True
-
-        print("%s spectra aquired" % self.settings.number_of_samples)
-        print("time taken: %s s" % (self._millis(starttime) / 1000))
-        self.stage.moveabs(x=self._startx, y=self._starty, z=self._startz)
-        connection.send([True, 1., spec, ref, self.settings.number_of_samples - 1])
-        return True
+    # def _lockin_spectrum(self, connection):
+    #     f = self.settings.f
+    #     self.stage.query_pos()
+    #     pos = self.stage.last_pos()
+    #     self._startx = pos[0]
+    #     self._starty = pos[1]
+    #     self._startz = pos[2]
+    #     starttime = datetime.now()
+    #
+    #     for i in range(self.settings.number_of_samples):
+    #         ref = math.cos(2 * math.pi * i * f)
+    #         self.move_stage(ref / 2)
+    #         spec = self._spectrometer.intensities(correct_nonlinearity=True)
+    #         spec = spec[0:1024]
+    #         progress_fraction = float(i + 1) / self.settings.number_of_samples
+    #         connection.send([False, progress_fraction, spec, ref, i])
+    #         if not self.running.is_set():
+    #             return True
+    #
+    #     print("%s spectra aquired" % self.settings.number_of_samples)
+    #     print("time taken: %s s" % (self._millis(starttime) / 1000))
+    #     self.stage.moveabs(x=self._startx, y=self._starty, z=self._startz)
+    #     connection.send([True, 1., spec, ref, self.settings.number_of_samples - 1])
+    #     return True
 
     def save_data(self, prefix):
         self.save_path = prefix
