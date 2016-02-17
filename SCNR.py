@@ -441,7 +441,7 @@ class SCNR(QMainWindow):
     def _load_spectrum_from_file(self):
         #save_dir = QFileDialog.getOpenFileName(self, "Load Spectrum from CSV", os.path.expanduser('~'), 'CSV Files (*.csv)')
         #save_dir = QFileDialog.getOpenFileName(self, "Load Spectrum from CSV", '.'+path.sep+'spectra'+path.sep, 'CSV Files (*.csv)')
-        save_dir = QFileDialog.getOpenFileName(self, "Load Spectrum from CSV", './spectra/CSV Files (*.csv)')
+        save_dir = QFileDialog.getOpenFileName(self, "Load Spectrum from CSV", './spectra/', 'CSV Files (*.csv)')
 
         if len(save_dir[0])>1:
             save_dir = save_dir[0]

@@ -407,15 +407,15 @@ class Spectrum(QObject):
         #    data = pandas.DataFrame(self._data, columns=cols)
         #    data.to_csv(prefix + 'spectrum_' + filename, header=True, index=False)
         if not self.dark is None:
-            self.save_spectrum(self.dark, self.save_path+'dark.csv', None, False)
+            self.save_spectrum(self.dark, 'dark.csv', None, False, False)
         if not self.lamp is None:
-            self.save_spectrum(self.lamp, self.save_path+'lamp.csv', None, False)
+            self.save_spectrum(self.lamp, 'lamp.csv', None, False, False)
         if not self.mean is None:
-            self.save_spectrum(self.mean, self.save_path+'normal.csv', None, False)
+            self.save_spectrum(self.mean, 'normal.csv', None, False, False)
         if not self.bg is None:
-            self.save_spectrum(self.bg, self.save_path+'background.csv', None, False)
+            self.save_spectrum(self.bg, 'background.csv', None, False, False)
         if not self.lockin is None:
-            self.save_spectrum(self.lockin, self.save_path+'lockin.csv', None, True)
+            self.save_spectrum(self.lockin, 'lockin.csv', None, True, False)
 
     @pyqtSlot(np.ndarray, str, np.ndarray, bool, bool)
     def save_spectrum(self, spec, filename, pos, lockin, fullPath):
