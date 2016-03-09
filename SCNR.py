@@ -315,7 +315,7 @@ class SCNR(QMainWindow):
         self.spectrum.reset()
 
     @pyqtSlot()
-    def on_lockin_clicked(self):
+    def on_acquirelockin_clicked(self):
         self.ui.status.setText('Acquiring ...')
         self.spectrum.take_lockin()
         self.disable_buttons()

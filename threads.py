@@ -9,9 +9,6 @@ import matplotlib.pyplot as plt
 from PyQt5.QtCore import pyqtSlot, QThread, QMutex, QWaitCondition, pyqtSignal, QObject, QTimer
 import progress
 import pygamepad
-import scipy.fftpack
-from scipy import interpolate
-from scipy import stats
 
 class GamepadThread(QObject):
     ASignal = pyqtSignal()
@@ -232,6 +229,55 @@ class MeanThread(MeasurementThread):
     def work(self):
         self.mean = (self.mean + self.spec)  # / 2
         self.specSignal.emit(self.mean / (self.i + 1))
+        self.progress.next()
+        progressFraction = float(self.i + 1) / self.number_of_samples
+        self.progressSignal.emit(self.progress.percent, str(self.progress.eta_td))
+        self.i += 1
+        if self.i >= self.number_of_samples:
+            self.abort = True
+            self.finishSignal.emit(self.mean / (self.number_of_samples))
+
+class LockinThread(MeasurementThread):
+
+    def __init__(self, spectrometer, settings, stage, parent=None):
+        self.number_of_samples = settings.number_of_samples
+        self.stage = stage
+        self.settings = settings
+        self.init()
+        super(MeanThread, self).__init__(spectrometer)
+
+    def init(self):
+        self.progress = progress.Progress(max=self.number_of_samples)
+        self.lockin = np.zeros((1024,self.number_of_samples), dtype=np.float)
+        self.i = 0
+        self.stage.query_pos()
+        self.startpos = self.stage.last_pos()
+        self.abort = False
+
+    def move_stage(self, dist):
+        x = self.startpos[0] + self.settings.amplitude / 2 * dist * self.settings.direction_x
+        y = self.startpos[1] + self.settings.amplitude / 2 * dist * self.settings.direction_y
+        z = self.startpos[2] + self.settings.amplitude / 2 * dist * self.settings.direction_z
+        # print "X: {0:+8.4f} | Y: {1:8.4f} | Z: {2:8.4f} || X: {3:+8.4f} | Y: {4:8.4f} | Z: {5:8.4f}".format(x,y,z,self._startx,self._starty,self._startz)
+        self.stage.moveabs(x=x, y=y, z=z)
+
+    def calc_lockin(self):
+        res = np.zeros(1024)
+        for i in range(1024):
+            ref = np.cos(2 * np.pi * np.arange(0,self.number_of_samples) * self.settings.f)
+            buf = ref * self.lockin[:, 1]
+            buf = np.sum(buf)
+            res[i] = buf
+        return res
+
+    def work(self):
+
+        ref = np.cos(2 * np.pi * self.i * self.settings.f)
+        self.move_stage(ref / 2)
+        spec = self._spectrometer.intensities(correct_nonlinearity=True)
+        self.lockin[:,self.i] = spec[0:1024]
+
+        self.specSignal.emit(self.lockin[:,self.i])
         self.progress.next()
         progressFraction = float(self.i + 1) / self.number_of_samples
         self.progressSignal.emit(self.progress.percent, str(self.progress.eta_td))

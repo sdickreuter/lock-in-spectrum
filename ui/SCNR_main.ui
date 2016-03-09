@@ -108,7 +108,7 @@
          <enum>QTabWidget::Rounded</enum>
         </property>
         <property name="currentIndex">
-         <number>0</number>
+         <number>1</number>
         </property>
         <property name="usesScrollButtons">
          <bool>true</bool>
@@ -244,7 +244,7 @@
               <item>
                <widget class="QPushButton" name="Button_aquire">
                 <property name="enabled">
-                 <bool>false</bool>
+                 <bool>true</bool>
                 </property>
                 <property name="text">
                  <string>Aquire Spectrum</string>
@@ -475,6 +475,9 @@
               </item>
               <item>
                <widget class="QCheckBox" name="checkBox_lockin">
+                <property name="enabled">
+                 <bool>false</bool>
+                </property>
                 <property name="text">
                  <string>with Lock-In</string>
                 </property>
@@ -1423,6 +1426,22 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>Button_aquire</sender>
+   <signal>clicked()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>on_aquirelockin_clicked()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>713</x>
+     <y>154</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>984</x>
+     <y>56</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>on_live_clicked()</slot>
@@ -1458,5 +1477,6 @@
   <slot>on_start_scan_clicked()</slot>
   <slot>on_loadbg_clicked()</slot>
   <slot>on_saveas_clicked()</slot>
+  <slot>on_aquirelockin_clicked()</slot>
  </slots>
 </ui>

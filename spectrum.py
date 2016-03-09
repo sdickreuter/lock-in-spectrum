@@ -97,21 +97,6 @@ class Spectrum(QObject):
                     return self._spec - self.dark
         return self._spec
 
-    def move_stage(self, dist):
-        x = self._startx + self.settings.amplitude / 2 * dist * self.settings.direction_x
-        y = self._starty + self.settings.amplitude / 2 * dist * self.settings.direction_y
-        z = self._startz + self.settings.amplitude / 2 * dist * self.settings.direction_z
-        # print "X: {0:+8.4f} | Y: {1:8.4f} | Z: {2:8.4f} || X: {3:+8.4f} | Y: {4:8.4f} | Z: {5:8.4f}".format(x,y,z,self._startx,self._starty,self._startz)
-        self.stage.moveabs(x=x, y=y, z=z)
-
-    def calc_lockin(self):
-        res = np.empty(1024)
-        for i in range(1024):
-            buf = self._data[:, i + 2]
-            buf = buf * self._data[:, 1]
-            buf = np.sum(buf)
-            res[i] = buf
-        return res
 
     def stop_process(self):
         self.workingthread.stop()
@@ -123,6 +108,14 @@ class Spectrum(QObject):
         self.workingthread = MeasurementThread(self._spectrometer)
         self.workingthread.specSignal.connect(self.specCallback)
         self.workingthread.start()
+
+    @pyqtSlot(np.ndarray)
+    def finishedLockinCallback(self, spec):
+        self.lockin = spec
+        self.enable_buttons()
+        self.status.setText('Lockin Spectrum acquired')
+        self.workingthread = None
+
 
     @pyqtSlot(np.ndarray)
     def finishedDarkCallback(self, spec):
@@ -178,11 +171,11 @@ class Spectrum(QObject):
         self.workingthread.start()
 
     def take_lockin(self):
-        self.worker_mode = "lockin"
-        # self.reset()
-        self.lockin = None
-        self._data = np.ones((self.settings.number_of_samples, 1026), dtype=np.float)
-        self.start_process(self._lockin_spectrum)
+        self.workingthread = LockinThread(self._spectrometer, self.settings, self.stage)
+        self.workingthread.specSignal.connect(self.specCallback)
+        self.workingthread.progressSignal.connect(self.progressCallback)
+        self.workingthread.finishSignal.connect(self.finishedLockinCallback)
+        self.workingthread.start()
 
     def search_max(self):
         self.workingthread = SearchThread(self._spectrometer, self.settings, self.stage)
@@ -259,145 +252,6 @@ class Spectrum(QObject):
         self.series_count = 0
         self.start_process(self._live_spectrum)
 
-    # def _callback_scan(self):
-    #
-    #     def start():
-    #         self.scanner_point = self.scanner_points[self.scanner_index]
-    #         self.stage.moveabs(x=self.scanner_point[0], y=self.scanner_point[1])
-    #         # self.reset()
-    #         if self.scanner_search:
-    #             self.scanner_mode = "search"
-    #             self.start_process(self._search_max_int)
-    #         elif self.scanner_lockin:
-    #             self.scanner_mode = "lockin"
-    #             self.start_process(self._lockin_spectrum)
-    #         else:
-    #             self.scanner_mode = "mean"
-    #             self.start_process(self._mean_spectrum)
-    #
-    #     def finish():
-    #         self.running.clear()
-    #         map = np.ones((len(self.x), 4), dtype=np.float)
-    #         map[:, 0] = self.x
-    #         map[:, 1] = self.y
-    #         map[:, 2] = self.map
-    #         map[:, 3] = self.peakpos
-    #         map = pandas.DataFrame(map, columns=('x', 'y', 'int', 'peak'))
-    #         filename = self.scanner_path + 'map.csv'
-    #         map.to_csv(filename, header=True, index=False)
-    #         if not self.dark is None:
-    #             self.save_spectrum(self.dark, self.scanner_path + "dark.csv")
-    #         if not self.lamp is None:
-    #             self.save_spectrum(self.lamp, self.scanner_path + "lamp.csv")
-    #         if not self.bg is None:
-    #             self.save_spectrum(self.bg, self.scanner_path + "background.csv")
-    #         self.status.set_text("Scan complete")
-    #         self.scanner_index += 1
-    #
-    #     if self.scanner_mode is "start":
-    #         start()
-    #
-    #     if self.scanner_mode is "search":
-    #         finished, self._progress_fraction, spec = self.conn_for_main.recv()
-    #         if spec is not None:
-    #             self._spec = spec
-    #         if finished:
-    #             self.worker.join(0.5)
-    #             if self.scanner_lockin:
-    #                 self.scanner_mode = "lockin"
-    #                 self.start_process(self._lockin_spectrum)
-    #             else:
-    #                 self.scanner_mode = "mean"
-    #                 self.start_process(self._mean_spectrum)
-    #
-    #     if self.scanner_mode is "lockin":
-    #         finished, self._progress_fraction, spec, ref, i = self.conn_for_main.recv()
-    #         self._data[i, 0] = i
-    #         self._data[i, 1] = ref
-    #         self._data[i, 2:] = spec
-    #         self._spec = spec
-    #         if finished:
-    #             self.worker.join(0.5)
-    #             self.lockin = self.calc_lockin()
-    #             self._spec = self.lockin
-    #             smooth = self.smooth(self._spec)
-    #             maxind = np.argmax(smooth)
-    #             self.map.append(smooth[maxind])
-    #             self.peakpos.append(self._wl[maxind])
-    #             self.x.append(self.scanner_point[0])
-    #             self.y.append(self.scanner_point[1])
-    #             self.save_spectrum(self.lockin, self.scanner_path + str(self.scanner_index).zfill(5) + ".csv",
-    #                                self.scanner_point)
-    #             self.scanner_index += 1
-    #             self.progress.next()
-    #             if self.scanner_index >= len(self.scanner_points):
-    #                 finish()
-    #             else:
-    #                 start()
-    #
-    #     if self.scanner_mode is "mean":
-    #         finished, self._progress_fraction, spec = self.conn_for_main.recv()
-    #         self._spec = spec
-    #         if finished:
-    #             self.worker.join(0.5)
-    #             self.normal = spec
-    #             self._spec = spec
-    #             smooth = self.smooth(self._spec)
-    #             maxind = np.argmax(smooth)
-    #             self.map.append(smooth[maxind])
-    #             self.peakpos.append(self._wl[maxind])
-    #
-    #             if self.scanner_search:
-    #                 pos = self.stage.last_pos()
-    #                 self.x.append(pos[0])
-    #                 self.y.append(pos[1])
-    #             else:
-    #                 self.x.append(self.scanner_point[0])
-    #                 self.y.append(self.scanner_point[1])
-    #             self.save_spectrum(self.normal, self.scanner_path + str(self.scanner_index).zfill(5) + ".csv",
-    #                                self.scanner_point)
-    #             self.scanner_index += 1
-    #             self.progress.next()
-    #             if self.scanner_index >= len(self.scanner_points):
-    #                 finish()
-    #             else:
-    #                 start()
-    #
-    #     if not self.running.is_set():
-    #         self.worker.join(0.5)
-    #         self.enable_buttons()
-    #         self.worker_mode = None
-    #         self.scanner_mode = None
-    #
-    #     self.status.showMessage("ETA: " + str(self.progress.eta_td))
-    #     self.progressbar.setValue(self.scanner_index / (len(self.scanner_points)) * 100)
-    #
-    #     return True
-
-    # def _lockin_spectrum(self, connection):
-    #     f = self.settings.f
-    #     self.stage.query_pos()
-    #     pos = self.stage.last_pos()
-    #     self._startx = pos[0]
-    #     self._starty = pos[1]
-    #     self._startz = pos[2]
-    #     starttime = datetime.now()
-    #
-    #     for i in range(self.settings.number_of_samples):
-    #         ref = math.cos(2 * math.pi * i * f)
-    #         self.move_stage(ref / 2)
-    #         spec = self._spectrometer.intensities(correct_nonlinearity=True)
-    #         spec = spec[0:1024]
-    #         progress_fraction = float(i + 1) / self.settings.number_of_samples
-    #         connection.send([False, progress_fraction, spec, ref, i])
-    #         if not self.running.is_set():
-    #             return True
-    #
-    #     print("%s spectra aquired" % self.settings.number_of_samples)
-    #     print("time taken: %s s" % (self._millis(starttime) / 1000))
-    #     self.stage.moveabs(x=self._startx, y=self._starty, z=self._startz)
-    #     connection.send([True, 1., spec, ref, self.settings.number_of_samples - 1])
-    #     return True
 
     def save_data(self, prefix):
         self.save_path = prefix
