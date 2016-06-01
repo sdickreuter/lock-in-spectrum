@@ -95,6 +95,9 @@ class Spectrum(QObject):
                     if not self.lamp is None:
                         return (self._spec - self.dark) / (self.lamp - self.dark)
                     return self._spec - self.dark
+            else:
+                if not self.bg is None:
+                    return self._spec -self.bg
         return self._spec
 
 

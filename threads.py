@@ -495,6 +495,39 @@ class ScanSearchThread(ScanThread):
         self.specSignal.emit(spec)
 
 
+class ScanLockinThread(ScanThread):
+    saveSignal = pyqtSignal(np.ndarray, str, np.ndarray, bool, bool)
+
+    def __init__(self, spectrometer, settings, scanning_points, stage, parent=None):
+        super(ScanMeanThread, self).__init__(spectrometer, settings, scanning_points, stage)
+        #__init__(self, spectrometer, settings, stage, parent=None)
+        self.meanthread = LockinThread(spectrometer,settings,stage,self)
+        self.meanthread.finishSignal.connect(self.lockinfinished)
+        self.meanthread.specSignal.connect(self.specslot)
+
+    def stop(self):
+        self.meanthread.stop()
+        super(ScanMeanThread, self).stop()
+
+    def __del__(self):
+        self.meanthread.finishSignal.disconnect(self.lockinfinished)
+        self.meanthread.specSignal.disconnect(self.specslot)
+        self.saveSignal.disconnect()
+        super(ScanMeanThread, self).__del__()
+
+    def intermediatework(self):
+        self.meanthread.init()
+        self.meanthread.process()
+
+    @pyqtSlot(np.ndarray)
+    def specslot(self, spec):
+        self.specSignal.emit(spec)
+
+    @pyqtSlot(np.ndarray)
+    def lockinfinished(self, spec):
+        self.saveSignal.emit(self.lockin, str(self.i).zfill(5) + "_lockin.csv", self.positions[self.i,:], False,False)
+
+
 class ScanMeanThread(ScanThread):
     saveSignal = pyqtSignal(np.ndarray, str, np.ndarray, bool, bool)
 
@@ -525,6 +558,7 @@ class ScanMeanThread(ScanThread):
     @pyqtSlot(np.ndarray)
     def meanfinished(self, spec):
         self.saveSignal.emit(spec, str(self.i).zfill(5) + ".csv", self.positions[self.i,:], False,False)
+
 
 class ScanSearchMeanThread(ScanMeanThread):
     def __init__(self, spectrometer, settings, scanning_points, stage, parent=None):
