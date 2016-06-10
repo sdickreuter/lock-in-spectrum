@@ -6,7 +6,7 @@ import random
 import os
 import matplotlib
 matplotlib.use("Qt5Agg")
-import pandas
+#import pandas
 import PIStage
 from spectrum import Spectrum
 from settings import Settings
@@ -435,6 +435,14 @@ class SCNR(QMainWindow):
         buf = self._load_spectrum_from_file()
         if not buf is None:
             self.spectrum.bg = buf
+
+    @pyqtSlot()
+    def on_lockin_clicked(self):
+        pass
+
+    @pyqtSlot()
+    def on_aquirelockin_clicked(self):
+        pass
 
     # ##---------------- END button connect functions ----------
 
