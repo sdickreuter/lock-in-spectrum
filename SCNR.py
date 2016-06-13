@@ -150,6 +150,11 @@ class SCNR(QMainWindow):
         self.padthread.XSignal.connect(self.on_addpos_clicked)
         self.padthread.YSignal.connect(self.on_stepup_clicked)
         self.padthread.ASignal.connect(self.on_stepdown_clicked)
+        self.padthread.xaxisSignal.connect(self.on_xaxis)
+        self.padthread.yaxisSignal.connect(self.on_yaxis)
+        self.ax = 0.0
+        self.ay = 0.0
+
         self.padthread.start()
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.check_pad_analog)
@@ -185,19 +190,26 @@ class SCNR(QMainWindow):
     def update_settings(self):
         self.spectrum._spectrometer.integration_time_micros(self.settings.integration_time*1000)
 
+    @pyqtSlot(float)
+    def on_xaxis(self, x):
+        self.ax = x
+
+    @pyqtSlot(float)
+    def on_yaxis(self, y):
+        self.ay = y
+
     @pyqtSlot()
     def check_pad_analog(self):
-        ax, ay = self.padthread.check_Analog()
         if self.pad_active:
-            x_step = float((ax - 128))
-            if abs(x_step) > 8:
-                x_step = x_step / 128 * self.settings.stepsize
+            x_step = self.ax
+            if abs(x_step) > 0.001:
+                x_step = x_step * self.settings.stepsize
             else:
                 x_step = 0.0
 
-            y_step = float((ay - 128))
-            if abs(y_step) > 8:
-                y_step = y_step / 128 * self.settings.stepsize
+            y_step = self.ay
+            if abs(y_step) > 0.001:
+                y_step = y_step * self.settings.stepsize
             else:
                 y_step = 0.0
 
