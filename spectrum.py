@@ -104,7 +104,7 @@ class Spectrum(QObject):
 
     def stop_process(self):
         self.workingthread.stop()
-        time.sleep(0.5)
+        #time.sleep(0.5)
         self.workingthread = None
         # self.enable_buttons()
 
@@ -302,6 +302,11 @@ class Spectrum(QObject):
             f.write(str(pos[0]) + eol)
             f.write("y" + eol)
             f.write(str(pos[1]) + eol)
+        else:
+            f.write(eol)
+            f.write(eol)
+            f.write(eol)
+            f.write(eol)
 
         f.write(eol)
         f.write("wavelength,counts" + eol)

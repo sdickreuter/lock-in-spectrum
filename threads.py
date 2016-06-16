@@ -350,6 +350,7 @@ class MeasurementThread(QObject):
             print(traceback)
             sys.excepthook(type, value, traceback)
         self.abort = True
+        self.thread.wait(5000)
 
     def work(self):
         self.specSignal.emit(self.spec)
