@@ -106,7 +106,6 @@ class SCNR(QMainWindow):
         #self.axes.autoscale(False)
         #self.axes.set_xlim([self.settings.min_wl, self.settings.max_wl])
 
-
         self.Canvas = FigureCanvas(self.fig)
         self.Canvas.setParent(self.ui.plotwidget)
 
@@ -202,13 +201,13 @@ class SCNR(QMainWindow):
     def check_pad_analog(self):
         if self.pad_active:
             x_step = self.ax
-            if abs(x_step) > 0.001:
+            if abs(x_step) > 0.0001:
                 x_step = x_step * self.settings.stepsize
             else:
                 x_step = 0.0
 
-            y_step = self.ay
-            if abs(y_step) > 0.001:
+            y_step = -1*self.ay
+            if abs(y_step) > 0.0001:
                 y_step = y_step * self.settings.stepsize
             else:
                 y_step = 0.0
@@ -549,7 +548,14 @@ class SCNR(QMainWindow):
 if __name__ == '__main__':
     import sys
 
-    app = QApplication(sys.argv)
-    main = SCNR()
-    main.show()
+    try:
+        app = QApplication(sys.argv)
+        main = SCNR()
+        main.show()
+    except:
+        (type, value, traceback) = sys.exc_info()
+        print(type)
+        print(value)
+        print(traceback)
+        sys.excepthook(type, value, traceback)
     sys.exit(app.exec_())

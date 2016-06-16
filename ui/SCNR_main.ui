@@ -108,7 +108,7 @@
          <enum>QTabWidget::Rounded</enum>
         </property>
         <property name="currentIndex">
-         <number>1</number>
+         <number>0</number>
         </property>
         <property name="usesScrollButtons">
          <bool>true</bool>
@@ -174,7 +174,7 @@
                <x>0</x>
                <y>0</y>
                <width>256</width>
-               <height>509</height>
+               <height>515</height>
               </rect>
              </property>
              <layout class="QVBoxLayout" name="verticalLayout">
@@ -421,7 +421,7 @@
                <x>0</x>
                <y>0</y>
                <width>256</width>
-               <height>508</height>
+               <height>515</height>
               </rect>
              </property>
              <layout class="QVBoxLayout" name="verticalLayout_5">

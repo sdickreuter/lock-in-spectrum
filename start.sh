@@ -1,4 +1,4 @@
 #! /usr/bin/sh
 
-cd /home/dunkelfeld/PyCharmProjects/lock-in-spectrum
-mate-terminal -e "python main.py"
+cd /home/iap/PycharmProjects/lock-in-spectrum/
+gnome-terminal -e "python SCNR.py"

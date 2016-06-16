@@ -130,7 +130,7 @@ class GamepadThread(QObject):
         buf = bytes(buf)
         js_name = buf.decode()
         js_name = js_name.strip(b'\x00'.decode())
-        print('Device name: %s initialized' % js_name)
+        print('%s initialized' % js_name)
 
         # Get number of axes and buttons.
         buf = array.array('B', [0])
@@ -215,8 +215,10 @@ class GamepadThread(QObject):
             self.YSignal.disconnect()
             self.xaxisSignal.disconnect()
             self.yaxisSignal.disconnect()
-        except TypeError:
-            pass
+        except TypeError as e:
+            print(e)
+            (type, value, traceback) = sys.exc_info()
+            sys.excepthook(type, value, traceback)
         self.abort = True
 
 
@@ -323,6 +325,9 @@ class MeasurementThread(QObject):
             self.thread.finished.connect(self.stop)
         except:
             (type, value, traceback) = sys.exc_info()
+            print(type)
+            print(value)
+            print(traceback)
             sys.excepthook(type, value, traceback)
 
     def start(self):
@@ -338,8 +343,12 @@ class MeasurementThread(QObject):
             self.specSignal.disconnect()
             self.progressSignal.disconnect()
             self.finishSignal.disconnect()
-        except TypeError:
-            pass
+        except:
+            (type, value, traceback) = sys.exc_info()
+            print(type)
+            print(value)
+            print(traceback)
+            sys.excepthook(type, value, traceback)
         self.abort = True
 
     def work(self):
@@ -354,6 +363,9 @@ class MeasurementThread(QObject):
                 self.work()
             except:
                 (type, value, traceback) = sys.exc_info()
+                print(type)
+                print(value)
+                print(traceback)
                 sys.excepthook(type, value, traceback)
 
 
