@@ -336,6 +336,9 @@ class MeasurementThread(QObject):
     @pyqtSlot()
     def stop(self):
         self.abort = True
+        self.thread.quit()
+        self.thread.wait(5000)
+
 
     def __del__(self):
         self.__class__.has_instance = False
@@ -349,8 +352,6 @@ class MeasurementThread(QObject):
             print(value)
             print(traceback)
             sys.excepthook(type, value, traceback)
-        self.abort = True
-        self.thread.wait(5000)
 
     def work(self):
         self.specSignal.emit(self.spec)
