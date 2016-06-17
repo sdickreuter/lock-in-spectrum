@@ -325,9 +325,6 @@ class MeasurementThread(QObject):
             self.thread.finished.connect(self.stop)
         except:
             (type, value, traceback) = sys.exc_info()
-            print(type)
-            print(value)
-            print(traceback)
             sys.excepthook(type, value, traceback)
 
     def start(self):
@@ -342,16 +339,13 @@ class MeasurementThread(QObject):
 
     def __del__(self):
         self.__class__.has_instance = False
-        try:
-            self.specSignal.disconnect()
-            self.progressSignal.disconnect()
-            self.finishSignal.disconnect()
-        except:
-            (type, value, traceback) = sys.exc_info()
-            print(type)
-            print(value)
-            print(traceback)
-            sys.excepthook(type, value, traceback)
+        #try:
+        #    self.specSignal.disconnect()
+        #    self.progressSignal.disconnect()
+        #    self.finishSignal.disconnect()
+        #except:
+        #    (type, value, traceback) = sys.exc_info()
+        #    sys.excepthook(type, value, traceback)
 
     def work(self):
         self.specSignal.emit(self.spec)
